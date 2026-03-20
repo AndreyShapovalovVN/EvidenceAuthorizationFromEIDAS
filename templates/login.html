@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Authorization</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #0b1220;
+            --panel: #111a2b;
+            --card: #162238;
+            --text: #e7edf8;
+            --muted: #9bb0cf;
+            --line: #263652;
+            --primary: #2f6bff;
+            --primary-2: #1d4ed8;
+            --success: #1ba44a;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+            background: radial-gradient(1000px 500px at 15% -10%, #1d3b70 0, transparent 60%), var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .wrapper {
+            width: min(1000px, 100%);
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+        }
+
+        .notice {
+            background: #152742;
+            border: 1px solid #24446e;
+            color: #bcd3ff;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 22px;
+            font-size: 14px;
+        }
+
+        .layout {
+            display: grid;
+            gap: 22px;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .title {
+            margin: 0 0 16px;
+            font-size: 24px;
+        }
+
+        .field {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            color: #cfe1ff;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input, select, button {
+            width: 100%;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: #0d1729;
+            color: var(--text);
+            padding: 12px 14px;
+            font-size: 16px;
+        }
+
+        input:focus, select:focus, button:focus {
+            outline: 2px solid #315ca9;
+            outline-offset: 1px;
+        }
+
+        .continue {
+            margin-top: 10px;
+            background: var(--success);
+            border-color: #13833a;
+            color: #e6ffef;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .eidas-card {
+            margin-top: 42px;
+            border-radius: 14px;
+            border: 1px solid #2b56b2;
+            background: linear-gradient(170deg, var(--primary), var(--primary-2));
+            padding: 26px;
+        }
+
+        .eidas-title {
+            margin: 0;
+            text-align: center;
+            font-size: 34px;
+            font-weight: 700;
+        }
+
+        .eidas-subtitle {
+            margin: 12px 0 22px;
+            text-align: center;
+            color: #dce7ff;
+            line-height: 1.4;
+        }
+
+        .eidas-btn {
+            background: #f8fafc;
+            color: #0f2a71;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .status {
+            margin-top: 14px;
+            min-height: 22px;
+            font-size: 14px;
+        }
+
+        .status.ok {
+            color: #67e8a5;
+        }
+
+        .status.err {
+            color: var(--danger);
+        }
+
+        @media (max-width: 880px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .eidas-card {
+                margin-top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div class="notice">
+        <strong>Your data is protected.</strong> Demo-screen in dark mode: eIDAS button fills test data,
+        Continue sends it to backend for Person + Redis save.
+    </div>
+
+    <div class="layout">
+        <section>
+            <h1 class="title">Manual Entry</h1>
+            <form id="auth-form">
+                <div class="field">
+                    <label for="first_name">First Name</label>
+                    <input id="first_name" name="first_name" placeholder="Enter your first name" required>
+                </div>
+
+                <div class="field">
+                    <label for="last_name">Last Name</label>
+                    <input id="last_name" name="last_name" placeholder="Enter your last name" required>
+                </div>
+
+                <div class="field">
+                    <label for="date_of_birth">Date of Birth</label>
+                    <input id="date_of_birth" name="date_of_birth" placeholder="ДД.ММ.РРРР або YYYY-MM-DD" required>
+                </div>
+
+                <div class="field">
+                    <label for="identifier">Identifier</label>
+                    <input id="identifier" name="identifier" placeholder="UA/UA/1234567890 або 1234567890" required>
+                </div>
+
+                <div class="field">
+                    <label for="level_of_assurance">Level of Assurance</label>
+                    <select id="level_of_assurance" name="level_of_assurance">
+                        <option value="Low">Low</option>
+                        <option value="Substantial">Substantial</option>
+                        <option value="High" selected>High</option>
+                    </select>
+                </div>
+
+                <button class="continue" type="submit">Continue Securely</button>
+            </form>
+            <div id="status" class="status"></div>
+        </section>
+
+        <section>
+            <h2 class="title">Quick Authentication</h2>
+            <div class="eidas-card">
+                <p class="eidas-title">eIDAS</p>
+                <p class="eidas-subtitle">Use national eID to authenticate securely across the EU.</p>
+                <button id="fill-eidas" class="eidas-btn" type="button">Log in via eIDAS</button>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById("auth-form");
+    const fillBtn = document.getElementById("fill-eidas");
+    const statusEl = document.getElementById("status");
+    const messageId = "{{ message_id | default('', true) }}";
+    const continueUrl = {{ continue_url | default(None) | tojson }};
+
+    function setStatus(text, ok) {
+        statusEl.textContent = text;
+        statusEl.className = "status " + (ok ? "ok" : "err");
+    }
+
+    if (fillBtn) {
+        fillBtn.addEventListener("click", () => {
+            document.getElementById("first_name").value = "Пилип";
+            document.getElementById("last_name").value = "Ляхович";
+            document.getElementById("date_of_birth").value = "1994-01-21";
+            document.getElementById("identifier").value = "UA/UA/1059233691";
+            document.getElementById("level_of_assurance").value = "High";
+            setStatus("Тестові eIDAS дані заповнено.", true);
+        });
+    }
+
+    if (form) {
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const payload = {
+                first_name: document.getElementById("first_name").value,
+                last_name: document.getElementById("last_name").value,
+                date_of_birth: document.getElementById("date_of_birth").value,
+                identifier: document.getElementById("identifier").value,
+                message_id: messageId,
+                level_of_assurance: document.getElementById("level_of_assurance").value,
+            };
+
+            try {
+                const response = await fetch("/auth/continue", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify(payload),
+                });
+
+                const body = await response.json();
+                if (!response.ok) {
+                    setStatus(body.detail || "Помилка збереження", false);
+                    return;
+                }
+
+                setStatus(`Збережено в Redis ключ: ${body.redis_key}`, true);
+
+                if (continueUrl) {
+                    window.location.href = continueUrl;
+                }
+            } catch (error) {
+                setStatus("Сервер недоступний. Перевірте backend або Redis.", false);
+            }
+        });
+    }
+</script>
+</body>
+</html>
+

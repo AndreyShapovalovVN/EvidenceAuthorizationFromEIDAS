@@ -1,0 +1,118 @@
+name: Docker Build and Push
+
+on:
+  push:
+    branches: [ "main" ]
+#    tags: [ 'v*.*.*' ]
+  release:
+    types: [ published ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Дозвіл на запис у GitHub Packages
+
+    steps:
+      # 1. Завантаження коду репозиторію
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Налаштування Docker Buildx (необхідна для кешування через GHA)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3. Логін у GitHub Container Registry
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 4. Генерація метаданих (тегів та лейблів) для Docker
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Для гілки main
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }},event=push
+            # Для тегів версій (v1.0.0)
+            type=ref,event=tag
+            # Latest тільки для release
+            type=raw,value=latest,event=release
+
+      # 5. Встановлення дати для BUILD_DATE
+      - name: Get current date
+        id: date
+        run: echo "format_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_OUTPUT
+
+      # 6. Збірка та пуш образу
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # Пушимо образ для 'push' та для 'release', але не для 'pull_request'
+          push: ${{ github.event_name == 'push' || github.event_name == 'release' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          build-args: |
+            BUILD_DATE=${{ steps.date.outputs.format_date }}
+#
+#      # 5. Тестування зібраного образу
+#      - name: Запуск тестів за допомогою Docker Compose
+#        env:
+#          TEST_IMAGE_TAG: ${{ steps.meta.outputs.version }}
+#        run: |
+#          # 1. Запускаємо сервіси
+#          docker compose -f docker-compose.test.yml up -d
+#
+#          echo "Очікуємо 10 секунд для стабілізації застосунку..."
+#          sleep 10
+#
+#          # 2. Виводимо логи (допоможе зрозуміти причину у разі падіння)
+#          docker compose -f docker-compose.test.yml logs app
+#
+#          # 3. ПЕРЕВІРКА: якщо контейнер НЕ у статусі 'running', завершуємо з помилкою
+#          # Перевіряємо сервіс 'app', який не запущений
+#          FAILED=$(docker compose -f docker-compose.test.yml ps app --status exited --format json)
+#
+#          if [ "$FAILED" != "" ] && [ "$FAILED" != "[]" ]; then
+#            echo "❌ ПОМИЛКА: контейнер 'app' аварійно завершився!"
+#            exit 1
+#          fi
+#
+#          # Додаткова перевірка на наявність Traceback у логах
+#          if docker compose -f docker-compose.test.yml logs app | grep -q "Traceback"; then
+#            echo "❌ ПОМИЛКА: у логах знайдено Traceback!"
+#            exit 1
+#          fi
+#
+#          echo "✅ Успіх: застосунок стабільно працює."
+#
+#      # Завантажуємо зібраний образ якщо він запустився
+#      - name: Push Docker image
+#        if: github.event_name != 'pull_request'
+#        run: |
+#          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+#          docker push $IMAGE_TAG
+#
+#        # Видалення старих неотегованих версій образу
+#      - name: Delete old untagged versions
+#        id: delete-old-versions
+#        uses: actions/delete-package-versions@v5
+#        with:
+#          package-type: 'container'
+#          package-name: ${{ github.event.repository.name }}
+#          delete-only-untagged-versions: 'true'
+#          min-versions-to-keep: 0
