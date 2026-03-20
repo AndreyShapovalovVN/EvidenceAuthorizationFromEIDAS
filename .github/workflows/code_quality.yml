@@ -30,7 +30,7 @@ jobs:
 
       # Проверка типов (опционально, но крайне рекомендуется)
       - name: Type check with mypy
-        run: mypy . --ignore-missing-imports --pretty --show-error-codes --exclude 'tests/~.*\.py$'
+        run: mypy --config-file mypy.ini
 
       # Запуск тестів
       - name: Run tests with pytest

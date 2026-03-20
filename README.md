@@ -1,49 +1,32 @@
-# Authorization Service (dark eIDAS demo)
+# Authorization Service
 
-Сервис отображает защищенную страницу авторизации и сохраняет профиль пользователя в Redis.
+Сервіс відображає захищену сторінку авторизації, перевіряє службові дані в Redis і зберігає профіль користувача у форматі `Person`.
 
-- Кнопка `Log in via eIDAS` подставляет тестовые данные в форму.
-- Кнопка `Continue Securely` отправляет данные в `POST /auth/continue`.
-- Backend собирает объект `Person` и сохраняет `person.dict` в Redis по ключу `oots:request:person:{message_id}`.
+## Основні можливості
 
-## Что делает сервис
+- темна сторінка авторизації з шаблону `templates/login.html`;
+- кнопка `Log in via eIDAS`, яка заповнює демо-дані у форму;
+- перевірка Redis перед рендерингом сторінки;
+- збереження `Person` у Redis за ключем `oots:request:person:{message_id}`;
+- постановка `message_id` у Redis-чергу на подальшу обробку.
 
-- Проверяет состояние Redis через `GET /health`.
-- При открытии `GET /{message_id}`:
-  - читает `oots:message:response:evidence:{message_id}`;
-  - если `exception.code == EDM:ERR:0002` возвращает `422`;
-  - ожидает флаг `oots:message:request:preview:{message_id}`;
-  - если флаг не появился за таймаут, возвращает `408`.
-- При `POST /auth/continue` валидирует payload и сохраняет Person в Redis.
+## Структура сервісу
 
-## Быстрый запуск локально
+- `main.py` — FastAPI-застосунок, HTTP-маршрути, lifecycle і security headers;
+- `lib/MessageChecker.py` — перевірка evidence-помилки та очікування preview-прапора;
+- `lib/RedirectService.py` — визначення URL, куди йти після авторизації;
+- `lib/PersonRequestService.py` — валідація payload і збереження `Person` у Redis;
+- `lib/UseRedis.py` — асинхронний Redis-клієнт і утиліти доступу до Redis;
+- `templates/login.html` — UI сторінки авторизації;
+- `docs/kubernetes-install.md` — інструкція для DevOps з деплою в Kubernetes.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-Откройте страницу:
-
-- `http://127.0.0.1:8000/<message_id>`
-- пример: `http://127.0.0.1:8000/msg-001`
-
-## Запуск в Docker
-
-```bash
-docker build -t authorization-app:local .
-docker run --rm -p 8000:8000 \
-  -e REDIS_URL=redis://host.docker.internal:6379/0 \
-  authorization-app:local
-```
-
-## API
+## HTTP API
 
 ### `GET /health`
 
-Ответ при успехе:
+Перевіряє доступність сервісу та Redis.
+
+Успішна відповідь:
 
 ```json
 {
@@ -52,15 +35,29 @@ docker run --rm -p 8000:8000 \
 }
 ```
 
-Если Redis недоступен: `503`.
+Якщо Redis недоступний, endpoint повертає `503`.
+
+### `GET /auth/{message_id}`
+
+Основний маршрут для відкриття сторінки авторизації.
+
+Перед рендерингом:
+
+1. читається ключ `oots:message:response:evidence:{message_id}`;
+2. якщо знайдено `exception.code == EDM:ERR:0002`, повертається `422`;
+3. очікується поява прапора `oots:message:request:preview:{message_id}`;
+4. якщо прапор не з'явився за таймаут, повертається `408`;
+5. якщо перевірки пройдено, повертається HTML-сторінка `login.html`.
 
 ### `GET /{message_id}`
 
-Возвращает HTML страницу авторизации (`templates/login.html`) при успешных проверках Redis.
+Сумісний alias для того самого сценарію, що й `GET /auth/{message_id}`.
 
 ### `POST /auth/continue`
 
-Пример запроса:
+Приймає дані форми, збирає об'єкт `Person`, зберігає його в Redis і ставить `message_id` у чергу обробки.
+
+Приклад запиту:
 
 ```json
 {
@@ -73,7 +70,7 @@ docker run --rm -p 8000:8000 \
 }
 ```
 
-Пример успешного ответа:
+Приклад успішної відповіді:
 
 ```json
 {
@@ -84,33 +81,69 @@ docker run --rm -p 8000:8000 \
 }
 ```
 
-## Redis-ключи
+## Redis-ключі
 
-- `oots:message:response:evidence:{message_id}` — входные данные для проверки исключения.
-- `oots:message:request:preview:{message_id}` — флаг готовности preview.
-- `oots:request:person:{message_id}` — сохраненный `person.dict`.
+- `oots:message:response:evidence:{message_id}` — дані перевірки evidence-помилки;
+- `oots:message:request:preview:{message_id}` — прапор готовності preview;
+- `oots:message:request:edm:{message_id}` — EDM-дані з `content`/`content2` та `process_queue`;
+- `oots:request:person:{message_id}` — збережений `person.dict`;
+- `process_queue` з EDM payload — Redis list для постановки `message_id` в обробку.
 
-## Переменные окружения
+## Змінні середовища
 
-Используются env-переменные из `lib/UseRedis.py`:
+- `REDIS_URL` — URL підключення до Redis, за замовчуванням `redis://localhost:6379`;
+- `REDIS_TTL` — TTL для JSON-даних у Redis, за замовчуванням `86400`;
+- `REDIS_PREFIX` — необов'язковий префікс для всіх Redis-ключів.
 
-- `REDIS_URL` (по умолчанию `redis://localhost:6379/0`)
-- `REDIS_TTL` (по умолчанию `86400`)
-- `REDIS_PREFIX` (опционально)
-
-## Kubernetes для DevOps
-
-Пошаговая установка в Kubernetes описана в `docs/kubernetes-install.md`.
-
-## Тести
+## Локальний запуск
 
 ```bash
-pytest -q
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+Після запуску можна відкрити, наприклад:
+
+- `http://127.0.0.1:8000/auth/msg-001`
+- `http://127.0.0.1:8000/msg-001`
+
+## Запуск у Docker
+
+```bash
+docker build -t authorization-app:local .
+docker run --rm -p 8000:8000 \
+  -e REDIS_URL=redis://host.docker.internal:6379/0 \
+  authorization-app:local
+```
+
+> На Linux `host.docker.internal` може бути недоступним без додаткової конфігурації Docker. Якщо Redis працює локально, за потреби вкажіть фактичну IP-адресу хоста або використайте окрему docker network.
+
+## Перевірка якості
+
+Запуск усіх тестів:
+
+```bash
+PYTHONPATH=. pytest -q
 ```
 
 Точковий запуск:
 
 ```bash
-pytest tests/test_main_endpoints.py -q
+PYTHONPATH=. pytest tests/test_main_endpoints.py -q
+PYTHONPATH=. pytest tests/test_redirect_service.py -q
 ```
+
+Перевірка типів:
+
+```bash
+python3 -m mypy --config-file mypy.ini
+```
+
+## Документація для DevOps
+
+Інструкція з деплою в Kubernetes описана в `docs/kubernetes-install.md`.
+
+Короткий технічний огляд сервісу доступний у `docs/service-overview.md`.
 

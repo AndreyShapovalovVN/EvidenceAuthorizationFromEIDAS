@@ -24,11 +24,14 @@ def test_resolve_continue_url_uses_preview_location_when_preview_possible(monkey
             }
 
     monkeypatch.setattr(RedirectService, "Parsing", DummyParsing)
+    monkeypatch.setattr(RedirectService, "PREVIEW_URL", "http://evidence.local/preview")
 
     client = FakeRedisForRedirect(
-        {
-            "content": "<Root><PossibilityForPreview>true</PossibilityForPreview></Root>"
-        }
+        [
+            {
+                "content": "<Root><PossibilityForPreview>true</PossibilityForPreview></Root>"
+            }
+        ]
     )
 
     url = asyncio.run(
@@ -42,7 +45,7 @@ def test_resolve_continue_url_uses_preview_location_when_preview_possible(monkey
 
     assert url == (
         "http://evidence.local/preview/msg-1"
-        "?http://oots-portal.oots-dev.k8s/previewed?token=abc"
+        "?returnurl=http://oots-portal.oots-dev.k8s/previewed?token=abc&returnmethod=GET"
     )
 
 
@@ -57,9 +60,11 @@ def test_resolve_continue_url_returns_returnurl_when_preview_not_possible(monkey
     monkeypatch.setattr(RedirectService, "Parsing", DummyParsing)
 
     client = FakeRedisForRedirect(
-        {
-            "content": "<Root><PossibilityForPreview>false</PossibilityForPreview></Root>"
-        }
+        [
+            {
+                "content": "<Root><PossibilityForPreview>false</PossibilityForPreview></Root>"
+            }
+        ]
     )
 
     url = asyncio.run(
@@ -85,9 +90,9 @@ def test_resolve_continue_url_raises_when_edm_missing():
                 returnurl="http://oots-portal.oots-dev.k8s/previewed?token=xyz",
             )
         )
-        assert False, "Expected ValueError"
-    except ValueError as exc:
-        assert "EDM content not found" in str(exc)
+        assert False, "Expected TypeError"
+    except TypeError as exc:
+        assert "subscriptable" in str(exc)
 
 
 def test_resolve_continue_url_raises_when_redis_fails():

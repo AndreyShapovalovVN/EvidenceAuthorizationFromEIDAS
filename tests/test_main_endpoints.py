@@ -33,13 +33,13 @@ def test_root_returns_422_when_evidence_error(client, monkeypatch):
                 code="EDM:ERR:0002",
                 message="Evidence not found",
                 detail="No evidence",
-                preview_link="https://preview.local",
+                preview_link=None,
             )
         )
 
     monkeypatch.setattr(main, "check_message", fake_check_message)
 
-    response = client.get("/msg-001")
+    response = client.get("/auth/msg-001")
 
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "EDM:ERR:0002"
@@ -51,7 +51,7 @@ def test_root_returns_408_on_preview_timeout(client, monkeypatch):
 
     monkeypatch.setattr(main, "check_message", fake_check_message)
 
-    response = client.get("/msg-002")
+    response = client.get("/auth/msg-002")
 
     assert response.status_code == 408
     assert "Таймаут" in response.json()["detail"]
@@ -67,7 +67,7 @@ def test_root_renders_html_when_checks_pass(client, monkeypatch):
     monkeypatch.setattr(main, "check_message", fake_check_message)
     monkeypatch.setattr(main, "resolve_continue_url", fake_resolve_continue_url)
 
-    response = client.get("/msg-003")
+    response = client.get("/auth/msg-003")
 
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]

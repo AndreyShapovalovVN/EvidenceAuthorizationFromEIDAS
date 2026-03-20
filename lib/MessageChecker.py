@@ -3,7 +3,7 @@
 
 Ключі Redis:
   oots:message:response:evidence:{message_id}  — відповідь сервісу з можливою помилкою
-  oots:message:request:preview:{message_id}    — флаг готовності превью
+  oots:message:request:preview:{message_id}    — прапор готовності preview
 """
 
 import asyncio
@@ -21,7 +21,7 @@ EDM_ERR_CODE = "EDM:ERR:0002"
 EVIDENCE_KEY = "oots:message:response:evidence:{message_id}"
 PREVIEW_FLAG_KEY = "oots:message:request:preview:{message_id}"
 
-DEFAULT_TIMEOUT: float = 30.0   # секунд — максимальний час очікування флагу
+DEFAULT_TIMEOUT: float = 30.0   # секунд — максимальний час очікування прапора
 DEFAULT_INTERVAL: float = 1.5   # секунд між спробами поллінгу
 
 
@@ -41,9 +41,9 @@ class MessageStatus:
     """Підсумковий стан перевірки повідомлення."""
     # Заповнено, якщо знайдено EDM:ERR:0002
     evidence_error: ExceptionInfo | None = None
-    # True — флаг preview з'явився в Redis
+    # True — прапор preview з'явився в Redis
     preview_ready: bool = False
-    # True — таймаут очікування флагу
+    # True — таймаут очікування прапора
     timed_out: bool = False
 
     @property
@@ -98,7 +98,7 @@ async def _wait_for_preview_flag(
     timeout: float = DEFAULT_TIMEOUT,
     interval: float = DEFAULT_INTERVAL,
 ) -> bool:
-    """Очікує появи флагу preview в Redis з поллінгом.
+    """Очікує появи прапора preview в Redis з поллінгом.
 
     Args:
         client:     активний UseRedisAsync
@@ -107,7 +107,7 @@ async def _wait_for_preview_flag(
         interval:   пауза між спробами (секунди)
 
     Returns:
-        True — флаг знайдено, False — таймаут
+        True — прапор знайдено, False — таймаут
     """
     flag_key = PREVIEW_FLAG_KEY.format(message_id=message_id)
     loop = asyncio.get_running_loop()
@@ -140,20 +140,20 @@ async def check_message(
 
     Порядок:
       1. Перевіряємо наявність evidence-помилки EDM:ERR:0002.
-         Якщо знайдено — одразу повертаємо статус з помилкою (без очікування).
-      2. Очікуємо появи флагу preview з поллінгом.
+         Якщо знайдено — одразу повертаємо статус з помилкою без очікування.
+      2. Якщо помилки немає — очікуємо появи прапора preview з поллінгом.
 
     Args:
         client:     активний UseRedisAsync
         message_id: ідентифікатор повідомлення
-        timeout:    максимальний час очікування флагу (секунди)
+        timeout:    максимальний час очікування прапора (секунди)
         interval:   пауза між спробами поллінгу (секунди)
 
     Returns:
         MessageStatus з результатами обох перевірок
     """
     evidence_error = await _get_evidence_exception(client, message_id)
-    if evidence_error is None:
+    if evidence_error is not None:
         return MessageStatus(evidence_error=evidence_error)
 
     preview_ready = await _wait_for_preview_flag(client, message_id, timeout, interval)

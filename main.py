@@ -1,3 +1,5 @@
+"""HTTP entrypoint for the authorization UI service."""
+
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,6 +16,7 @@ from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 
 logging.basicConfig(level=logging.DEBUG)
 _logger = logging.getLogger("Authorization UI")
+APP_TITLE = "Authorization UI"
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -21,6 +24,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    """Initialize shared resources on startup and close them on shutdown."""
     try:
         await initialize_redis()
     except Exception as exc:
@@ -29,11 +33,12 @@ async def lifespan(_: FastAPI):
     await close_redis()
 
 
-app = FastAPI(title="Authorization UI", lifespan=lifespan)
+app = FastAPI(title=APP_TITLE, lifespan=lifespan)
 
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
+    """Add a minimal set of security headers to every response."""
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
@@ -53,8 +58,10 @@ async def health_check():
 
     return {"status": "ok", "redis": "up"}
 
+
 @app.get("/favicon.ico")
 async def favicon():
+    """Return 404 for missing favicon requests."""
     return HTMLResponse(status_code=404)
 
 @app.get("/auth/{message_id}", response_class=HTMLResponse)
@@ -63,11 +70,13 @@ async def root(request: Request, message_id: str):
     status = await check_message(client, message_id)
 
     if status.has_error:
-        err = status.evidence_error
         raise HTTPException(
             status_code=422,
             detail={
-                "code": "",
+                "code": "EDM:ERR:0002",
+                "message": "Evidence not found",
+                "detail": "No evidence",
+                "preview_link": None,
             },
         )
 
@@ -95,6 +104,7 @@ async def root(request: Request, message_id: str):
 
 @app.post("/auth/continue")
 async def continue_auth(payload: ContinuePayload):
+    """Validate and persist person data received from the login form."""
     try:
         redis_key, person_data = await save_person_request(get_redis_client(), payload)
     except ValueError as exc:

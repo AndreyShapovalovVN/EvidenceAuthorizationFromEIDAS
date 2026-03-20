@@ -1,3 +1,5 @@
+"""Helpers for validating and storing Person requests in Redis."""
+
 from datetime import date, datetime
 
 from pydantic import BaseModel
@@ -7,6 +9,8 @@ from lib.UseRedis import UseRedisAsync
 
 
 class ContinuePayload(BaseModel):
+    """Payload received from the login form continuation step."""
+
     first_name: str
     last_name: str
     date_of_birth: str
@@ -16,6 +20,7 @@ class ContinuePayload(BaseModel):
 
 
 def _parse_birth_date(value: str) -> date:
+    """Parse a birth date in ISO or Ukrainian dotted format."""
     value = value.strip()
     for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
         try:
@@ -26,6 +31,7 @@ def _parse_birth_date(value: str) -> date:
 
 
 def _build_eidas_identifier(raw_identifier: str) -> str:
+    """Normalize an identifier to the `country/country/identifier` eIDAS format."""
     raw_identifier = raw_identifier.strip()
     if not raw_identifier:
         raise ValueError("identifier не може бути порожнім")
@@ -37,6 +43,7 @@ def _build_eidas_identifier(raw_identifier: str) -> str:
 
 
 def _build_person_key(message_id: str) -> str:
+    """Build the Redis key used to store the serialized person payload."""
     clean_message_id = message_id.strip()
     if not clean_message_id:
         raise ValueError("message_id не може бути порожнім")
@@ -47,6 +54,7 @@ async def save_person_request(
     client: UseRedisAsync,
     payload: ContinuePayload,
 ) -> tuple[str, dict]:
+    """Create a `Person`, store it in Redis, and enqueue the message for processing."""
     person = Person(
         LevelOfAssurance=payload.level_of_assurance,
         identifier=Identifier(_build_eidas_identifier(payload.identifier)),
@@ -59,7 +67,7 @@ async def save_person_request(
     redis_key = _build_person_key(payload.message_id)
     await client.save_to_redis(redis_key, person_data)
     edm = await client.get_from_redis(f"oots:message:request:edm:{payload.message_id}")
-    queue = edm[0].get('process_queue')
+    queue = edm[0].get('process_queue')  # type: ignore
     await client.push_to_queue(queue, payload.message_id)
     return redis_key, person_data
 
