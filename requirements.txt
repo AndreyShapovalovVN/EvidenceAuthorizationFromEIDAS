@@ -6,4 +6,4 @@ lxml>=5.3.0
 pytest>=8.3.0
 httpx>=0.27.0
 pyRegRep>=10
-
+xmltodict>=0.13.0
