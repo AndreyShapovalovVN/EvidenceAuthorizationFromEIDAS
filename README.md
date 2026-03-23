@@ -92,8 +92,18 @@
 ## Змінні середовища
 
 - `REDIS_URL` — URL підключення до Redis, за замовчуванням `redis://localhost:6379`;
-- `REDIS_TTL` — TTL для JSON-даних у Redis, за замовчуванням `86400`;
-- `REDIS_PREFIX` — необов'язковий префікс для всіх Redis-ключів.
+- `REDIS_TTL` — TTL для JSON-даних у Redis (секунди), за замовчуванням `86400`;
+- `REDIS_PREFIX` — необов'язковий префікс для всіх Redis-ключів;
+- `PREVIEW_URL` — базовий URL preview-сервісу для формування continue/preview-посилань.
+
+У репозиторій додано файл `.env` з прикладом значень:
+
+```dotenv
+REDIS_URL=redis://localhost:6379/0
+REDIS_TTL=86400
+REDIS_PREFIX=
+PREVIEW_URL=http://localhost:8081/preview
+```
 
 ## Локальний запуск
 
@@ -101,6 +111,9 @@
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+set -a
+source .env
+set +a
 uvicorn main:app --reload
 ```
 
@@ -113,9 +126,7 @@ uvicorn main:app --reload
 
 ```bash
 docker build -t authorization-app:local .
-docker run --rm -p 8000:8000 \
-  -e REDIS_URL=redis://host.docker.internal:6379/0 \
-  authorization-app:local
+docker run --rm -p 8000:8000 --env-file .env authorization-app:local
 ```
 
 > На Linux `host.docker.internal` може бути недоступним без додаткової конфігурації Docker. Якщо Redis працює локально, за потреби вкажіть фактичну IP-адресу хоста або використайте окрему docker network.
