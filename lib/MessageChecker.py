@@ -39,7 +39,7 @@ class ExceptionInfo:
 @dataclass
 class MessageStatus:
     """Підсумковий стан перевірки повідомлення."""
-    # Заповнено, якщо знайдено EDM:ERR:0002
+    # Технічні деталі exception з evidence (для EDM:ERR:0002 це успішний маркер)
     evidence_error: ExceptionInfo | None = None
     # True — прапор preview з'явився в Redis
     preview_ready: bool = False
@@ -48,7 +48,10 @@ class MessageStatus:
 
     @property
     def has_error(self) -> bool:
-        return self.evidence_error is not None
+        if self.evidence_error is None:
+            return False
+        # EDM:ERR:0002 трактуємо як успішний бізнес-сценарій.
+        return self.evidence_error.code != EDM_ERR_CODE
 
 
 # ─── внутрішні функції ───────────────────────────────────────────────────────
@@ -83,7 +86,7 @@ async def _get_evidence_exception(
         _logger.debug("Evidence code %r != %r, skipping", code, EDM_ERR_CODE)
         return None
 
-    _logger.info("EDM:ERR:0002 detected for message_id=%s", message_id)
+    _logger.info("EDM:ERR:0002 detected as success marker for message_id=%s", message_id)
     return ExceptionInfo(
         code=code,
         message=exception.get("message", ""),
@@ -139,9 +142,9 @@ async def check_message(
     """Повна перевірка повідомлення перед рендерингом сторінки.
 
     Порядок:
-      1. Перевіряємо наявність evidence-помилки EDM:ERR:0002.
-         Якщо знайдено — одразу повертаємо статус із помилкою без очікування.
-      2. Якщо помилки немає — очікуємо появи прапора preview з поллінгом.
+      1. Перевіряємо наявність коду EDM:ERR:0002 у evidence.
+         Якщо знайдено — це успішний сценарій, одразу повертаємо success без очікування.
+      2. Якщо коду немає — очікуємо появи прапора preview з поллінгом.
 
     Args:
         client:     активний UseRedisAsync
@@ -154,7 +157,11 @@ async def check_message(
     """
     evidence_error = await _get_evidence_exception(client, message_id)
     if evidence_error is not None:
-        return MessageStatus(evidence_error=evidence_error)
+        return MessageStatus(
+            evidence_error=evidence_error,
+            preview_ready=True,
+            timed_out=False,
+        )
 
     preview_ready = await _wait_for_preview_flag(client, message_id, timeout, interval)
     return MessageStatus(

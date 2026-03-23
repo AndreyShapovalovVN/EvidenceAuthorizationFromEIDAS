@@ -70,13 +70,14 @@ async def root(request: Request, message_id: str):
     status = await check_message(client, message_id)
 
     if status.has_error:
+        err = status.evidence_error
         raise HTTPException(
             status_code=422,
             detail={
-                "code": "EDM:ERR:0002",
-                "message": "Evidence not found",
-                "detail": "No evidence",
-                "preview_link": None,
+                "code": err.code if err else "EDM:ERR:UNKNOWN",
+                "message": err.message if err else "Evidence error",
+                "detail": err.detail if err else None,
+                "preview_link": err.preview_link if err else None,
             },
         )
 

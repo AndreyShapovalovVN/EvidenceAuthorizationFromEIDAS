@@ -26,7 +26,7 @@ def test_health_redis_down_returns_503(client, fake_redis_client, monkeypatch):
     assert response.json()["detail"] == "Redis недоступний"
 
 
-def test_root_returns_422_when_evidence_error(client, monkeypatch):
+def test_root_renders_html_when_edm_err_0002_found(client, monkeypatch):
     async def fake_check_message(_, __):
         return MessageStatus(
             evidence_error=ExceptionInfo(
@@ -34,15 +34,22 @@ def test_root_returns_422_when_evidence_error(client, monkeypatch):
                 message="Evidence not found",
                 detail="No evidence",
                 preview_link=None,
-            )
+            ),
+            preview_ready=True,
+            timed_out=False,
         )
 
+    async def fake_resolve_continue_url(**_):
+        return "http://continue.local/path"
+
     monkeypatch.setattr(main, "check_message", fake_check_message)
+    monkeypatch.setattr(main, "resolve_continue_url", fake_resolve_continue_url)
 
     response = client.get("/auth/msg-001")
 
-    assert response.status_code == 422
-    assert response.json()["detail"]["code"] == "EDM:ERR:0002"
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "msg-001" in response.text
 
 
 def test_root_returns_408_on_preview_timeout(client, monkeypatch):

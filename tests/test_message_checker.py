@@ -12,7 +12,7 @@ class FakeRedisForChecker:
         self.get_raw_from_redis = AsyncMock(side_effect=values)
 
 
-def test_check_message_returns_error_when_edm_err_0002_found():
+def test_check_message_returns_success_when_edm_err_0002_found():
     client = FakeRedisForChecker(
         evidence_data={
             "exception": {
@@ -28,9 +28,10 @@ def test_check_message_returns_error_when_edm_err_0002_found():
         check_message(cast(Any, client), "msg-1", timeout=0.1, interval=0.05)
     )
 
-    assert status.has_error
+    assert not status.has_error
     assert status.evidence_error.code == EDM_ERR_CODE
-    assert not status.preview_ready
+    assert status.preview_ready
+    assert not status.timed_out
 
 
 def test_check_message_returns_preview_ready_when_flag_appears():
