@@ -64,6 +64,29 @@ def test_root_returns_408_on_preview_timeout(client, monkeypatch):
     assert "Таймаут" in response.json()["detail"]
 
 
+def test_root_returns_422_for_non_success_evidence_error(client, monkeypatch):
+    async def fake_check_message(_, __):
+        return MessageStatus(
+            evidence_error=ExceptionInfo(
+                code="EDM:ERR:9999",
+                message="Evidence invalid",
+                detail="Invalid payload",
+                preview_link=None,
+            ),
+            preview_ready=False,
+            timed_out=False,
+        )
+
+    monkeypatch.setattr(main, "check_message", fake_check_message)
+
+    response = client.get("/auth/msg-004")
+
+    assert response.status_code == 422
+    body = response.json()["detail"]
+    assert body["code"] == "EDM:ERR:9999"
+    assert body["message"] == "Evidence invalid"
+
+
 def test_root_renders_html_when_checks_pass(client, monkeypatch):
     async def fake_check_message(_, __):
         return MessageStatus(preview_ready=True, timed_out=False)
@@ -86,7 +109,7 @@ def test_root_renders_html_when_checks_pass(client, monkeypatch):
 def test_continue_auth_saves_person_and_returns_key(client, monkeypatch, fake_redis_client):
     async def fake_save_person_request(_, payload):
         assert payload.message_id == "msg-101"
-        return "oots:request:person:msg-101", {"GivenNameNonLatin": "Andrii"}
+        return "oots:message:request:person:msg-101", {"GivenNameNonLatin": "Andrii"}
 
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
     monkeypatch.setattr(main, "save_person_request", fake_save_person_request)
@@ -105,7 +128,7 @@ def test_continue_auth_saves_person_and_returns_key(client, monkeypatch, fake_re
 
     assert response.status_code == 200
     body = response.json()
-    assert body["redis_key"] == "oots:request:person:msg-101"
+    assert body["redis_key"] == "oots:message:request:person:msg-101"
     assert body["status"] == "ok"
 
 

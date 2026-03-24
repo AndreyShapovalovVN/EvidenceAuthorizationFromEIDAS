@@ -6,6 +6,9 @@ from pydantic import BaseModel
 
 from lib.Person import Identifier, Person
 from lib.UseRedis import UseRedisAsync
+from redis_keys import Keys
+
+KEYS = Keys()
 
 
 class ContinuePayload(BaseModel):
@@ -41,20 +44,15 @@ def _build_eidas_identifier(raw_identifier: str) -> str:
 
     return f"UA/UA/{raw_identifier}"
 
-
-def _build_person_key(message_id: str) -> str:
-    """Build the Redis key used to store the serialized person payload."""
-    clean_message_id = message_id.strip()
-    if not clean_message_id:
-        raise ValueError("message_id не може бути порожнім")
-    return f"oots:request:person:{clean_message_id}"
-
-
 async def save_person_request(
     client: UseRedisAsync,
     payload: ContinuePayload,
 ) -> tuple[str, dict]:
     """Create a `Person`, store it in Redis, and enqueue the message for processing."""
+    message_id = payload.message_id.strip()
+    if not message_id:
+        raise ValueError("message_id не може бути порожнім")
+
     person = Person(
         LevelOfAssurance=payload.level_of_assurance,
         identifier=Identifier(_build_eidas_identifier(payload.identifier)),
@@ -64,10 +62,15 @@ async def save_person_request(
     )
 
     person_data = person.dict
-    redis_key = _build_person_key(payload.message_id)
-    await client.save_to_redis(redis_key, person_data)
-    edm = await client.get_from_redis(f"oots:message:request:edm:{payload.message_id}")
+    request_person_key = KEYS.REQUEST_PERSON.format(conversation_id=message_id)
+    await client.save_to_redis(
+        request_person_key, person_data
+    )
+
+    edm = await client.get_from_redis(
+        KEYS.REQUEST_EDM.format(conversation_id=message_id)
+    )
     queue = edm[0].get('process_queue')  # type: ignore
-    await client.push_to_queue(queue, payload.message_id)
-    return redis_key, person_data
+    await client.push_to_queue(queue, message_id)
+    return request_person_key, person_data
 

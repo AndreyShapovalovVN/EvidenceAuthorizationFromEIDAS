@@ -11,15 +11,17 @@ import logging
 from dataclasses import dataclass
 
 from lib.UseRedis import UseRedisAsync
+from redis_keys import Keys
 
 _logger = logging.getLogger(__name__)
 
 # ─── константи ───────────────────────────────────────────────────────────────
 
+KEYS = Keys
 EDM_ERR_CODE = "EDM:ERR:0002"
 
-EVIDENCE_KEY = "oots:message:response:evidence:{message_id}"
-PREVIEW_FLAG_KEY = "oots:message:request:preview:{message_id}"
+# EVIDENCE_KEY = "oots:message:response:evidence:{message_id}"
+# PREVIEW_FLAG_KEY = "oots:message:request:preview:{message_id}"
 
 DEFAULT_TIMEOUT: float = 30.0   # секунд — максимальний час очікування прапора
 DEFAULT_INTERVAL: float = 1.5   # секунд між спробами поллінгу
@@ -60,7 +62,7 @@ async def _get_evidence_exception(
     client: UseRedisAsync,
     message_id: str,
 ) -> ExceptionInfo | None:
-    """Зчитує ключ evidence з Redis та повертає ExceptionInfo якщо code == EDM:ERR:0002.
+    """Зчитує ключ evidence з Redis та повертає ExceptionInfo для будь-якого exception.code.
 
     Args:
         client:     активний UseRedisAsync
@@ -69,7 +71,7 @@ async def _get_evidence_exception(
     Returns:
         ExceptionInfo або None
     """
-    key = EVIDENCE_KEY.format(message_id=message_id)
+    key = KEYS.RESPONSE_EVIDENCE.format(conversation_id=message_id)
     data = await client.get_from_redis(key)
 
     if not isinstance(data, dict):
@@ -82,11 +84,8 @@ async def _get_evidence_exception(
         return None
 
     code = exception.get("code", "")
-    if code != EDM_ERR_CODE:
-        _logger.debug("Evidence code %r != %r, skipping", code, EDM_ERR_CODE)
-        return None
-
-    _logger.info("EDM:ERR:0002 detected as success marker for message_id=%s", message_id)
+    if code == EDM_ERR_CODE:
+        _logger.info("EDM:ERR:0002 detected as success marker for message_id=%s", message_id)
     return ExceptionInfo(
         code=code,
         message=exception.get("message", ""),
@@ -112,7 +111,7 @@ async def _wait_for_preview_flag(
     Returns:
         True — прапор знайдено, False — таймаут
     """
-    flag_key = PREVIEW_FLAG_KEY.format(message_id=message_id)
+    flag_key = KEYS.REQUEST_PREVIEW.format(conversation_id=message_id)
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
 
@@ -156,10 +155,17 @@ async def check_message(
         MessageStatus з результатами обох перевірок
     """
     evidence_error = await _get_evidence_exception(client, message_id)
-    if evidence_error is not None:
+    if evidence_error is not None and evidence_error.code == EDM_ERR_CODE:
         return MessageStatus(
             evidence_error=evidence_error,
             preview_ready=True,
+            timed_out=False,
+        )
+
+    if evidence_error is not None:
+        return MessageStatus(
+            evidence_error=evidence_error,
+            preview_ready=False,
             timed_out=False,
         )
 

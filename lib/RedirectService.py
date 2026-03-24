@@ -7,10 +7,11 @@ from fastapi import HTTPException
 from pyRegRep4.RIMParsing import Parsing  # type: ignore
 
 from lib.UseRedis import UseRedisAsync
+from redis_keys import Keys
 
 _logger = logging.getLogger(__name__)
 
-EDM_DATASET_KEY = "oots:message:request:edm:{conversation_id}"
+KEYS = Keys()
 PREVIEW_URL = os.getenv("PREVIEW_URL")
 
 
@@ -43,7 +44,7 @@ async def resolve_continue_url(
 
     _logger.debug(f"Отримали параметри returnurl: {returnurl}, returnmethod: {returnmethod} для message_id: {message_id}")
 
-    key = EDM_DATASET_KEY.format(conversation_id=message_id)
+    key = KEYS.REQUEST_EDM.format(conversation_id=message_id)
 
     _logger.info(f"Отримуємо EDM дані з Redis для message_id: {message_id} за ключем: {key}")
 

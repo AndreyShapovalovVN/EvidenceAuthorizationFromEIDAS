@@ -27,7 +27,7 @@ def test_save_person_request_stores_by_message_id_key():
 
     redis_key, person_data = asyncio.run(save_person_request(cast(Any, client), payload))
 
-    assert redis_key == "oots:request:person:msg-500"
+    assert redis_key == "oots:message:request:person:msg-500"
     assert isinstance(person_data, dict)
     client.save_to_redis.assert_awaited_once()
     client.get_from_redis.assert_awaited_once_with("oots:message:request:edm:msg-500")

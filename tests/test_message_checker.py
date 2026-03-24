@@ -46,6 +46,29 @@ def test_check_message_returns_preview_ready_when_flag_appears():
     assert not status.timed_out
 
 
+def test_check_message_returns_error_when_non_success_exception_found():
+    client = FakeRedisForChecker(
+        evidence_data={
+            "exception": {
+                "code": "EDM:ERR:9999",
+                "message": "Unexpected evidence error",
+                "detail": "details",
+            }
+        }
+    )
+
+    status = asyncio.run(
+        check_message(cast(Any, client), "msg-err", timeout=0.1, interval=0.05)
+    )
+
+    assert status.has_error
+    assert status.evidence_error is not None
+    assert status.evidence_error.code == "EDM:ERR:9999"
+    assert not status.preview_ready
+    assert not status.timed_out
+    client.get_raw_from_redis.assert_not_awaited()
+
+
 def test_check_message_times_out_when_preview_flag_missing():
     client = FakeRedisForChecker(evidence_data=None, preview_values=[None, None, None])
 

@@ -7,7 +7,7 @@
 - темна сторінка авторизації з шаблону `templates/login.html`;
 - кнопка `Log in via eIDAS`, яка заповнює демо-дані у форму;
 - перевірка Redis перед рендерингом сторінки;
-- збереження `Person` у Redis за ключем `oots:request:person:{message_id}`;
+- збереження `Person` у Redis за ключем `oots:message:request:person:{message_id}`;
 - постановка `message_id` у Redis-чергу на подальшу обробку.
 
 ## Структура сервісу
@@ -44,10 +44,11 @@
 Перед рендерингом:
 
 1. читається ключ `oots:message:response:evidence:{message_id}`;
-2. якщо знайдено `exception.code == EDM:ERR:0002`, повертається `422`;
-3. очікується поява прапора `oots:message:request:preview:{message_id}`;
-4. якщо прапор не з'явився за таймаут, повертається `408`;
-5. якщо перевірки пройдено, повертається HTML-сторінка `login.html`.
+2. якщо знайдено `exception.code == EDM:ERR:0002`, це успішний сценарій і рендер продовжується;
+3. якщо знайдено будь-який інший `exception.code`, повертається `422`;
+4. очікується поява прапора `oots:message:request:preview:{message_id}`;
+5. якщо прапор не з'явився за таймаут, повертається `408`;
+6. якщо перевірки пройдено, повертається HTML-сторінка `login.html`.
 
 ### `GET /{message_id}`
 
@@ -76,7 +77,7 @@
 {
   "status": "ok",
   "message": "Дані збережено",
-  "redis_key": "oots:request:person:msg-001",
+  "redis_key": "oots:message:request:person:msg-001",
   "person": {}
 }
 ```
@@ -86,7 +87,7 @@
 - `oots:message:response:evidence:{message_id}` — дані перевірки evidence-помилки;
 - `oots:message:request:preview:{message_id}` — прапор готовності preview;
 - `oots:message:request:edm:{message_id}` — EDM-дані з `content`/`content2` та `process_queue`;
-- `oots:request:person:{message_id}` — збережений `person.dict`;
+- `oots:message:request:person:{message_id}` — збережений `person.dict`;
 - `process_queue` з EDM payload — Redis list для постановки `message_id` в обробку.
 
 ## Змінні середовища

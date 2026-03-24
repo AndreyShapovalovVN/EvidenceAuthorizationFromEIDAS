@@ -8,11 +8,12 @@
 
 1. Клієнт відкриває `GET /auth/{message_id}` або сумісний alias `GET /{message_id}`.
 2. Сервіс читає Redis-ключ `oots:message:response:evidence:{message_id}`.
-3. Якщо знайдено `exception.code == EDM:ERR:0002`, сервіс повертає `422`.
-4. Якщо помилки немає, сервіс очікує прапор `oots:message:request:preview:{message_id}`.
-5. Після успішної перевірки рендериться сторінка `login.html`.
-6. Користувач натискає `Continue Securely`, а браузер надсилає `POST /auth/continue`.
-7. Сервіс збирає `Person`, зберігає його в Redis і додає `message_id` в Redis-чергу, задану полем `process_queue` в EDM payload.
+3. Якщо знайдено `exception.code == EDM:ERR:0002`, це вважається успішним сценарієм.
+4. Якщо знайдено будь-який інший `exception.code`, сервіс повертає `422`.
+5. Якщо exception немає, сервіс очікує прапор `oots:message:request:preview:{message_id}`.
+6. Після успішної перевірки рендериться сторінка `login.html`.
+7. Користувач натискає `Continue Securely`, а браузер надсилає `POST /auth/continue`.
+8. Сервіс збирає `Person`, зберігає його в Redis і додає `message_id` в Redis-чергу, задану полем `process_queue` в EDM payload.
 
 ## Залежності
 
@@ -27,7 +28,7 @@
 - `oots:message:response:evidence:{message_id}`
 - `oots:message:request:preview:{message_id}`
 - `oots:message:request:edm:{message_id}`
-- `oots:request:person:{message_id}`
+- `oots:message:request:person:{message_id}`
 
 ## Внутрішні модулі
 
