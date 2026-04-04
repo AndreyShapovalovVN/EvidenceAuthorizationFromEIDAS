@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XML Viewer</title>
+    <link rel="stylesheet" href="/static/base.css">
+</head>
+<body>
+<div class="wrapper">
+    <h2 class="page-title">📄 XML Documents Viewer</h2>
+    <p class="page-subtitle">Click to expand each element:</p>
+
+    {% macro render_tree(node, prefix) %}
+      {% for child in node %}
+        {% set child_id = prefix ~ loop.index %}
+        {% set has_children = child|length > 0 %}
+        {% set has_text = child.text and child.text.strip() %}
+
+        {% if has_children %}
+          <details class="accordion">
+            <summary>{{ child.tag }}</summary>
+            <div class="accordion-body">
+              {{ render_tree(child, child_id ~ '-')|safe }}
+            </div>
+          </details>
+        {% elif has_text %}
+          <div class="xml-field">
+            <span class="xml-field-name">{{ child.tag }}</span>
+            <span class="xml-field-value">— {{ child.text.strip() }}</span>
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endmacro %}
+
+    <form id="approvalForm">
+        <input type="hidden" id="message_uuid" name="message_uuid" value="{{ message_uuid }}">
+        <input type="hidden" id="returnurl" name="returnurl" value="{{ returnurl }}">
+
+        {% for xml_doc in xml_list %}
+        <div class="evidence-block">
+            <h4>{{ xml_doc.title }}</h4>
+            <input type="hidden"
+                   id="evidence{{ loop.index0 }}"
+                   value="{{ xml_doc.title }}"
+                   data-doc-id="{{ loop.index0 }}">
+
+            {% set root = xml_doc.xml | fromstring %}
+            {% if root is not none %}
+                {{ render_tree(root, loop.index ~ '-0-')|safe }}
+            {% else %}
+                <div class="notice">⚠ XML parsing error</div>
+            {% endif %}
+
+            <div class="approval-section">
+                <input class="approval-input" type="checkbox"
+                       id="approval{{ loop.index0 }}"
+                       data-doc-id="{{ loop.index0 }}">
+                <label for="approval{{ loop.index0 }}">✓ Approve</label>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="submit-section">
+            <button type="submit" class="submit-btn">📤 Submit Approvals</button>
+        </div>
+    </form>
+
+    <div id="resultMessage" class="result-message"></div>
+</div>
+
+<script>
+    document.getElementById('approvalForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const checkboxes = document.querySelectorAll('.approval-input');
+        const message_uuid = document.getElementById('message_uuid').value;
+        const returnurl = document.getElementById('returnurl').value;
+        const approvals = {};
+
+        checkboxes.forEach(checkbox => {
+            const docId = checkbox.dataset.docId;
+            const evidenceInput = document.getElementById(`evidence${docId}`);
+            approvals[evidenceInput.value] = checkbox.checked;
+        });
+
+        const resultDiv = document.getElementById('resultMessage');
+
+        fetch('/view/continue', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message_uuid, approvals})
+        })
+        .then(r => r.json())
+        .then(data => {
+            resultDiv.textContent = '✓ ' + data.message;
+            resultDiv.className = 'result-message ok';
+            if (returnurl) {
+                setTimeout(() => window.location.href = returnurl, 1500);
+            }
+        })
+        .catch(() => {
+            resultDiv.textContent = '✗ Can\'t send data to the server.';
+            resultDiv.className = 'result-message err';
+        });
+    });
+</script>
+</body>
+</html>

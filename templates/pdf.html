@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>PDF Viewer</title>
+    <link rel="stylesheet" href="/static/base.css">
+</head>
+<body>
+<div class="wrapper">
+    <h2 class="page-title">📄 PDF Evidences</h2>
+
+    {% for pdf in pdf_list %}
+    <div class="evidence-block">
+        <h5>{{ pdf.title }}</h5>
+        <iframe class="pdf-frame"
+                src="data:application/pdf;base64,{{ pdf.pdf_preview }}">
+        </iframe>
+        <div class="approval-section">
+            <input class="approval-input" type="checkbox"
+                   id="approval{{ loop.index0 }}"
+                   data-doc-id="{{ loop.index0 }}"
+                   data-cid="{{ pdf.title }}">
+            <label for="approval{{ loop.index0 }}">✓ Approve</label>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="submit-section">
+        <button id="submitBtn" class="submit-btn">📤 Submit Approvals</button>
+    </div>
+
+    <div id="resultMessage" class="result-message"></div>
+</div>
+
+<script>
+    document.getElementById('submitBtn').addEventListener('click', function () {
+        const checkboxes = document.querySelectorAll('.approval-input');
+        const approvals = {};
+        const message_uuid = "{{ message_uuid }}";
+        const returnurl = "{{ returnurl }}";
+
+        checkboxes.forEach(cb => {
+            approvals[cb.dataset.cid] = cb.checked;
+        });
+
+        const resultDiv = document.getElementById('resultMessage');
+
+        fetch('/view/continue', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message_uuid, approvals})
+        })
+        .then(r => r.json())
+        .then(data => {
+            resultDiv.textContent = '✓ ' + data.message;
+            resultDiv.className = 'result-message ok';
+            if (returnurl) {
+                setTimeout(() => window.location.href = returnurl, 1500);
+            }
+        })
+        .catch(() => {
+            resultDiv.textContent = '✗ Can\'t send data to the server.';
+            resultDiv.className = 'result-message err';
+        });
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading Evidence...</title>
+    <link rel="stylesheet" href="/static/base.css">
+    <style>
+        .waiting-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .waiting-card {
+            width: 100%;
+            max-width: 500px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+        }
+
+        .waiting-title {
+            margin: 0 0 24px;
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            color: var(--text);
+        }
+
+        .stage-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .stage-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .stage-item:last-child {
+            border-bottom: none;
+        }
+
+        .stage-badge {
+            min-width: 40px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .stage-badge.pending {
+            background: var(--line);
+            color: var(--muted);
+        }
+
+        .stage-badge.active {
+            background: var(--primary);
+            color: #fff;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .stage-badge.done {
+            background: var(--success);
+            color: #fff;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .stage-content {
+            flex: 1;
+        }
+
+        .stage-name {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .stage-hint {
+            color: var(--muted);
+            font-size: 12px;
+            margin: 4px 0 0;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--line);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .waiting-message {
+            margin-top: 24px;
+            padding: 14px;
+            background: #152742;
+            border: 1px solid #24446e;
+            border-radius: 10px;
+            color: #bcd3ff;
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+<div class="waiting-wrapper">
+    <div class="waiting-card">
+        <h1 class="waiting-title">⏳ Loading Evidence</h1>
+
+        <ul class="stage-list">
+            <li class="stage-item" id="stage-preview">
+                <div class="stage-badge active">
+                    <div class="spinner"></div>
+                </div>
+                <div class="stage-content">
+                    <p class="stage-name">Step 1: Preview Ready</p>
+                    <p class="stage-hint">Waiting for preview flag from service...</p>
+                </div>
+            </li>
+
+            <li class="stage-item" id="stage-evidence">
+                <div class="stage-badge pending">2</div>
+                <div class="stage-content">
+                    <p class="stage-name">Step 2: Evidence Retrieved</p>
+                    <p class="stage-hint">Waiting for evidence from service...</p>
+                </div>
+            </li>
+        </ul>
+
+        <div class="waiting-message">
+            Message ID: <code style="font-size: 11px; color: #7eb3ff;">{{ message_id }}</code>
+        </div>
+    </div>
+</div>
+
+<script>
+    const messageId = "{{ message_id }}";
+    let currentStage = 1;
+    const maxWaitTime = {{ wait_time }} * 1000; // мілісекунди
+    const pollInterval = {{ poll_interval }} * 1000;
+    const startTime = Date.now();
+
+    async function checkProgress() {
+        try {
+            const response = await fetch(`/view/progress/${messageId}`);
+            if (!response.ok) {
+                console.error("Progress check failed:", response.status);
+                return;
+            }
+
+            const data = await response.json();
+            updateStages(data.stage);
+
+            if (data.stage >= 2) {
+                // Обидва етапи готові, редиректимо
+                setTimeout(() => {
+                    window.location.href = window.location.href;
+                }, 500);
+            }
+        } catch (error) {
+            console.error("Error checking progress:", error);
+        }
+    }
+
+    function updateStages(stage) {
+        const stagePreview = document.getElementById("stage-preview");
+        const stageEvidence = document.getElementById("stage-evidence");
+
+        if (stage >= 1) {
+            const badge1 = stagePreview.querySelector(".stage-badge");
+            badge1.innerHTML = '✓';
+            badge1.className = "stage-badge done";
+        }
+
+        if (stage >= 2) {
+            const badge2 = stageEvidence.querySelector(".stage-badge");
+            badge2.innerHTML = '<div class="spinner"></div>';
+            badge2.className = "stage-badge active";
+            stageEvidence.querySelector(".stage-hint").textContent = "Loading...";
+        }
+    }
+
+    // Перевіряємо прогрес кожні N секунд
+    const pollId = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > maxWaitTime) {
+            clearInterval(pollId);
+
+            // Записуємо таймаут в Redis
+            fetch(`/view/timeout/${messageId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+            }).catch(err => console.error("Failed to record timeout:", err));
+
+            alert("Timeout waiting for evidence. Please try again.");
+            history.back();
+        } else {
+            checkProgress();
+        }
+    }, pollInterval);
+
+    // Перший раз перевіряємо одразу
+    checkProgress();
+</script>
+</body>
+</html>
+

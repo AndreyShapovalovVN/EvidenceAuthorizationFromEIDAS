@@ -1,0 +1,295 @@
+:root {
+    color-scheme: dark;
+    --bg: #0b1220;
+    --panel: #111a2b;
+    --card: #162238;
+    --text: #e7edf8;
+    --muted: #9bb0cf;
+    --line: #263652;
+    --primary: #2f6bff;
+    --primary-2: #1d4ed8;
+    --success: #1ba44a;
+    --danger: #ef4444;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+    background: radial-gradient(1000px 500px at 15% -10%, #1d3b70 0, transparent 60%), var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.wrapper {
+    width: min(1000px, 100%);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+
+.notice {
+    background: #152742;
+    border: 1px solid #24446e;
+    color: #bcd3ff;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 22px;
+    font-size: 14px;
+}
+
+.layout {
+    display: grid;
+    gap: 22px;
+    grid-template-columns: 1fr 1fr;
+}
+
+.title {
+    margin: 0 0 16px;
+    font-size: 24px;
+}
+
+.field {
+    margin-bottom: 14px;
+}
+
+label {
+    display: block;
+    margin-bottom: 7px;
+    color: #cfe1ff;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+input,
+select,
+button {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: #0d1729;
+    color: var(--text);
+    padding: 12px 14px;
+    font-size: 16px;
+}
+
+input:focus,
+select:focus,
+button:focus {
+    outline: 2px solid #315ca9;
+    outline-offset: 1px;
+}
+
+.continue {
+    margin-top: 10px;
+    background: var(--success);
+    border-color: #13833a;
+    color: #e6ffef;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.eidas-card {
+    margin-top: 42px;
+    border-radius: 14px;
+    border: 1px solid #2b56b2;
+    background: linear-gradient(170deg, var(--primary), var(--primary-2));
+    padding: 26px;
+}
+
+.eidas-title {
+    margin: 0;
+    text-align: center;
+    font-size: 34px;
+    font-weight: 700;
+}
+
+.eidas-subtitle {
+    margin: 12px 0 22px;
+    text-align: center;
+    color: #dce7ff;
+    line-height: 1.4;
+}
+
+.eidas-btn {
+    background: #f8fafc;
+    color: #0f2a71;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.status {
+    margin-top: 14px;
+    min-height: 22px;
+    font-size: 14px;
+}
+
+.status.ok {
+    color: #67e8a5;
+}
+
+.status.err {
+    color: var(--danger);
+}
+
+/* ── Evidence viewer ──────────────────────── */
+.page-title {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.page-subtitle {
+    margin: 0 0 22px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.evidence-block {
+    margin-bottom: 20px;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+}
+
+.evidence-block h4,
+.evidence-block h5 {
+    margin: 0 0 14px;
+    color: #7eb3ff;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.pdf-frame {
+    width: 100%;
+    height: 75vh;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+/* Native accordion via <details> */
+details.accordion {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin-bottom: 4px;
+    overflow: hidden;
+}
+
+details.accordion > summary {
+    padding: 10px 14px;
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    list-style: none;
+    user-select: none;
+}
+
+details.accordion > summary::before {
+    content: "▶ ";
+    font-size: 10px;
+    color: var(--muted);
+}
+
+details.accordion[open] > summary::before {
+    content: "▼ ";
+}
+
+details.accordion > summary:hover {
+    background: var(--card);
+}
+
+details.accordion > .accordion-body {
+    padding: 10px 14px;
+    background: #0d1729;
+}
+
+/* XML field display */
+.xml-field {
+    padding: 6px 10px;
+    margin: 4px 0;
+    border-radius: 6px;
+    background: var(--card);
+    font-size: 14px;
+}
+
+.xml-field-name {
+    font-weight: 600;
+    color: #7eb3ff;
+    display: inline-block;
+    min-width: 150px;
+}
+
+.xml-field-value {
+    color: var(--text);
+}
+
+/* Approval checkbox row */
+.approval-section {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.approval-section input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: var(--success);
+}
+
+.approval-section label {
+    margin: 0;
+    cursor: pointer;
+    font-size: 14px;
+    color: #cfe1ff;
+    font-weight: 600;
+}
+
+.submit-section {
+    margin: 28px 0 40px;
+    text-align: center;
+}
+
+.submit-btn {
+    max-width: 320px;
+    background: var(--primary);
+    border-color: var(--primary-2);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.result-message {
+    margin-top: 16px;
+    font-size: 14px;
+    min-height: 22px;
+    text-align: center;
+}
+
+.result-message.ok {
+    color: #67e8a5;
+}
+
+.result-message.err {
+    color: var(--danger);
+}
