@@ -175,7 +175,7 @@ async def _render_evidence_page(
     redis_key = KEYS.response_evidence(message_id)
     data = await client.get_from_redis(redis_key)
 
-    if data is None:
+    if not isinstance(data, dict):
         raise HTTPException(
             status_code=404,
             detail=f"Data not found in Redis by id: {message_id}",
@@ -297,7 +297,7 @@ async def continue_view(payload: ViewContinuePayload):
     evidence_key = KEYS.response_evidence(message_id)
     permit_key = KEYS.response_permit(message_id)
     json_data = await client.get_from_redis(evidence_key)
-    if json_data is None:
+    if not isinstance(json_data, dict):
         raise HTTPException(status_code=404, detail=f"Data not found in Redis by id: {message_id}")
 
     evidences = json_data.get("evidences") or []
@@ -310,7 +310,7 @@ async def continue_view(payload: ViewContinuePayload):
 
     await  asyncio.gather(
         client.save_to_redis(evidence_key, json_data),
-        client.save_to_redis(permit_key, True),
+        client.save_to_redis(permit_key, "true"),
         client.push_to_queue(QUEUE_OUTGOING, message_id),
     )
 

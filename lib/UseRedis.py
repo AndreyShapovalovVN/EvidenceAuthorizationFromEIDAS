@@ -206,7 +206,7 @@ class UseRedisAsync:
     async def disconnect(self) -> None:
         """Закриває з'єднання з Redis."""
         try:
-            await self._redis_client.close()
+            await self._redis_client.aclose()
             _logger.debug("Redis з'єднання закрито")
         except Exception as e:
             _logger.error(f"Помилка при закритті Redis: {e}")

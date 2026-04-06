@@ -135,5 +135,5 @@ def test_continue_view_updates_approvals_and_flags(client, fake_redis_client, mo
     assert first_call.args[1]["evidences"][1]["permit"] is False
 
     assert second_call.args[0] == permit_key
-    assert second_call.args[1] is True
+    assert second_call.args[1] == "true"
 
