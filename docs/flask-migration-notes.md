@@ -1,29 +1,32 @@
 # Flask to FastAPI migration notes
 
-## Goal
+## Мета
 
-Recreate legacy `OOTS-evidence-viewer` behavior in this FastAPI service and retire Flask support.
+Відтворити функціонал застарілого `OOTS-evidence-viewer` (Flask) в цьому FastAPI-сервісі та повністю відмовитись від Flask.
 
-## Iteration 1 (done)
+## Ітерація 1 (✅ виконано)
 
-- Added a shared renderer for auth page flow in `main.py`.
-- Added backward-compatible route alias `GET /{message_id}`.
-- Kept `/view/*` endpoints explicit with `501` while migration scope is not implemented.
-- Added endpoint tests for alias and `501` placeholders.
+- Додано спільний рендерер для сторінки авторизації в `main.py`.
+- Додано перевірку EDM:ERR:0002 як успішного маркера в `lib/MessageChecker.py`.
+- Маршрут `/auth/{message_id}` замінює Flask `/auth`.
 
-## Iteration 2 (next)
+## Ітерація 2 (✅ виконано)
 
-- Inventory legacy Flask `/view/*` contract (request params, response codes, redirects, Redis keys).
-- Implement `GET /view/{message_id}` parity.
-- Implement `POST /view/continue` parity.
-- Add contract tests for all migrated `/view/*` scenarios.
+- Реалізовано `GET /preview/{message_id}` — паритет з Flask `/view/{message_id}`.
+- Реалізовано `POST /preview/continue` — збереження підтверджень evidence.
+- Реалізовано `GET /preview/progress/{message_id}` — API поллінгу прогресу.
+- Реалізовано `POST /preview/timeout/{message_id}` — фіксація таймауту в Redis.
+- Шаблони `view_waiting.html`, `pdf.html`, `xml.html` переведені на базові стилі з `static/base.css`.
+- Додано контрактні тести для всіх `/preview/*` сценаріїв.
 
-## Contract checklist to capture from Flask
+## Контракт (виконано)
 
-- Exact routes and methods.
-- Success and error HTTP status codes.
-- Error body schema and field names.
-- Redirect behavior and query params.
-- Redis keys and payload structure.
-- Template fields expected by frontend JS.
+- ✅ Маршрути та методи (`/auth`, `/preview`, `/preview/continue`, `/preview/progress`, `/preview/timeout`).
+- ✅ Коди статусів: `200`, `400`, `408`, `422`, `503`.
+- ✅ Поведінка при таймауті: запис `EDM:ERR:0005` у Redis + редирект по `returnurl`.
+- ✅ Redis-ключі централізовані в `redis_keys.py` (спільний файл для всіх компонентів).
+- ✅ Шаблони розділяють загальні стилі через `static/base.css`.
 
+## Стан міграції
+
+Flask повністю замінено FastAPI. Підтримка Flask-кодової бази більше не ведеться.
