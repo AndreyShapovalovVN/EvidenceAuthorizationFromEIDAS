@@ -130,6 +130,19 @@
             text-align: center;
             line-height: 1.5;
         }
+
+        .timeout-notice {
+            display: none;
+            margin-top: 14px;
+            padding: 12px;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            border-radius: 10px;
+            color: #fecaca;
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -160,19 +173,20 @@
         <div class="waiting-message">
             Message ID: <code style="font-size: 11px; color: #7eb3ff;">{{ message_id }}</code>
         </div>
+        <div id="timeoutNotice" class="timeout-notice"></div>
     </div>
 </div>
 
 <script>
     const messageId = "{{ message_id }}";
-    let currentStage = 1;
+    const returnurl = "{{ returnurl | default('', true) }}";
     const maxWaitTime = {{ wait_time }} * 1000; // мілісекунди
     const pollInterval = {{ poll_interval }} * 1000;
     const startTime = Date.now();
 
     async function checkProgress() {
         try {
-            const response = await fetch(`/view/progress/${messageId}`);
+            const response = await fetch(`/preview/progress/${messageId}`);
             if (!response.ok) {
                 console.error("Progress check failed:", response.status);
                 return;
@@ -215,15 +229,19 @@
         const elapsed = Date.now() - startTime;
         if (elapsed > maxWaitTime) {
             clearInterval(pollId);
+            const timeoutNotice = document.getElementById("timeoutNotice");
+            timeoutNotice.textContent = "Timeout reached. Redirecting you back...";
+            timeoutNotice.style.display = "block";
 
             // Записуємо таймаут в Redis
-            fetch(`/view/timeout/${messageId}`, {
+            fetch(`/preview/timeout/${messageId}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
             }).catch(err => console.error("Failed to record timeout:", err));
 
-            alert("Timeout waiting for evidence. Please try again.");
-            history.back();
+            setTimeout(() => {
+                window.location.href = returnurl;
+            }, 1200);
         } else {
             checkProgress();
         }

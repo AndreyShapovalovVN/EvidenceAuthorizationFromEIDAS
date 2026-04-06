@@ -1,19 +1,44 @@
 import main
+from lib.MessageChecker import MessageStatus
 from redis_keys import Keys
 
 
 def test_view_requires_returnurl(client):
-    response = client.get("/view/msg-001")
+    response = client.get("/preview/msg-001")
 
     assert response.status_code == 400
     assert "returnurl" in response.json()["detail"]
+
+
+def test_auth_builds_continue_url_to_preview_with_returnurl(client, monkeypatch):
+    async def fake_check_message(_, __):
+        return MessageStatus(preview_ready=True, timed_out=False)
+
+    monkeypatch.setattr(main, "check_message", fake_check_message)
+
+    response = client.get("/auth/msg-001?returnurl=https://example.com/callback")
+
+    assert response.status_code == 200
+    assert "/preview/msg-001?returnurl=https%3A%2F%2Fexample.com%2Fcallback" in response.text
+
+
+def test_auth_builds_continue_url_to_preview_without_returnurl(client, monkeypatch):
+    async def fake_check_message(_, __):
+        return MessageStatus(preview_ready=True, timed_out=False)
+
+    monkeypatch.setattr(main, "check_message", fake_check_message)
+
+    response = client.get("/auth/msg-002")
+
+    assert response.status_code == 200
+    assert 'const continueUrl = "/preview/msg-002";' in response.text
 
 
 def test_view_returns_404_when_data_missing(client, fake_redis_client, monkeypatch):
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/view/msg-002?returnurl=https://example.com")
+    response = client.get("/preview/msg-002?returnurl=https://example.com")
 
     # Сторінка чекання показується, коли evidence не готовий
     assert response.status_code == 200
@@ -24,7 +49,7 @@ def test_view_progress_returns_stage_0_when_no_data(client, fake_redis_client, m
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/view/progress/msg-002")
+    response = client.get("/preview/progress/msg-002")
 
     assert response.status_code == 200
     assert response.json()["stage"] == 0
@@ -33,7 +58,7 @@ def test_view_progress_returns_stage_0_when_no_data(client, fake_redis_client, m
 
 
 def test_view_renders_pdf_template(client, fake_redis_client, monkeypatch):
-    fake_redis_client.get_from_redis.return_value = {
+    evidence_data = {
         "preview": True,
         "evidences": [
             {
@@ -43,17 +68,20 @@ def test_view_renders_pdf_template(client, fake_redis_client, monkeypatch):
             }
         ],
     }
+    fake_redis_client.get_from_redis.return_value = evidence_data
+    # get_raw_from_redis сигналізує, що evidence готовий → рендеримо одразу
+    fake_redis_client.get_raw_from_redis.return_value = b"1"
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/view/msg-003?returnurl=https://example.com")
+    response = client.get("/preview/msg-003?returnurl=https://example.com")
 
     assert response.status_code == 200
     assert "PDF Evidences" in response.text
-    assert "/view/continue" in response.text
+    assert "/preview/continue" in response.text
 
 
 def test_view_renders_xml_template(client, fake_redis_client, monkeypatch):
-    fake_redis_client.get_from_redis.return_value = {
+    evidence_data = {
         "preview": True,
         "evidences": [
             {
@@ -63,13 +91,15 @@ def test_view_renders_xml_template(client, fake_redis_client, monkeypatch):
             }
         ],
     }
+    fake_redis_client.get_from_redis.return_value = evidence_data
+    fake_redis_client.get_raw_from_redis.return_value = b"1"
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/view/msg-004?returnurl=https://example.com")
+    response = client.get("/preview/msg-004?returnurl=https://example.com")
 
     assert response.status_code == 200
     assert "XML Documents Viewer" in response.text
-    assert "/view/continue" in response.text
+    assert "/preview/continue" in response.text
 
 
 def test_continue_view_updates_approvals_and_flags(client, fake_redis_client, monkeypatch):
@@ -83,7 +113,7 @@ def test_continue_view_updates_approvals_and_flags(client, fake_redis_client, mo
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.post(
-        "/view/continue",
+        "/preview/continue",
         json={
             "message_uuid": "msg-005",
             "approvals": {"doc-1": True, "doc-2": False},

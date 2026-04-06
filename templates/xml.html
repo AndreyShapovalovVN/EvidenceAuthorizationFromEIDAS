@@ -86,7 +86,7 @@
 
         const resultDiv = document.getElementById('resultMessage');
 
-        fetch('/view/continue', {
+        fetch('/preview/continue', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({message_uuid, approvals})

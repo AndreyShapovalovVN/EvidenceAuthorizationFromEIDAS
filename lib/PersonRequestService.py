@@ -44,9 +44,10 @@ def _build_eidas_identifier(raw_identifier: str) -> str:
 
     return f"UA/UA/{raw_identifier}"
 
+
 async def save_person_request(
-    client: UseRedisAsync,
-    payload: ContinuePayload,
+        client: UseRedisAsync,
+        payload: ContinuePayload,
 ) -> tuple[str, dict]:
     """Create a `Person`, store it in Redis, and enqueue the message for processing."""
     message_id = payload.message_id.strip()
@@ -62,15 +63,11 @@ async def save_person_request(
     )
 
     person_data = person.dict
-    request_person_key = KEYS.REQUEST_PERSON.format(conversation_id=message_id)
-    await client.save_to_redis(
-        request_person_key, person_data
-    )
+    request_person_key = KEYS.request_person(message_id)
+    await client.save_to_redis(request_person_key, person_data)
 
-    edm = await client.get_from_redis(
-        KEYS.REQUEST_EDM.format(conversation_id=message_id)
-    )
-    queue = edm[0].get('process_queue')  # type: ignore
+    edm = await client.get_from_redis(KEYS.request_edm(message_id))
+    queue = edm[0].get('process_queue')
     await client.push_to_queue(queue, message_id)
+    
     return request_person_key, person_data
-

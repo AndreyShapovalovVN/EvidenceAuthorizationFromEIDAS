@@ -2,9 +2,11 @@
 
 import logging
 import os
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -16,12 +18,16 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from lib.MessageChecker import check_message
 from lib.PersonRequestService import ContinuePayload, save_person_request
-from lib.RedirectService import resolve_continue_url
 from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 from redis_keys import Keys
 
 WAIT_EVENT_TIME = int(os.environ.get("WAIT_EVENT_TIME", "120"))
 WAIT_EVENT_SLEEP = int(os.environ.get("WAIT_EVENT_SLEEP", "5"))
+
+QUEUE_OUTGOING = os.getenv("QUEUE_OUTGOING", "oots:queue:outgoing")
+
+KEYS = Keys()
+
 
 logging.basicConfig(level=logging.DEBUG)
 _logger = logging.getLogger("Authorization UI")
@@ -113,12 +119,10 @@ async def root(request: Request, message_id: str):
             status_code=408,
             detail=f"Таймаут очікування preview для message_id={message_id}",
         )
-    continue_url = await resolve_continue_url(
-        client=client,
-        message_id=message_id,
-        returnurl=request.query_params.get("returnurl"),
-        returnmethod=request.query_params.get("returnmethod"),
-    )
+    continue_url = f"/preview/{message_id}"
+    query_pairs = list(request.query_params.multi_items())
+    if query_pairs:
+        continue_url = f"{continue_url}?{urlencode(query_pairs, doseq=True)}"
 
     return templates.TemplateResponse(
         request,
@@ -153,13 +157,13 @@ async def continue_auth(payload: ContinuePayload):
 
 async def _check_preview_ready(client, message_id: str) -> bool:
     """Перевіряє чи готовий прапор preview в Redis."""
-    preview_key = Keys.REQUEST_PREVIEW.format(conversation_id=message_id)
-    return await client.get_from_redis(preview_key) is not None
+    preview_key = KEYS.request_preview(message_id)
+    return await client.get_raw_from_redis(preview_key) is not None
 
 
 async def _check_evidence_ready(client, message_id: str) -> bool:
     """Перевіряє чи готовий evidence в Redis."""
-    evidence_key = Keys.RESPONSE_EVIDENCE.format(conversation_id=message_id)
+    evidence_key = KEYS.response_evidence(message_id)
     return await client.get_from_redis(evidence_key) is not None
 
 
@@ -168,7 +172,7 @@ async def _render_evidence_page(
 ) -> HTMLResponse:
     """Рендер PDF або XML сторінки з evidences."""
     client = get_redis_client()
-    redis_key = Keys.RESPONSE_EVIDENCE.format(conversation_id=message_id)
+    redis_key = KEYS.response_evidence(message_id)
     data = await client.get_from_redis(redis_key)
 
     if data is None:
@@ -223,7 +227,7 @@ async def _render_evidence_page(
     )
 
 
-@app.get("/view/{message_id}")
+@app.get("/preview/{message_id}")
 async def view_evidence(request: Request, message_id: str):
     """Показує сторінку з таскбаром очікування, потім рендер evidence."""
     returnurl = request.query_params.get("returnurl")
@@ -232,13 +236,13 @@ async def view_evidence(request: Request, message_id: str):
         raise HTTPException(
             status_code=400,
             detail="Відсутній обовʼязковий параметр 'returnurl'. "
-                   "URL повинен містити параметр returnurl. Приклад: /view/123?returnurl=https://example.com",
+                   "URL повинен містити параметр returnurl. Приклад: /preview/123?returnurl=https://example.com",
         )
 
     client = get_redis_client()
 
     # Перевіряємо чи обидва етапи вже готові
-    preview_ready = await _check_preview_ready(client, message_id)
+    _ = await _check_preview_ready(client, message_id)
     evidence_ready = await _check_evidence_ready(client, message_id)
 
     if evidence_ready:
@@ -251,13 +255,14 @@ async def view_evidence(request: Request, message_id: str):
         "view_waiting.html",
         {
             "message_id": message_id,
+            "returnurl": returnurl,
             "wait_time": WAIT_EVENT_TIME,
             "poll_interval": WAIT_EVENT_SLEEP,
         },
     )
 
 
-@app.get("/view/progress/{message_id}")
+@app.get("/preview/progress/{message_id}")
 async def view_progress(message_id: str):
     """API endpoint для отримання прогресу завантаження evidence."""
     client = get_redis_client()
@@ -283,15 +288,14 @@ async def view_progress(message_id: str):
     }
 
 
-@app.post("/view/continue")
+@app.post("/preview/continue")
 async def continue_view(payload: ViewContinuePayload):
     """Persist checkbox approvals for preview evidences."""
     client = get_redis_client()
     message_id = payload.message_uuid
 
-    evidence_key = Keys.RESPONSE_EVIDENCE.format(conversation_id=message_id)
-    permit_key = Keys.RESPONSE_PERMIT.format(conversation_id=message_id)
-
+    evidence_key = KEYS.response_evidence(message_id)
+    permit_key = KEYS.response_permit(message_id)
     json_data = await client.get_from_redis(evidence_key)
     if json_data is None:
         raise HTTPException(status_code=404, detail=f"Data not found in Redis by id: {message_id}")
@@ -304,8 +308,11 @@ async def continue_view(payload: ViewContinuePayload):
 
     json_data["preview"] = False
 
-    await client.save_to_redis(evidence_key, json_data)
-    await client.save_to_redis(permit_key, True)
+    await  asyncio.gather(
+        client.save_to_redis(evidence_key, json_data),
+        client.save_to_redis(permit_key, True),
+        client.push_to_queue(QUEUE_OUTGOING, message_id),
+    )
 
     return {
         "status": "success",
@@ -314,21 +321,24 @@ async def continue_view(payload: ViewContinuePayload):
     }
 
 
-@app.post("/view/timeout/{message_id}")
+@app.post("/preview/timeout/{message_id}")
 async def view_timeout(message_id: str):
     """Записує статус таймауту в Redis при спливанні часу на клієнті."""
     client = get_redis_client()
 
     # Записуємо таймаут-статус під спеціальним ключем
-    timeout_key = f"oots:message:view:timeout:{message_id}"
+    timeout_key = KEYS.response_exp(message_id)
     await client.save_to_redis(
         timeout_key,
         {
-            "timeout": True,
-            "message": f"View timeout for message_id={message_id}",
-            "timestamp": str(__import__("datetime").datetime.utcnow().isoformat()),
-        },
+            "exception": {
+                "code": "EDM:ERR:0005",
+                "message": f"View timeout for message_id={message_id}",
+                "detail": f"View timeout for message_id={message_id}",
+            }
+        }
     )
+    await client.push_to_queue(QUEUE_OUTGOING, message_id)
 
     _logger.warning("View timeout recorded for message_id=%s", message_id)
 
