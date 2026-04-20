@@ -1,4 +1,5 @@
 import main
+from lib.evidence_view_model import build_evidence_view_model
 from lib.MessageChecker import MessageStatus
 from redis_keys import Keys
 
@@ -134,7 +135,7 @@ def test_view_renders_xml_template(client, fake_redis_client, monkeypatch):
 
 
 def test_build_evidence_view_model_ignores_xml_metadata_in_sidebar():
-    new_model = main._build_evidence_view_model(
+    new_model = build_evidence_view_model(
         {
             "evidences": [
                 {
@@ -157,7 +158,7 @@ def test_build_evidence_view_model_ignores_xml_metadata_in_sidebar():
         }
     )
 
-    legacy_model = main._build_evidence_view_model(
+    legacy_model = build_evidence_view_model(
         {
             "evidences": [
                 {
