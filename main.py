@@ -14,9 +14,9 @@ from lxml import etree
 from pydantic import BaseModel
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from lib.evidence_view_model import build_evidence_view_model as _build_evidence_view_model
 from lib.MessageChecker import check_message
 from lib.PersonRequestService import ContinuePayload, save_person_request
+from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 from lib.preview_service import (
     EmptyEvidenceListError,
     EvidenceDataNotFoundError,
@@ -26,7 +26,6 @@ from lib.preview_service import (
     persist_approvals,
     record_view_timeout,
 )
-from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 from redis_keys import Keys
 
 WAIT_EVENT_TIME = int(os.environ.get("WAIT_EVENT_TIME", "120"))
@@ -35,7 +34,6 @@ WAIT_EVENT_SLEEP = int(os.environ.get("WAIT_EVENT_SLEEP", "5"))
 QUEUE_OUTGOING = os.getenv("QUEUE_OUTGOING", "oots:queue:outgoing")
 
 KEYS = Keys()
-
 
 logging.basicConfig(level=logging.DEBUG)
 _logger = logging.getLogger("Authorization UI")
@@ -164,7 +162,7 @@ async def continue_auth(payload: ContinuePayload):
 
 
 async def _render_evidence_page(
-    request: Request, message_id: str, returnurl: str
+        request: Request, message_id: str, returnurl: str
 ) -> HTMLResponse:
     """Render evidence page using prepared context from service layer."""
     client = get_redis_client()
