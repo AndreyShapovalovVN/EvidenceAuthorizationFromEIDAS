@@ -12,6 +12,8 @@ class FakeRedisClient:
         self.save_to_redis = AsyncMock(return_value=None)
         self.get_from_redis = AsyncMock(return_value=None)
         self.get_raw_from_redis = AsyncMock(return_value=None)
+        self.get_flag = AsyncMock(return_value=False)
+        self.set_flag = AsyncMock(return_value=None)
         self.push_to_queue = AsyncMock(return_value=None)
 
 

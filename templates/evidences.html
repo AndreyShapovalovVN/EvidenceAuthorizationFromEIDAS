@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/base.css">
+</head>
+<body>
+<div class="wrapper evidence-page">
+    <h2 class="page-title">{{ title }}</h2>
+    {% if preview_descriptions %}
+        <p class="page-subtitle">{{ preview_descriptions | join(" | ") }}</p>
+    {% endif %}
+
+    <div class="evidence-layout" id="evidenceApp">
+        <aside class="evidence-sidebar">
+            <h3 class="evidence-sidebar-title">Evidences</h3>
+            <div class="evidence-list" id="evidenceList">
+                {% for evidence in evidences %}
+                    {% set evidence_index = loop.index0 %}
+                    <div class="evidence-item js-evidence-item" data-evidence-index="{{ evidence_index }}">
+                        <button type="button"
+                                class="evidence-item-title js-evidence-select"
+                                data-evidence-index="{{ evidence_index }}"
+                                data-default-content-id="{{ evidence.default_content_id }}"
+                                title="{{ evidence.title }}">
+                            📄 {{ evidence.title }}
+                        </button>
+
+                        <div class="evidence-item-content">
+                            <button type="button"
+                                    class="view-all-btn js-view-all"
+                                    data-evidence-index="{{ evidence_index }}"
+                                    title="View all contents ({{ evidence.contents|length }} items)">
+                                👁️ View All ({{ evidence.contents|length }})
+                            </button>
+                            {% if evidence.contents|length <= 5 %}
+                                {% for content in evidence.contents %}
+                                    <button type="button"
+                                            class="content-btn js-content-select"
+                                            data-evidence-index="{{ evidence_index }}"
+                                            data-content-id="{{ content.id }}"
+                                            title="{{ content.label }}">
+                                        {{ content.classification_node }}: {{ content.label|truncate(20, True) }}
+                                    </button>
+                                {% endfor %}
+                            {% else %}
+                                <div class="content-preview">
+                                    <span class="preview-hint">{{ evidence.contents|length }} items available</span>
+                                </div>
+                                {% for content in evidence.contents[:3] %}
+                                    <button type="button"
+                                            class="content-btn js-content-select"
+                                            data-evidence-index="{{ evidence_index }}"
+                                            data-content-id="{{ content.id }}"
+                                            title="{{ content.label }}">
+                                        {{ content.classification_node }}: {{ content.label|truncate(20, True) }}
+                                    </button>
+                                {% endfor %}
+                                <button type="button"
+                                        class="content-btn-more"
+                                        disabled>
+                                    ... and {{ evidence.contents|length - 3 }} more
+                                </button>
+                            {% endif %}
+                        </div>
+
+                        <label class="permit-row">
+                            <input type="checkbox"
+                                   class="js-permit-checkbox"
+                                   data-approval-key="{{ evidence.approval_key }}"
+                                   {% if evidence.permit %}checked{% endif %}>
+                            <span>Permit</span>
+                        </label>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <button id="submitBtn" class="submit-btn">✓ Submit approvals</button>
+            <div id="resultMessage" class="result-message"></div>
+        </aside>
+
+        <section class="evidence-viewer">
+            <div class="viewer-meta" id="viewerMeta"></div>
+            <iframe class="pdf-frame viewer-panel" id="pdfViewer"></iframe>
+            <pre class="text-viewer viewer-panel" id="textViewer"></pre>
+            <div class="empty-viewer viewer-panel" id="emptyViewer">Select an evidence content to preview.</div>
+        </section>
+    </div>
+</div>
+
+<script id="evidenceData" type="application/json">{{ evidences | tojson }}</script>
+<script>
+    window.evidencePageConfig = {
+        message_uuid: {{ message_uuid | tojson }},
+        returnurl: {{ returnurl | tojson }}
+    };
+</script>
+<script src="/static/evidences.js"></script>
+</body>
+</html>
+
+

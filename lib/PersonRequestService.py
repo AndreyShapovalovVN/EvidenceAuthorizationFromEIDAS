@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
-from lib.Person import Identifier, Person
+from Models.Person import Identifier, Person
 from lib.UseRedis import UseRedisAsync
 from redis_keys import Keys
 

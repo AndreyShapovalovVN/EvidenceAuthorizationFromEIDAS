@@ -293,3 +293,209 @@ details.accordion > .accordion-body {
 .result-message.err {
     color: var(--danger);
 }
+
+/* Unified evidences page */
+.evidence-page {
+    width: min(1280px, 100%);
+}
+
+.evidence-layout {
+    display: grid;
+    grid-template-columns: minmax(330px, 420px) 1fr;
+    gap: 18px;
+    align-items: start;
+}
+
+.evidence-sidebar,
+.evidence-viewer {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+    padding: 14px;
+}
+
+.evidence-sidebar-title {
+    margin: 0 0 10px;
+    font-size: 16px;
+}
+
+.evidence-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 65vh;
+    overflow: auto;
+    margin-bottom: 12px;
+}
+
+.evidence-item {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+    background: #0d1729;
+}
+
+.evidence-item.active {
+    border-color: #3a5f9e;
+    background: #152844;
+}
+
+.evidence-item-title,
+.content-btn,
+.view-all-btn {
+    text-align: left;
+    margin-bottom: 8px;
+    font-size: 13px;
+    background: var(--panel);
+    cursor: pointer;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: #cfe1ff;
+    transition: all 0.2s ease;
+}
+
+.evidence-item-title {
+    width: 100%;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 12px;
+}
+
+.evidence-item-title:hover,
+.evidence-item-title:focus {
+    border-color: #3a5f9e;
+    background: var(--card);
+}
+
+.evidence-item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.view-all-btn {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+    border-color: var(--primary-2);
+}
+
+.view-all-btn:hover {
+    background: var(--primary-2);
+    border-color: var(--primary);
+}
+
+.content-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+}
+
+.content-btn:hover {
+    border-color: #3a5f9e;
+    background: var(--card);
+}
+
+.content-btn.active {
+    border-color: var(--success);
+    background: var(--primary);
+    color: #fff;
+}
+
+.content-btn-more {
+    text-align: left;
+    font-size: 12px;
+    padding: 6px 10px;
+    background: #0d1729;
+    color: var(--muted);
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    cursor: default;
+    opacity: 0.6;
+}
+
+.content-preview {
+    font-size: 12px;
+    padding: 6px 10px;
+    color: var(--muted);
+    background: #0d1729;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+}
+
+.preview-hint {
+    display: block;
+    text-align: center;
+    font-style: italic;
+}
+
+.content-btn.active,
+.evidence-item-title:hover,
+.content-btn:hover {
+    border-color: #3a5f9e;
+}
+
+.evidence-item-actions {
+    display: flex;
+    flex-direction: column;
+}
+
+.permit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #cfe1ff;
+    margin-top: 4px;
+}
+
+.permit-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+.viewer-meta {
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.viewer-panel {
+    display: none;
+}
+
+.text-viewer,
+.empty-viewer {
+    min-height: 65vh;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #0d1729;
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    white-space: pre-wrap;
+    font-size: 13px;
+}
+
+.empty-viewer {
+    color: var(--muted);
+    display: block;
+}
+
+@media (max-width: 980px) {
+    .evidence-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .evidence-list {
+        max-height: none;
+    }
+
+    .pdf-frame,
+    .text-viewer,
+    .empty-viewer {
+        min-height: 48vh;
+    }
+}
+

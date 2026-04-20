@@ -40,7 +40,7 @@ def test_view_returns_404_when_data_missing(client, fake_redis_client, monkeypat
 
     response = client.get("/preview/msg-002?returnurl=https://example.com")
 
-    # Сторінка чекання показується, коли evidence не готовий
+    # Сторінка чекання показується, коли evidence не готовий.
     assert response.status_code == 200
     assert "Loading Evidence" in response.text
 
@@ -59,25 +59,55 @@ def test_view_progress_returns_stage_0_when_no_data(client, fake_redis_client, m
 
 def test_view_renders_pdf_template(client, fake_redis_client, monkeypatch):
     evidence_data = {
+        "title": "Evidence package",
+        "PreviewDescription": [{"lang": "EN", "value": "Demo preview"}],
         "preview": True,
         "evidences": [
             {
-                "cid": "doc-1",
-                "content_type": "application/pdf",
-                "content": "JVBERi0xLjcK",
+                "id": "pkg-1",
+                "permit": False,
+                "RegistryPackage": [
+                    {
+                        "classification": {
+                            "id": "cls-1",
+                            "classificationScheme": "urn:fdc:oots:classification:edm",
+                            "classificationNode": "MainEvidence",
+                        },
+                        "EvidenceMetadata": "Birth certificate",
+                        "RepositoryItemRef": {
+                            "title": "Evidence XML",
+                            "href": "cid:main-1",
+                        },
+                        "content_type": "application/xml",
+                        "content": "<Root><A>1</A></Root>",
+                    },
+                    {
+                        "classification": {
+                            "id": "cls-2",
+                            "classificationScheme": "urn:fdc:oots:classification:edm",
+                            "classificationNode": "HumanReadableVersion",
+                        },
+                        "EvidenceMetadata": "Birth certificate",
+                        "RepositoryItemRef": {
+                            "title": "Evidence PDF",
+                            "href": "cid:pdf-1",
+                        },
+                        "content_type": "application/pdf",
+                        "content": "JVBERi0xLjcK",
+                    },
+                ],
             }
         ],
     }
     fake_redis_client.get_from_redis.return_value = evidence_data
-    # get_raw_from_redis сигналізує, що evidence готовий → рендеримо одразу
-    fake_redis_client.get_raw_from_redis.return_value = b"1"
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.get("/preview/msg-003?returnurl=https://example.com")
 
     assert response.status_code == 200
-    assert "PDF Evidences" in response.text
-    assert "/preview/continue" in response.text
+    assert "Evidences" in response.text
+    assert "HumanReadableVersion" in response.text
+    assert "/static/evidences.js" in response.text
 
 
 def test_view_renders_xml_template(client, fake_redis_client, monkeypatch):
@@ -92,17 +122,60 @@ def test_view_renders_xml_template(client, fake_redis_client, monkeypatch):
         ],
     }
     fake_redis_client.get_from_redis.return_value = evidence_data
-    fake_redis_client.get_raw_from_redis.return_value = b"1"
+    fake_redis_client.get_flag.return_value = True
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.get("/preview/msg-004?returnurl=https://example.com")
 
     assert response.status_code == 200
-    assert "XML Documents Viewer" in response.text
-    assert "/preview/continue" in response.text
+    assert "Evidences" in response.text
+    assert "MainEvidence" in response.text
+    assert "/static/evidences.js" in response.text
 
 
-def test_continue_view_updates_approvals_and_flags(client, fake_redis_client, monkeypatch):
+def test_build_evidence_view_model_ignores_xml_metadata_in_sidebar():
+    new_model = main._build_evidence_view_model(
+        {
+            "evidences": [
+                {
+                    "id": "pkg-xml",
+                    "permit": False,
+                    "RegistryPackage": [
+                        {
+                            "classification": {"classificationNode": "MainEvidence"},
+                            "EvidenceMetadata": "<sdg:Evidence xmlns:sdg=\"urn:test\"><sdg:Title>Bad XML</sdg:Title></sdg:Evidence>",
+                            "RepositoryItemRef": {
+                                "title": "Readable title",
+                                "href": "cid:main-xml",
+                            },
+                            "content_type": "application/xml",
+                            "content": "<Root/>",
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+
+    legacy_model = main._build_evidence_view_model(
+        {
+            "evidences": [
+                {
+                    "cid": "doc-legacy",
+                    "metadata": "<xml>legacy metadata</xml>",
+                    "content_type": "application/xml",
+                    "content": "<Legacy/>",
+                }
+            ]
+        }
+    )
+
+    assert new_model[0]["title"] == "Readable title"
+    assert new_model[0]["contents"][0]["label"] == "MainEvidence: Readable title"
+    assert legacy_model[0]["title"] == "doc-legacy"
+
+
+def test_continue_view_updates_legacy_approvals_and_flags(client, fake_redis_client, monkeypatch):
     fake_redis_client.get_from_redis.return_value = {
         "preview": True,
         "evidences": [
@@ -127,13 +200,52 @@ def test_continue_view_updates_approvals_and_flags(client, fake_redis_client, mo
     permit_key = Keys.RESPONSE_PERMIT.format(conversation_id="msg-005")
 
     first_call = fake_redis_client.save_to_redis.await_args_list[0]
-    second_call = fake_redis_client.save_to_redis.await_args_list[1]
 
     assert first_call.args[0] == evidence_key
     assert first_call.args[1]["preview"] is False
     assert first_call.args[1]["evidences"][0]["permit"] is True
     assert first_call.args[1]["evidences"][1]["permit"] is False
 
-    assert second_call.args[0] == permit_key
-    assert second_call.args[1] == "true"
+    fake_redis_client.set_flag.assert_awaited_once_with(permit_key, True)
+
+
+def test_continue_view_updates_new_structure_approvals(client, fake_redis_client, monkeypatch):
+    fake_redis_client.get_from_redis.return_value = {
+        "preview": True,
+        "evidences": [
+            {
+                "id": "pkg-42",
+                "permit": False,
+                "RegistryPackage": [
+                    {
+                        "classification": {
+                            "classificationNode": "MainEvidence",
+                            "classificationScheme": "urn:fdc:oots:classification:edm",
+                            "id": "cls-1",
+                        },
+                        "EvidenceMetadata": "Meta",
+                        "RepositoryItemRef": {"title": "Main", "href": "cid:main"},
+                        "content_type": "application/xml",
+                        "content": "<A/>",
+                    }
+                ],
+            }
+        ],
+    }
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.post(
+        "/preview/continue",
+        json={
+            "message_uuid": "msg-777",
+            "approvals": {"pkg-42": True},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+
+    saved_payload = fake_redis_client.save_to_redis.await_args_list[0].args[1]
+    assert saved_payload["preview"] is False
+    assert saved_payload["evidences"][0]["permit"] is True
 

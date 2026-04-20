@@ -116,7 +116,7 @@ async def _wait_for_preview_flag(
     deadline = loop.time() + timeout
 
     while loop.time() < deadline:
-        value = await client.get_raw_from_redis(flag_key)
+        value = await client.get_flag(flag_key)
         if value is not None:
             _logger.info("Preview flag appeared for message_id=%s", message_id)
             return True

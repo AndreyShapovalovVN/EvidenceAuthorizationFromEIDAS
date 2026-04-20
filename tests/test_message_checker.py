@@ -10,6 +10,7 @@ class FakeRedisForChecker:
         self.get_from_redis = AsyncMock(return_value=evidence_data)
         values = preview_values if preview_values is not None else [None]
         self.get_raw_from_redis = AsyncMock(side_effect=values)
+        self.get_flag = AsyncMock(side_effect=values)
 
 
 def test_check_message_returns_success_when_edm_err_0002_found():
