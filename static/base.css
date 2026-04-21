@@ -22,14 +22,16 @@ body {
     background: radial-gradient(1000px 500px at 15% -10%, #1d3b70 0, transparent 60%), var(--bg);
     color: var(--text);
     min-height: 100vh;
-    display: flex;
+    /*display: flex;*/
+    display: block;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    /*padding: 24px;*/
+    padding: 0;
 }
 
 .wrapper {
-    width: min(1000px, 100%);
+    width: 100%;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 16px;
