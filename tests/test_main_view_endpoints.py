@@ -35,6 +35,41 @@ def test_auth_builds_continue_url_to_preview_without_returnurl(client, monkeypat
     assert 'const continueUrl = "/preview/msg-002";' in response.text
 
 
+def test_auth_eidas_next_returns_sequential_records(client, monkeypatch):
+    class StubAutofillService:
+        def __init__(self):
+            self._counter = 0
+
+        def get_next_payload(self):
+            self._counter += 1
+            return {
+                "first_name": f"Name{self._counter}",
+                "last_name": f"Last{self._counter}",
+                "date_of_birth": "1990-01-01",
+                "identifier": f"UA/UA/{self._counter}",
+                "level_of_assurance": "High",
+            }
+
+    monkeypatch.setattr(main, "EIDAS_AUTOFILL_SERVICE", StubAutofillService())
+
+    first = client.get("/auth/eidas/next")
+    second = client.get("/auth/eidas/next")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["identifier"] == "UA/UA/1"
+    assert second.json()["identifier"] == "UA/UA/2"
+
+
+def test_auth_eidas_next_returns_503_when_service_disabled(client, monkeypatch):
+    monkeypatch.setattr(main, "EIDAS_AUTOFILL_SERVICE", None)
+
+    response = client.get("/auth/eidas/next")
+
+    assert response.status_code == 503
+    assert "not configured" in response.json()["detail"]
+
+
 def test_view_returns_404_when_data_missing(client, fake_redis_client, monkeypatch):
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)

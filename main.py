@@ -17,6 +17,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from lib.MessageChecker import check_message
 from lib.PersonRequestService import ContinuePayload, save_person_request
 from lib.UseRedis import close_redis, get_redis_client, initialize_redis
+from lib.eidas_autofill_service import EidasAutofillService
 from lib.preview_service import (
     EmptyEvidenceListError,
     EvidenceDataNotFoundError,
@@ -41,6 +42,18 @@ APP_TITLE = "Authorization UI"
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+EIDAS_TEST_DATA_PATH = Path(
+    os.getenv(
+        "EIDAS_TEST_DATA_PATH",
+        str(BASE_DIR / "tests" / "eIDAS-id-data-test.csv"),
+    )
+)
+
+try:
+    EIDAS_AUTOFILL_SERVICE: EidasAutofillService | None = EidasAutofillService(EIDAS_TEST_DATA_PATH)
+except ValueError as exc:
+    _logger.warning("eIDAS autofill is disabled: %s", exc)
+    EIDAS_AUTOFILL_SERVICE = None
 
 
 def _fromstring_filter(xml_payload: str):
@@ -159,6 +172,14 @@ async def continue_auth(payload: ContinuePayload):
         "redis_key": redis_key,
         "person": person_data,
     }
+
+
+@app.get("/auth/eidas/next")
+async def auth_eidas_next():
+    """Return next eIDAS test record for form autofill."""
+    if EIDAS_AUTOFILL_SERVICE is None:
+        raise HTTPException(status_code=503, detail="eIDAS test data is not configured")
+    return EIDAS_AUTOFILL_SERVICE.get_next_payload()
 
 
 async def _render_evidence_page(

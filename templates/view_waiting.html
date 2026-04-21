@@ -5,150 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loading Evidence...</title>
     <link rel="stylesheet" href="/static/base.css">
-    <style>
-        .waiting-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 24px;
-        }
-
-        .waiting-card {
-            width: 100%;
-            max-width: 500px;
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 40px;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
-        }
-
-        .waiting-title {
-            margin: 0 0 24px;
-            font-size: 24px;
-            font-weight: 700;
-            text-align: center;
-            color: var(--text);
-        }
-
-        .stage-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .stage-item {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 14px 0;
-            border-bottom: 1px solid var(--line);
-        }
-
-        .stage-item:last-child {
-            border-bottom: none;
-        }
-
-        .stage-badge {
-            min-width: 40px;
-            min-height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            font-weight: 700;
-            font-size: 14px;
-        }
-
-        .stage-badge.pending {
-            background: var(--line);
-            color: var(--muted);
-        }
-
-        .stage-badge.active {
-            background: var(--primary);
-            color: #fff;
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        .stage-badge.done {
-            background: var(--success);
-            color: #fff;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.6;
-            }
-        }
-
-        .stage-content {
-            flex: 1;
-        }
-
-        .stage-name {
-            font-weight: 600;
-            color: var(--text);
-            font-size: 14px;
-            margin: 0;
-        }
-
-        .stage-hint {
-            color: var(--muted);
-            font-size: 12px;
-            margin: 4px 0 0;
-        }
-
-        .spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--line);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .waiting-message {
-            margin-top: 24px;
-            padding: 14px;
-            background: #152742;
-            border: 1px solid #24446e;
-            border-radius: 10px;
-            color: #bcd3ff;
-            font-size: 13px;
-            text-align: center;
-            line-height: 1.5;
-        }
-
-        .timeout-notice {
-            display: none;
-            margin-top: 14px;
-            padding: 12px;
-            background: rgba(239, 68, 68, 0.12);
-            border: 1px solid rgba(239, 68, 68, 0.35);
-            border-radius: 10px;
-            color: #fecaca;
-            font-size: 13px;
-            text-align: center;
-            line-height: 1.5;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/view_waiting.css">
 </head>
 <body>
 <div class="waiting-wrapper">
     <div class="waiting-card">
         <h1 class="waiting-title">⏳ Loading Evidence</h1>
+
+        <div class="taskbar-wrap" aria-live="polite">
+            <div class="taskbar-head">
+                <span>Progress</span>
+                <span id="taskbarPercent">0%</span>
+            </div>
+            <div class="taskbar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="taskbarTrack">
+                <div id="taskbarFill" class="taskbar-fill"></div>
+            </div>
+            <p id="taskbarStatus" class="taskbar-status">Waiting for preview flag...</p>
+        </div>
 
         <ul class="stage-list">
             <li class="stage-item" id="stage-preview">
@@ -171,7 +44,7 @@
         </ul>
 
         <div class="waiting-message">
-            Message ID: <code style="font-size: 11px; color: #7eb3ff;">{{ message_id }}</code>
+            Message ID: <code class="waiting-message-id">{{ message_id }}</code>
         </div>
         <div id="timeoutNotice" class="timeout-notice"></div>
     </div>
@@ -194,6 +67,7 @@
 
             const data = await response.json();
             updateStages(data.stage);
+            updateTaskbar(data.stage);
 
             if (data.stage >= 2) {
                 // Обидва етапи готові, редиректимо
@@ -204,6 +78,30 @@
         } catch (error) {
             console.error("Error checking progress:", error);
         }
+    }
+
+    function updateTaskbar(stage) {
+        const fill = document.getElementById("taskbarFill");
+        const percent = document.getElementById("taskbarPercent");
+        const status = document.getElementById("taskbarStatus");
+        const track = document.getElementById("taskbarTrack");
+
+        let progress = 0;
+        let text = "Waiting for preview flag...";
+
+        if (stage >= 1) {
+            progress = 50;
+            text = "Preview is ready. Waiting for evidence...";
+        }
+        if (stage >= 2) {
+            progress = 100;
+            text = "Evidence is ready. Opening preview...";
+        }
+
+        fill.style.width = `${progress}%`;
+        percent.textContent = `${progress}%`;
+        track.setAttribute("aria-valuenow", String(progress));
+        status.textContent = text;
     }
 
     function updateStages(stage) {
@@ -248,6 +146,7 @@
     }, pollInterval);
 
     // Перший раз перевіряємо одразу
+    updateTaskbar(0);
     checkProgress();
 </script>
 </body>

@@ -75,13 +75,26 @@
     }
 
     if (fillBtn) {
-        fillBtn.addEventListener("click", () => {
-            document.getElementById("first_name").value = "Пилип";
-            document.getElementById("last_name").value = "Ляхович";
-            document.getElementById("date_of_birth").value = "1994-01-21";
-            document.getElementById("identifier").value = "UA/UA/1059233691";
-            document.getElementById("level_of_assurance").value = "High";
-            setStatus("Тестові eIDAS дані заповнено.", true);
+        fillBtn.addEventListener("click", async () => {
+            try {
+                const response = await fetch("/auth/eidas/next");
+                const body = await response.json();
+
+                if (!response.ok) {
+                    setStatus(body.detail || "Не вдалося отримати тестові eIDAS дані.", false);
+                    return;
+                }
+
+                document.getElementById("first_name").value = body.first_name || "";
+                document.getElementById("last_name").value = body.last_name || "";
+                document.getElementById("date_of_birth").value = body.date_of_birth || "";
+                document.getElementById("identifier").value = body.identifier || "";
+                document.getElementById("level_of_assurance").value = body.level_of_assurance || "High";
+
+                setStatus(`Підставлено тестові eIDAS дані: ${body.identifier || "-"}`, true);
+            } catch (error) {
+                setStatus("Не вдалося завантажити тестові eIDAS дані.", false);
+            }
         });
     }
 
