@@ -25,42 +25,6 @@
     color: var(--text);
 }
 
-.taskbar-wrap {
-    margin-bottom: 24px;
-}
-
-.taskbar-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.taskbar-track {
-    width: 100%;
-    height: 10px;
-    border-radius: 999px;
-    background: #1f3558;
-    border: 1px solid #2a4b7c;
-    overflow: hidden;
-}
-
-.taskbar-fill {
-    width: 0;
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
-    transition: width 0.35s ease;
-}
-
-.taskbar-status {
-    margin: 8px 0 0;
-    font-size: 12px;
-    color: #bcd3ff;
-}
-
 .stage-list {
     list-style: none;
     padding: 0;
@@ -131,6 +95,33 @@
     color: var(--muted);
     font-size: 12px;
     margin: 4px 0 0;
+}
+
+.stage-progress-head {
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #bcd3ff;
+}
+
+.stage-progress-track {
+    margin-top: 6px;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: #1f3558;
+    border: 1px solid #2a4b7c;
+    overflow: hidden;
+}
+
+.stage-progress-fill {
+    width: 0;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+    transition: width 0.35s ease;
 }
 
 .spinner {

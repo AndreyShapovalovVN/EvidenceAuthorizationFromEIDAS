@@ -12,17 +12,6 @@
     <div class="waiting-card">
         <h1 class="waiting-title">⏳ Loading Evidence</h1>
 
-        <div class="taskbar-wrap" aria-live="polite">
-            <div class="taskbar-head">
-                <span>Progress</span>
-                <span id="taskbarPercent">0%</span>
-            </div>
-            <div class="taskbar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="taskbarTrack">
-                <div id="taskbarFill" class="taskbar-fill"></div>
-            </div>
-            <p id="taskbarStatus" class="taskbar-status">Waiting for preview flag...</p>
-        </div>
-
         <ul class="stage-list">
             <li class="stage-item" id="stage-preview">
                 <div class="stage-badge active">
@@ -31,6 +20,13 @@
                 <div class="stage-content">
                     <p class="stage-name">Step 1: Preview Ready</p>
                     <p class="stage-hint">Waiting for preview flag from service...</p>
+                    <div class="stage-progress-head">
+                        <span id="stage1Checks">0 / 0 checks</span>
+                        <span id="stage1Percent">0%</span>
+                    </div>
+                    <div class="stage-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="stage1Track">
+                        <div id="stage1Fill" class="stage-progress-fill"></div>
+                    </div>
                 </div>
             </li>
 
@@ -39,6 +35,13 @@
                 <div class="stage-content">
                     <p class="stage-name">Step 2: Evidence Retrieved</p>
                     <p class="stage-hint">Waiting for evidence from service...</p>
+                    <div class="stage-progress-head">
+                        <span id="stage2Checks">0 / 0 checks</span>
+                        <span id="stage2Percent">0%</span>
+                    </div>
+                    <div class="stage-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="stage2Track">
+                        <div id="stage2Fill" class="stage-progress-fill"></div>
+                    </div>
                 </div>
             </li>
         </ul>
@@ -56,6 +59,11 @@
     const maxWaitTime = {{ wait_time }} * 1000; // мілісекунди
     const pollInterval = {{ poll_interval }} * 1000;
     const startTime = Date.now();
+    const maxChecks = Math.max(1, Math.ceil(maxWaitTime / pollInterval));
+    const stageChecks = {
+        stage1: 0,
+        stage2: 0,
+    };
 
     async function checkProgress() {
         try {
@@ -66,8 +74,8 @@
             }
 
             const data = await response.json();
+            updatePerStageTaskbars(data.stage);
             updateStages(data.stage);
-            updateTaskbar(data.stage);
 
             if (data.stage >= 2) {
                 // Обидва етапи готові, редиректимо
@@ -80,28 +88,32 @@
         }
     }
 
-    function updateTaskbar(stage) {
-        const fill = document.getElementById("taskbarFill");
-        const percent = document.getElementById("taskbarPercent");
-        const status = document.getElementById("taskbarStatus");
-        const track = document.getElementById("taskbarTrack");
-
-        let progress = 0;
-        let text = "Waiting for preview flag...";
-
-        if (stage >= 1) {
-            progress = 50;
-            text = "Preview is ready. Waiting for evidence...";
+    function updatePerStageTaskbars(stage) {
+        if (stage < 1) {
+            stageChecks.stage1 = Math.min(stageChecks.stage1 + 1, maxChecks);
+        } else if (stage < 2) {
+            stageChecks.stage2 = Math.min(stageChecks.stage2 + 1, maxChecks);
         }
-        if (stage >= 2) {
-            progress = 100;
-            text = "Evidence is ready. Opening preview...";
-        }
+
+        const stage1Progress = stage >= 1 ? 100 : Math.min(99, Math.round((stageChecks.stage1 / maxChecks) * 100));
+        const stage2Progress = stage >= 2
+            ? 100
+            : (stage >= 1 ? Math.min(99, Math.round((stageChecks.stage2 / maxChecks) * 100)) : 0);
+
+        renderStageTaskbar("1", stage1Progress, stageChecks.stage1);
+        renderStageTaskbar("2", stage2Progress, stageChecks.stage2);
+    }
+
+    function renderStageTaskbar(stageNo, progress, checksDone) {
+        const fill = document.getElementById(`stage${stageNo}Fill`);
+        const percent = document.getElementById(`stage${stageNo}Percent`);
+        const checks = document.getElementById(`stage${stageNo}Checks`);
+        const track = document.getElementById(`stage${stageNo}Track`);
 
         fill.style.width = `${progress}%`;
         percent.textContent = `${progress}%`;
+        checks.textContent = `${checksDone} / ${maxChecks} checks`;
         track.setAttribute("aria-valuenow", String(progress));
-        status.textContent = text;
     }
 
     function updateStages(stage) {
@@ -116,9 +128,9 @@
 
         if (stage >= 2) {
             const badge2 = stageEvidence.querySelector(".stage-badge");
-            badge2.innerHTML = '<div class="spinner"></div>';
-            badge2.className = "stage-badge active";
-            stageEvidence.querySelector(".stage-hint").textContent = "Loading...";
+            badge2.innerHTML = '✓';
+            badge2.className = "stage-badge done";
+            stageEvidence.querySelector(".stage-hint").textContent = "Evidence received.";
         }
     }
 
@@ -146,7 +158,6 @@
     }, pollInterval);
 
     // Перший раз перевіряємо одразу
-    updateTaskbar(0);
     checkProgress();
 </script>
 </body>
