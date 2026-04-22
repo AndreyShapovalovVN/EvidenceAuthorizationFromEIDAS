@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from lxml import etree
@@ -25,6 +25,7 @@ from lib.preview_service import (
     build_evidence_page_context,
     build_preview_progress,
     check_evidence_ready,
+    check_preview_ready,
     persist_approvals,
     record_view_timeout,
 )
@@ -207,13 +208,27 @@ async def _render_evidence_page(
 @app.get("/preview/{message_id}")
 async def view_evidence(request: Request, message_id: str):
     """Показує сторінку з таскбаром очікування, потім рендер evidence."""
+    query_returnurl = request.query_params.get("returnurl")
+
     client = get_redis_client()
 
-    returnurl = await resolve_continue_url(
-        client,
-        message_id,
-        request.query_params.get("returnurl"),
-    )
+    try:
+        resolved_returnurl = await resolve_continue_url(client, message_id, query_returnurl)
+    except Exception as exc:
+        _logger.warning("resolve_continue_url failed for message_id=%s: %s", message_id, exc)
+        resolved_returnurl = query_returnurl
+
+    if resolved_returnurl is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Відсутній URL для подальшого редіректу (returnurl).",
+        )
+
+    preview_requested = await check_preview_ready(client, message_id, KEYS)
+    if not preview_requested:
+        return RedirectResponse(url=resolved_returnurl, status_code=302)
+
+    returnurl = resolved_returnurl
 
     # Превью запрошено, чекаємо евіденс
     evidence_ready = await check_evidence_ready(client, message_id, KEYS)

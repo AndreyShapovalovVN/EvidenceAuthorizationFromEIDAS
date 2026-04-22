@@ -35,7 +35,6 @@ async def resolve_continue_url(
         client: UseRedisAsync,
         message_id: str,
         returnurl: str | None,
-        returnmethod: str | None = None,
 ) -> str | None:
     """
     Функція, яка визначає URL для редіректу після аутентифікації на основі EDM-прапора PossibilityForPreview.
@@ -43,7 +42,7 @@ async def resolve_continue_url(
     інакше повертає returnurl.
     """
 
-    _logger.debug(f"Отримали параметри returnurl: {returnurl}, returnmethod: {returnmethod} для message_id: {message_id}")
+    _logger.debug(f"Отримали параметри returnurl: {returnurl} для message_id: {message_id}")
 
     key = KEYS.REQUEST_EDM.format(conversation_id=message_id)
 
@@ -61,8 +60,9 @@ async def resolve_continue_url(
     preview = deep_get(edm, 'doc', 'PossibilityForPreview', default=False)
 
     if preview:
-        _logger.debug(f"{PREVIEW_URL}/{message_id}?returnurl={returnurl}")
-        return f"{PREVIEW_URL}/{message_id}?returnurl={returnurl}"
+        preview_url = f"{PREVIEW_URL}/{message_id}?returnurl={returnurl}"
+        _logger.debug(preview_url)
+        return preview_url
     else:
         _logger.debug(f"Повертаємо на портал запросу: {returnurl}")
         return returnurl

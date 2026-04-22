@@ -39,13 +39,12 @@ def test_resolve_continue_url_uses_preview_location_when_preview_possible(monkey
             cast(Any, client),
             message_id="msg-1",
             returnurl="http://oots-portal.oots-dev.k8s/previewed?token=abc",
-            returnmethod="GET",
         )
     )
 
     assert url == (
         "http://evidence.local/preview/msg-1"
-        "?returnurl=http://oots-portal.oots-dev.k8s/previewed?token=abc&returnmethod=GET"
+        "?returnurl=http://oots-portal.oots-dev.k8s/previewed?token=abc"
     )
 
 
@@ -72,7 +71,6 @@ def test_resolve_continue_url_returns_returnurl_when_preview_not_possible(monkey
             cast(Any, client),
             message_id="msg-5",
             returnurl="http://oots-portal.oots-dev.k8s/previewed?token=xyz",
-            returnmethod="GET",
         )
     )
 
@@ -104,7 +102,6 @@ def test_resolve_continue_url_uses_return_location_from_edm_v2(monkeypatch):
             cast(Any, client),
             message_id="msg-v2",
             returnurl="https://query.local/return",
-            returnmethod="GET",
         )
     )
 
