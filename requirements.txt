@@ -7,3 +7,4 @@ pytest>=8.3.0
 httpx>=0.27.0
 pyRegRep>=11
 xmltodict>=0.13.0
+multipart>=1.3.1

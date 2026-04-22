@@ -285,3 +285,127 @@ def test_continue_view_updates_new_structure_approvals(client, fake_redis_client
     assert saved_payload["preview"] is False
     assert saved_payload["evidences"][0]["permit"] is True
 
+
+# ─── /preview/continue: розширені тести ────────────────────────────────────────
+
+def test_continue_view_pushes_to_outgoing_queue(client, fake_redis_client, monkeypatch):
+    """push_to_queue повинен викликатися з правильним message_id."""
+    fake_redis_client.get_from_redis.return_value = {
+        "preview": True,
+        "evidences": [{"cid": "doc-q", "permit": False}],
+    }
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    client.post(
+        "/preview/continue",
+        json={"message_uuid": "msg-q01", "approvals": {"doc-q": True}},
+    )
+
+    fake_redis_client.push_to_queue.assert_awaited_once()
+    call_args = fake_redis_client.push_to_queue.await_args
+    assert call_args.args[1] == "msg-q01"
+
+
+def test_continue_view_returns_404_when_data_missing(client, fake_redis_client, monkeypatch):
+    """Якщо даних в Redis немає — повертає 404."""
+    fake_redis_client.get_from_redis.return_value = None
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.post(
+        "/preview/continue",
+        json={"message_uuid": "msg-missing", "approvals": {}},
+    )
+
+    assert response.status_code == 404
+    assert "msg-missing" in response.json()["detail"]
+
+
+def test_continue_view_unknown_approval_key_keeps_original_permit(client, fake_redis_client, monkeypatch):
+    """Evidence якого немає в approvals зберігає свій початковий permit."""
+    fake_redis_client.get_from_redis.return_value = {
+        "preview": True,
+        "evidences": [
+            {"cid": "doc-known", "permit": False},
+            {"cid": "doc-untouched", "permit": True},
+        ],
+    }
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    client.post(
+        "/preview/continue",
+        json={"message_uuid": "msg-partial", "approvals": {"doc-known": True}},
+    )
+
+    saved = fake_redis_client.save_to_redis.await_args_list[0].args[1]
+    assert saved["evidences"][0]["permit"] is True     # змінився
+    assert saved["evidences"][1]["permit"] is True     # залишився True
+
+
+def test_continue_view_unchecks_permit(client, fake_redis_client, monkeypatch):
+    """permit можна зняти (True → False)."""
+    fake_redis_client.get_from_redis.return_value = {
+        "preview": True,
+        "evidences": [{"cid": "doc-was-true", "permit": True}],
+    }
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    client.post(
+        "/preview/continue",
+        json={"message_uuid": "msg-uncheck", "approvals": {"doc-was-true": False}},
+    )
+
+    saved = fake_redis_client.save_to_redis.await_args_list[0].args[1]
+    assert saved["evidences"][0]["permit"] is False
+
+
+def test_continue_view_new_structure_sets_permit_flag_in_redis(client, fake_redis_client, monkeypatch):
+    """Для нової структури set_flag(permit_key, True) теж викликається."""
+    fake_redis_client.get_from_redis.return_value = {
+        "preview": True,
+        "evidences": [
+            {
+                "id": "pkg-n1",
+                "permit": False,
+                "RegistryPackage": [
+                    {
+                        "classification": {"classificationNode": "MainEvidence",
+                                           "classificationScheme": "urn:x", "id": "c1"},
+                        "EvidenceMetadata": "M",
+                        "RepositoryItemRef": {"title": "T", "href": "cid:t"},
+                        "content_type": "application/xml",
+                        "content": "<A/>",
+                    }
+                ],
+            },
+            {
+                "id": "pkg-n2",
+                "permit": False,
+                "RegistryPackage": [
+                    {
+                        "classification": {"classificationNode": "MainEvidence",
+                                           "classificationScheme": "urn:x", "id": "c2"},
+                        "EvidenceMetadata": "M2",
+                        "RepositoryItemRef": {"title": "T2", "href": "cid:t2"},
+                        "content_type": "application/xml",
+                        "content": "<B/>",
+                    }
+                ],
+            },
+        ],
+    }
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.post(
+        "/preview/continue",
+        json={"message_uuid": "msg-n2", "approvals": {"pkg-n1": True, "pkg-n2": False}},
+    )
+
+    assert response.status_code == 200
+    saved = fake_redis_client.save_to_redis.await_args_list[0].args[1]
+    assert saved["evidences"][0]["permit"] is True
+    assert saved["evidences"][1]["permit"] is False
+
+    from redis_keys import Keys
+    permit_key = Keys.RESPONSE_PERMIT.format(conversation_id="msg-n2")
+    fake_redis_client.set_flag.assert_awaited_once_with(permit_key, True)
+
