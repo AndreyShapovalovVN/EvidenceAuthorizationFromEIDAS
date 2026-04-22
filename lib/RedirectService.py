@@ -5,6 +5,7 @@ import os
 
 from fastapi import HTTPException
 from pyRegRep4.RIMParsing import Parsing  # type: ignore
+from pyRegRep4.utils import deep_get
 
 from lib.UseRedis import UseRedisAsync
 from redis_keys import Keys
@@ -53,9 +54,15 @@ async def resolve_continue_url(
     _logger.debug(f"Отримано EDM дані з Redis для message_id {message_id}: {edm_payload}")
     edm = _get_content(edm_payload[0])  # type: ignore
 
-    if edm.get("doc", {}).get("PossibilityForPreview"):
-        _logger.debug(f"{PREVIEW_URL}/{message_id}?returnurl={returnurl}&returnmethod={returnmethod}")
-        return f"{PREVIEW_URL}/{message_id}?returnurl={returnurl}&returnmethod={returnmethod}"
+    version_protokol = deep_get(edm, 'doc', 'SpecificationIdentifier', default='')
+    if 'oots-edm:v2' in version_protokol:
+        returnurl = deep_get(edm, 'doc', 'ReturnLocation', default=returnurl)
+
+    preview = deep_get(edm, 'doc', 'PossibilityForPreview', default=False)
+
+    if preview:
+        _logger.debug(f"{PREVIEW_URL}/{message_id}?returnurl={returnurl}")
+        return f"{PREVIEW_URL}/{message_id}?returnurl={returnurl}"
     else:
         _logger.debug(f"Повертаємо на портал запросу: {returnurl}")
         return returnurl

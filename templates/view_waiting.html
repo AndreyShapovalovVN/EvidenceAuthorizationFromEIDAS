@@ -55,7 +55,7 @@
 
 <script>
     const messageId = "{{ message_id }}";
-    const returnurl = "{{ returnurl | default('', true) }}";
+    const continueUrl = {{ returnurl | default('', true) | tojson }};
     const maxWaitTime = {{ wait_time }} * 1000; // мілісекунди
     const pollInterval = {{ poll_interval }} * 1000;
     const startTime = Date.now();
@@ -80,7 +80,11 @@
             if (data.stage >= 2) {
                 // Обидва етапи готові, редиректимо
                 setTimeout(() => {
-                    window.location.href = window.location.href;
+                    if (continueUrl) {
+                        window.location.href = continueUrl;
+                    } else {
+                        window.location.reload();
+                    }
                 }, 500);
             }
         } catch (error) {
@@ -150,7 +154,9 @@
             }).catch(err => console.error("Failed to record timeout:", err));
 
             setTimeout(() => {
-                window.location.href = returnurl;
+                if (continueUrl) {
+                    window.location.href = continueUrl;
+                }
             }, 1200);
         } else {
             checkProgress();

@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from lxml import etree
@@ -16,6 +16,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from lib.MessageChecker import check_message
 from lib.PersonRequestService import ContinuePayload, save_person_request
+from lib.RedirectService import resolve_continue_url
 from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 from lib.eidas_autofill_service import EidasAutofillService
 from lib.preview_service import (
@@ -24,7 +25,6 @@ from lib.preview_service import (
     build_evidence_page_context,
     build_preview_progress,
     check_evidence_ready,
-    check_preview_ready,
     persist_approvals,
     record_view_timeout,
 )
@@ -207,23 +207,13 @@ async def _render_evidence_page(
 @app.get("/preview/{message_id}")
 async def view_evidence(request: Request, message_id: str):
     """Показує сторінку з таскбаром очікування, потім рендер evidence."""
-    returnurl = request.query_params.get("returnurl")
-
-    if not returnurl:
-        raise HTTPException(
-            status_code=400,
-            detail="Відсутній обовʼязковий параметр 'returnurl'. "
-                   "URL повинен містити параметр returnurl. Приклад: /preview/123?returnurl=https://example.com",
-        )
-
     client = get_redis_client()
 
-    # Перевіряємо чи запрошено превью
-    preview_requested = await check_preview_ready(client, message_id, KEYS)
-
-    if not preview_requested:
-        # Пропускаємо превью, редирект по returnurl
-        return RedirectResponse(url=returnurl, status_code=302)
+    returnurl = await resolve_continue_url(
+        client,
+        message_id,
+        request.query_params.get("returnurl"),
+    )
 
     # Превью запрошено, чекаємо евіденс
     evidence_ready = await check_evidence_ready(client, message_id, KEYS)

@@ -79,6 +79,38 @@ def test_resolve_continue_url_returns_returnurl_when_preview_not_possible(monkey
     assert url == "http://oots-portal.oots-dev.k8s/previewed?token=xyz"
 
 
+def test_resolve_continue_url_uses_return_location_from_edm_v2(monkeypatch):
+    class DummyParsing:
+        def __init__(self, _):
+            pass
+
+        def serialize(self):
+            return {
+                "doc": {
+                    "SpecificationIdentifier": "oots-edm:v2.0",
+                    "ReturnLocation": "https://portal.local/return/from-body",
+                    "PossibilityForPreview": False,
+                }
+            }
+
+    monkeypatch.setattr(RedirectService, "Parsing", DummyParsing)
+
+    client = FakeRedisForRedirect([
+        {"content": "<Root><SpecificationIdentifier>oots-edm:v2.0</SpecificationIdentifier></Root>"}
+    ])
+
+    url = asyncio.run(
+        RedirectService.resolve_continue_url(
+            cast(Any, client),
+            message_id="msg-v2",
+            returnurl="https://query.local/return",
+            returnmethod="GET",
+        )
+    )
+
+    assert url == "https://portal.local/return/from-body"
+
+
 def test_resolve_continue_url_raises_when_edm_missing():
     client = FakeRedisForRedirect(None)
 
