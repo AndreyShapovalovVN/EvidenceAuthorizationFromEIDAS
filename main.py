@@ -226,6 +226,7 @@ async def view_evidence(request: Request, message_id: str):
 
     preview_requested = await check_preview_ready(client, message_id, KEYS)
     if not preview_requested:
+        await client.push_to_queue(QUEUE_OUTGOING, message_id)
         return RedirectResponse(url=resolved_returnurl, status_code=302)
 
     returnurl = resolved_returnurl
