@@ -81,7 +81,7 @@ async def persist_approvals(
     queue_outgoing: str,
 ) -> dict[str, bool]:
     evidence_key = keys.response_evidence(message_id)
-    permit_key = keys.response_permit(message_id)
+    # permit_key = keys.response_permit(message_id)
 
     json_data = await client.get_from_redis(evidence_key)
     if not isinstance(json_data, dict):
@@ -107,7 +107,7 @@ async def persist_approvals(
 
     await asyncio.gather(
         client.save_to_redis(evidence_key, json_data),
-        client.set_flag(permit_key, True),
+        # client.set_flag(permit_key, True),
         client.push_to_queue(queue_outgoing, message_id),
     )
 

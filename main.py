@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from lxml import etree
@@ -24,6 +24,7 @@ from lib.preview_service import (
     build_evidence_page_context,
     build_preview_progress,
     check_evidence_ready,
+    check_preview_ready,
     persist_approvals,
     record_view_timeout,
 )
@@ -217,10 +218,18 @@ async def view_evidence(request: Request, message_id: str):
 
     client = get_redis_client()
 
+    # Перевіряємо чи запрошено превью
+    preview_requested = await check_preview_ready(client, message_id, KEYS)
+
+    if not preview_requested:
+        # Пропускаємо превью, редирект по returnurl
+        return RedirectResponse(url=returnurl, status_code=302)
+
+    # Превью запрошено, чекаємо евіденс
     evidence_ready = await check_evidence_ready(client, message_id, KEYS)
 
     if evidence_ready:
-        # Обидва готові, рендеримо evidence сторінку одразу
+        # Евіденс готовий, рендеримо evidence сторінку одразу
         return await _render_evidence_page(request, message_id, returnurl)
 
     # Якщо ні, показуємо сторінку чекання

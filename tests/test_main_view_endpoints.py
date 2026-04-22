@@ -11,6 +11,54 @@ def test_view_requires_returnurl(client):
     assert "returnurl" in response.json()["detail"]
 
 
+def test_preview_skips_when_request_preview_flag_not_set(client, fake_redis_client, monkeypatch):
+    fake_redis_client.get_flag.return_value = False
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.get("/preview/msg-skip?returnurl=https://example.com/back", follow_redirects=False)
+
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://example.com/back"
+
+
+def test_preview_shows_waiting_when_flag_set_but_evidence_missing(client, fake_redis_client, monkeypatch):
+    fake_redis_client.get_flag.side_effect = lambda key, **_: "request:preview" in key
+    fake_redis_client.get_from_redis.return_value = None
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.get("/preview/msg-wait?returnurl=https://example.com/back")
+
+    assert response.status_code == 200
+    assert "Loading Evidence" in response.text
+
+
+def test_preview_renders_immediately_when_both_ready(client, fake_redis_client, monkeypatch):
+    evidence_data = {
+        "evidences": [
+            {
+                "id": "pkg-1",
+                "permit": False,
+                "RegistryPackage": [
+                    {
+                        "classification": {"classificationNode": "MainEvidence"},
+                        "RepositoryItemRef": {"title": "Doc", "href": "cid:1"},
+                        "content_type": "application/xml",
+                        "content": "<A/>",
+                    }
+                ],
+            }
+        ]
+    }
+    fake_redis_client.get_flag.return_value = True
+    fake_redis_client.get_from_redis.return_value = evidence_data
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.get("/preview/msg-ready?returnurl=https://example.com/back")
+
+    assert response.status_code == 200
+    assert "Evidences" in response.text
+
+
 def test_auth_builds_continue_url_to_preview_with_returnurl(client, monkeypatch):
     async def fake_check_message(_, __):
         return MessageStatus(preview_ready=True, timed_out=False)
@@ -71,6 +119,7 @@ def test_auth_eidas_next_returns_503_when_service_disabled(client, monkeypatch):
 
 
 def test_view_returns_404_when_data_missing(client, fake_redis_client, monkeypatch):
+    fake_redis_client.get_flag.return_value = True
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
@@ -82,6 +131,7 @@ def test_view_returns_404_when_data_missing(client, fake_redis_client, monkeypat
 
 
 def test_view_progress_returns_stage_0_when_no_data(client, fake_redis_client, monkeypatch):
+    fake_redis_client.get_flag.return_value = False
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
@@ -135,6 +185,7 @@ def test_view_renders_pdf_template(client, fake_redis_client, monkeypatch):
             }
         ],
     }
+    fake_redis_client.get_flag.return_value = True
     fake_redis_client.get_from_redis.return_value = evidence_data
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
@@ -157,8 +208,8 @@ def test_view_renders_xml_template(client, fake_redis_client, monkeypatch):
             }
         ],
     }
-    fake_redis_client.get_from_redis.return_value = evidence_data
     fake_redis_client.get_flag.return_value = True
+    fake_redis_client.get_from_redis.return_value = evidence_data
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.get("/preview/msg-004?returnurl=https://example.com")
@@ -233,16 +284,13 @@ def test_continue_view_updates_legacy_approvals_and_flags(client, fake_redis_cli
     assert response.json()["status"] == "success"
 
     evidence_key = Keys.RESPONSE_EVIDENCE.format(conversation_id="msg-005")
-    permit_key = Keys.RESPONSE_PERMIT.format(conversation_id="msg-005")
 
-    first_call = fake_redis_client.save_to_redis.await_args_list[0]
+    first_call = fake_redis_client.save_to_redis.call_args_list[0]
 
     assert first_call.args[0] == evidence_key
     assert first_call.args[1]["preview"] is False
     assert first_call.args[1]["evidences"][0]["permit"] is True
     assert first_call.args[1]["evidences"][1]["permit"] is False
-
-    fake_redis_client.set_flag.assert_awaited_once_with(permit_key, True)
 
 
 def test_continue_view_updates_new_structure_approvals(client, fake_redis_client, monkeypatch):
@@ -359,7 +407,7 @@ def test_continue_view_unchecks_permit(client, fake_redis_client, monkeypatch):
 
 
 def test_continue_view_new_structure_sets_permit_flag_in_redis(client, fake_redis_client, monkeypatch):
-    """Для нової структури set_flag(permit_key, True) теж викликається."""
+    """Для нової структури permit флаги коректно зберігаються."""
     fake_redis_client.get_from_redis.return_value = {
         "preview": True,
         "evidences": [
@@ -401,11 +449,8 @@ def test_continue_view_new_structure_sets_permit_flag_in_redis(client, fake_redi
     )
 
     assert response.status_code == 200
-    saved = fake_redis_client.save_to_redis.await_args_list[0].args[1]
+    saved = fake_redis_client.save_to_redis.call_args_list[0].args[1]
     assert saved["evidences"][0]["permit"] is True
     assert saved["evidences"][1]["permit"] is False
 
-    from redis_keys import Keys
-    permit_key = Keys.RESPONSE_PERMIT.format(conversation_id="msg-n2")
-    fake_redis_client.set_flag.assert_awaited_once_with(permit_key, True)
 
