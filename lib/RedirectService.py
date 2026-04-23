@@ -34,10 +34,12 @@ def _get_content(edm_payload: dict) -> dict:
 async def resolve_url(
         client: UseRedisAsync,
         message_id: str,
-        returnurl: str | None, ) -> str:
+        returnurl: str | None, ) -> str | None:
 
     key = KEYS.REQUEST_EDM.format(conversation_id=message_id)
     edm_payload = await client.get_from_redis(key)
+    if not isinstance(edm_payload, list) or not edm_payload:
+        return returnurl
     edm = _get_content(edm_payload[0])
 
     version_protokol = deep_get(edm, 'doc', 'SpecificationIdentifier', default='')
