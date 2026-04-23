@@ -157,9 +157,7 @@
             resultMessage.textContent = `OK: ${payload.message}`;
             resultMessage.className = "result-message ok";
             if (pageConfig.returnurl) {
-                setTimeout(() => {
-                    window.location.href = pageConfig.returnurl;
-                }, 1200);
+                window.location.href = pageConfig.returnurl;
             }
         } catch (error) {
             resultMessage.textContent = `Error: ${error.message || "Failed to submit approvals"}`;

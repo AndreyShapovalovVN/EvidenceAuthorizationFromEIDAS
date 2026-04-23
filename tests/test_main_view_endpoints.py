@@ -58,6 +58,7 @@ def test_preview_renders_immediately_when_both_ready(client, fake_redis_client, 
 
     assert response.status_code == 200
     assert "Evidences" in response.text
+    assert 'returnurl: "https://example.com/back"' in response.text
 
 
 def test_auth_builds_continue_url_to_preview_with_returnurl(client, monkeypatch):
