@@ -98,8 +98,8 @@ async def _get_evidence_exception(
 async def _wait_for_preview_flag(
     client: UseRedisAsync,
     message_id: str,
-    timeout: float = DEFAULT_TIMEOUT,
-    interval: float = DEFAULT_INTERVAL,
+    timeout: float | None = None,
+    interval: float | None = None,
 ) -> bool:
     """Очікує появи прапора preview в Redis з поллінгом.
 
@@ -112,6 +112,11 @@ async def _wait_for_preview_flag(
     Returns:
         True — прапор знайдено, False — таймаут
     """
+    if timeout is None:
+        timeout = DEFAULT_TIMEOUT
+    if interval is None:
+        interval = DEFAULT_INTERVAL
+
     flag_key = KEYS.REQUEST_PREVIEW.format(conversation_id=message_id)
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
@@ -136,8 +141,8 @@ async def _wait_for_preview_flag(
 async def check_message(
     client: UseRedisAsync,
     message_id: str,
-    timeout: float = DEFAULT_TIMEOUT,
-    interval: float = DEFAULT_INTERVAL,
+    timeout: float | None = None,
+    interval: float | None = None,
 ) -> MessageStatus:
     """Повна перевірка повідомлення перед рендерингом сторінки.
 
@@ -155,6 +160,11 @@ async def check_message(
     Returns:
         MessageStatus з результатами обох перевірок
     """
+    if timeout is None:
+        timeout = DEFAULT_TIMEOUT
+    if interval is None:
+        interval = DEFAULT_INTERVAL
+
     evidence_error = await _get_evidence_exception(client, message_id)
     if evidence_error is not None and evidence_error.code == EDM_ERR_CODE:
         return MessageStatus(
