@@ -19,7 +19,7 @@ def test_preview_skips_when_request_preview_flag_not_set(client, fake_redis_clie
 
     assert response.status_code == 302
     assert response.headers["location"] == "https://example.com/back"
-    fake_redis_client.push_to_queue.assert_awaited_once_with(main.QUEUE_OUTGOING, "msg-skip")
+    fake_redis_client.push_to_queue.assert_not_awaited()
 
 
 def test_preview_shows_waiting_when_flag_set_but_evidence_missing(client, fake_redis_client, monkeypatch):
