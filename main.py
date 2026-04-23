@@ -16,7 +16,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from lib.MessageChecker import check_message
 from lib.PersonRequestService import ContinuePayload, save_person_request
-from lib.RedirectService import resolve_continue_url, resolve_url
+from lib.RedirectService import resolve_url
 from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 from lib.eidas_autofill_service import EidasAutofillService
 from lib.preview_service import (
@@ -213,9 +213,9 @@ async def view_evidence(request: Request, message_id: str):
     client = get_redis_client()
 
     try:
-        resolved_returnurl = await resolve_continue_url(client, message_id, query_returnurl)
+        resolved_returnurl = await resolve_url(client, message_id, query_returnurl)
     except Exception as exc:
-        _logger.warning("resolve_continue_url failed for message_id=%s: %s", message_id, exc)
+        _logger.warning("resolve_url failed for message_id=%s: %s", message_id, exc)
         resolved_returnurl = query_returnurl
 
     if resolved_returnurl is None:
