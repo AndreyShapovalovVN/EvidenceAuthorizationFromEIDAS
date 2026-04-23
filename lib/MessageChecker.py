@@ -8,6 +8,7 @@
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass
 
 from lib.UseRedis import UseRedisAsync
@@ -23,8 +24,8 @@ EDM_ERR_CODE = "EDM:ERR:0002"
 # EVIDENCE_KEY = "oots:message:response:evidence:{message_id}"
 # PREVIEW_FLAG_KEY = "oots:message:request:preview:{message_id}"
 
-DEFAULT_TIMEOUT: float = 30.0   # секунд — максимальний час очікування прапора
-DEFAULT_INTERVAL: float = 1.5   # секунд між спробами поллінгу
+DEFAULT_TIMEOUT: float = float(os.getenv("EVIDENCE_TIMEOUT", "600"))   # секунд — максимальний час очікування прапора
+DEFAULT_INTERVAL: float = 5.0   # секунд між спробами поллінгу
 
 
 # ─── результат ───────────────────────────────────────────────────────────────
