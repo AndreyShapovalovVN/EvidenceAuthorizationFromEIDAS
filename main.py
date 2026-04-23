@@ -258,7 +258,7 @@ async def view_progress(message_id: str):
 
 
 @app.post("/preview/continue")
-async def continue_view(payload: ViewContinuePayload):
+async def continue_view(request: Request, payload: ViewContinuePayload):
     """Persist checkbox approvals for preview evidences."""
     client = get_redis_client()
     message_id = payload.message_uuid
@@ -273,10 +273,18 @@ async def continue_view(payload: ViewContinuePayload):
     except EvidenceDataNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"Data not found in Redis by id: {message_id}") from exc
 
+    query_returnurl = request.query_params.get("returnurl")
+    try:
+        resolved_returnurl = await resolve_continue_url(client, message_id, query_returnurl)
+    except Exception as exc:
+        _logger.warning("resolve_continue_url failed for message_id=%s: %s", message_id, exc)
+        resolved_returnurl = query_returnurl
+
     return {
         "status": "success",
         "message": "Approvals received",
         "approvals": approvals,
+        "returnurl": resolved_returnurl,
     }
 
 

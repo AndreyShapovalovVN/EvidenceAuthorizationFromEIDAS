@@ -134,6 +134,9 @@
     submitBtn.addEventListener("click", async function () {
         const checkboxes = Array.from(document.querySelectorAll(".js-permit-checkbox"));
         const approvals = {};
+        const continueUrl = pageConfig.returnurl
+            ? `/preview/continue?returnurl=${encodeURIComponent(pageConfig.returnurl)}`
+            : "/preview/continue";
         checkboxes.forEach((checkbox) => {
             const key = checkbox.dataset.approvalKey;
             if (!key) {
@@ -142,7 +145,7 @@
             approvals[key] = Boolean(checkbox.checked);
         });
         try {
-            const response = await fetch("/preview/continue", {
+            const response = await fetch(continueUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -156,8 +159,9 @@
             }
             resultMessage.textContent = `OK: ${payload.message}`;
             resultMessage.className = "result-message ok";
-            if (pageConfig.returnurl) {
-                window.location.href = pageConfig.returnurl;
+            const redirectUrl = payload.returnurl || pageConfig.returnurl;
+            if (redirectUrl) {
+                window.location.href = redirectUrl;
             }
         } catch (error) {
             resultMessage.textContent = `Error: ${error.message || "Failed to submit approvals"}`;

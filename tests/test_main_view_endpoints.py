@@ -336,6 +336,26 @@ def test_continue_view_updates_new_structure_approvals(client, fake_redis_client
     assert saved_payload["evidences"][0]["permit"] is True
 
 
+def test_continue_view_returns_returnurl_for_client_redirect(client, fake_redis_client, monkeypatch):
+    fake_redis_client.get_from_redis.return_value = {
+        "preview": True,
+        "evidences": [{"cid": "doc-ret", "permit": False}],
+    }
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.post(
+        "/preview/continue?returnurl=https://example.com/back",
+        json={
+            "message_uuid": "msg-ret",
+            "approvals": {"doc-ret": True},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+    assert response.json()["returnurl"] == "https://example.com/back"
+
+
 # ─── /preview/continue: розширені тести ────────────────────────────────────────
 
 def test_continue_view_pushes_to_outgoing_queue(client, fake_redis_client, monkeypatch):
