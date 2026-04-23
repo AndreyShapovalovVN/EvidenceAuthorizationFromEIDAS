@@ -15,6 +15,11 @@ class Keys:
 
     EVIDENCE_TYPE: str = "oots:evidencetype:{evidence_type_id}"
 
+    RETURN_URL: str = "oots:message:response:returnurl:{conversation_id}"
+
+    def return_url(self, conversation_id: str) -> str:
+        return self.RETURN_URL.format(conversation_id=conversation_id)
+
     def response_evidence(self, conversation_id: str) -> str:
         return self.RESPONSE_EVIDENCE.format(conversation_id=conversation_id)
 
@@ -41,4 +46,3 @@ class Keys:
 
     def evidence_type(self, evidence_type_id: str) -> str:
         return self.EVIDENCE_TYPE.format(evidence_type_id=evidence_type_id)
-

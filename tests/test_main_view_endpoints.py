@@ -61,23 +61,41 @@ def test_preview_renders_immediately_when_both_ready(client, fake_redis_client, 
     assert 'returnurl: "https://example.com/back"' in response.text
 
 
-def test_auth_builds_continue_url_to_preview_with_returnurl(client, monkeypatch):
+def test_auth_builds_continue_url_to_preview_with_returnurl(client, fake_redis_client, monkeypatch):
     async def fake_check_message(_, __):
         return MessageStatus(preview_ready=True, timed_out=False)
 
     monkeypatch.setattr(main, "check_message", fake_check_message)
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.get("/auth/msg-001?returnurl=https://example.com/callback")
 
     assert response.status_code == 200
-    assert "/preview/msg-001?returnurl=https%3A%2F%2Fexample.com%2Fcallback" in response.text
+    # returnurl тепер зберігається в Redis, а не передається у URL
+    assert "/preview/msg-001" in response.text
+    assert "returnurl" not in response.text.split("/preview/msg-001")[1].split('"')[0]
 
 
-def test_auth_builds_continue_url_to_preview_without_returnurl(client, monkeypatch):
+def test_auth_saves_returnurl_to_redis(client, fake_redis_client, monkeypatch):
     async def fake_check_message(_, __):
         return MessageStatus(preview_ready=True, timed_out=False)
 
     monkeypatch.setattr(main, "check_message", fake_check_message)
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    client.get("/auth/msg-save?returnurl=https://example.com/callback")
+
+    returnurl_key = Keys().return_url("msg-save")
+    save_calls = [c.args for c in fake_redis_client.save_to_redis.await_args_list]
+    assert any(c[0] == returnurl_key for c in save_calls)
+
+
+def test_auth_builds_continue_url_to_preview_without_returnurl(client, fake_redis_client, monkeypatch):
+    async def fake_check_message(_, __):
+        return MessageStatus(preview_ready=True, timed_out=False)
+
+    monkeypatch.setattr(main, "check_message", fake_check_message)
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.get("/auth/msg-002")
 

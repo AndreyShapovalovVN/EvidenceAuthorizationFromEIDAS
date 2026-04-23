@@ -4,7 +4,6 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -121,6 +120,20 @@ async def favicon():
 @app.get("/auth/{message_id}", response_class=HTMLResponse)
 async def root(request: Request, message_id: str):
     client = get_redis_client()
+
+    # Зберігаємо returnurl в Redis при першому заході
+    query_returnurl = request.query_params.get("returnurl")
+    if query_returnurl:
+        try:
+            resolved = await resolve_url(client, message_id, query_returnurl)
+            returnurl_to_save = resolved or query_returnurl
+        except Exception:
+            returnurl_to_save = query_returnurl
+        try:
+            await client.save_to_redis(KEYS.return_url(message_id), returnurl_to_save)
+        except Exception as exc:
+            _logger.warning("Failed to save returnurl to Redis for message_id=%s: %s", message_id, exc)
+
     status = await check_message(client, message_id)
 
     if status.has_error:
@@ -140,17 +153,13 @@ async def root(request: Request, message_id: str):
             status_code=408,
             detail=f"Таймаут очікування preview для message_id={message_id}",
         )
-    continue_url = f"/preview/{message_id}"
-    query_pairs = list(request.query_params.multi_items())
-    if query_pairs:
-        continue_url = f"{continue_url}?{urlencode(query_pairs, doseq=True)}"
 
     return templates.TemplateResponse(
         request,
         "login.html",
         {
             "message_id": message_id,
-            "continue_url": continue_url,
+            "continue_url": f"/preview/{message_id}",
         },
     )
 
@@ -208,17 +217,28 @@ async def _render_evidence_page(
 @app.get("/preview/{message_id}")
 async def view_evidence(request: Request, message_id: str):
     """Показує сторінку з таскбаром очікування, потім рендер evidence."""
-    query_returnurl = request.query_params.get("returnurl")
-
     client = get_redis_client()
 
-    try:
-        resolved_returnurl = await resolve_url(client, message_id, query_returnurl)
-    except Exception as exc:
-        _logger.warning("resolve_url failed for message_id=%s: %s", message_id, exc)
-        resolved_returnurl = query_returnurl
+    # Читаємо returnurl з Redis (збережено при авторизації)
+    stored = await client.get_from_redis(KEYS.return_url(message_id))
+    returnurl: str | None = stored if isinstance(stored, str) else None
 
-    if resolved_returnurl is None:
+    # Якщо немає в Redis — читаємо з query param (прямий вхід на preview)
+    if not returnurl:
+        query_returnurl = request.query_params.get("returnurl")
+        if query_returnurl:
+            try:
+                resolved = await resolve_url(client, message_id, query_returnurl)
+                returnurl = resolved or query_returnurl
+            except Exception:
+                returnurl = query_returnurl
+            # Зберігаємо в Redis для подальшого використання (Submit)
+            try:
+                await client.save_to_redis(KEYS.return_url(message_id), returnurl)
+            except Exception as exc:
+                _logger.warning("Failed to save returnurl to Redis for message_id=%s: %s", message_id, exc)
+
+    if not returnurl:
         raise HTTPException(
             status_code=400,
             detail="Відсутній URL для подальшого редіректу (returnurl).",
@@ -226,9 +246,7 @@ async def view_evidence(request: Request, message_id: str):
 
     preview_requested = await check_preview_ready(client, message_id, KEYS)
     if not preview_requested:
-        return RedirectResponse(url=resolved_returnurl, status_code=302)
-
-    returnurl = resolved_returnurl
+        return RedirectResponse(url=returnurl, status_code=302)
 
     # Превью запрошено, чекаємо евіденс
     evidence_ready = await check_evidence_ready(client, message_id, KEYS)
@@ -274,11 +292,18 @@ async def continue_view(request: Request, payload: ViewContinuePayload):
         raise HTTPException(status_code=404, detail=f"Data not found in Redis by id: {message_id}") from exc
 
     query_returnurl = request.query_params.get("returnurl")
-    try:
-        resolved_returnurl = await resolve_url(client, message_id, query_returnurl)
-    except Exception as exc:
-        _logger.warning("resolve_continue_url failed for message_id=%s: %s", message_id, exc)
-        resolved_returnurl = query_returnurl
+
+    # Читаємо returnurl з Redis (збережено при авторизації)
+    stored = await client.get_from_redis(KEYS.return_url(message_id))
+    resolved_returnurl: str | None = stored if isinstance(stored, str) else None
+
+    # Fallback на query param
+    if not resolved_returnurl:
+        try:
+            resolved_returnurl = await resolve_url(client, message_id, query_returnurl)
+        except Exception as exc:
+            _logger.warning("resolve_url failed for message_id=%s: %s", message_id, exc)
+            resolved_returnurl = query_returnurl
 
     return {
         "status": "success",
