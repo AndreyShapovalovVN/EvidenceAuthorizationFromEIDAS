@@ -31,7 +31,7 @@ from lib.preview_service import (
 )
 from redis_keys import Keys
 
-WAIT_EVENT_TIME = int(os.environ.get("WAIT_EVENT_TIME", "120"))
+WAIT_EVENT_TIME = int(os.environ.get("EVIDENCE_TIMEOUT", "600"))
 WAIT_EVENT_SLEEP = int(os.environ.get("WAIT_EVENT_SLEEP", "5"))
 
 QUEUE_OUTGOING = os.getenv("QUEUE_OUTGOING", "oots:queue:outgoing")
