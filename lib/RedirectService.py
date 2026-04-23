@@ -31,6 +31,21 @@ def _get_content(edm_payload: dict) -> dict:
     return Parsing(content).serialize()
 
 
+async def resolve_url(
+        client: UseRedisAsync,
+        message_id: str,
+        returnurl: str | None, ) -> str:
+
+    key = KEYS.REQUEST_EDM.format(conversation_id=message_id)
+    edm_payload = await client.get_from_redis(key)
+    edm = _get_content(edm_payload[0])
+
+    version_protokol = deep_get(edm, 'doc', 'SpecificationIdentifier', default='')
+    if 'oots-edm:v2' in version_protokol:
+        return deep_get(edm, 'doc', 'ReturnLocation', default=returnurl)
+    return returnurl
+
+
 async def resolve_continue_url(
         client: UseRedisAsync,
         message_id: str,
@@ -53,9 +68,7 @@ async def resolve_continue_url(
     _logger.debug(f"Отримано EDM дані з Redis для message_id {message_id}: {edm_payload}")
     edm = _get_content(edm_payload[0])  # type: ignore
 
-    version_protokol = deep_get(edm, 'doc', 'SpecificationIdentifier', default='')
-    if 'oots-edm:v2' in version_protokol:
-        returnurl = deep_get(edm, 'doc', 'ReturnLocation', default=returnurl)
+    returnurl = await resolve_url(client, message_id, returnurl)
 
     preview = deep_get(edm, 'doc', 'PossibilityForPreview', default=False)
 
