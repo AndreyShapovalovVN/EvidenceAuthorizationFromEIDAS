@@ -69,15 +69,17 @@ def test_auth_builds_continue_url_to_preview_with_returnurl(client, fake_redis_c
     async def fake_check_message(_, __):
         return MessageStatus(preview_ready=True, timed_out=False)
 
+    async def fake_if_preview(_, __):
+        return True
+
     monkeypatch.setattr(main, "check_message", fake_check_message)
+    monkeypatch.setattr(main, "if_preview", fake_if_preview)
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.get("/auth/msg-001?returnurl=https://example.com/callback")
 
     assert response.status_code == 200
-    # returnurl тепер зберігається в Redis, а не передається у URL
-    assert "/preview/msg-001" in response.text
-    assert "returnurl" not in response.text.split("/preview/msg-001")[1].split('"')[0]
+    assert 'const continueUrl = "/preview/msg-001";' in response.text
 
 
 def test_auth_saves_returnurl_to_redis(client, fake_redis_client, monkeypatch):
@@ -98,7 +100,11 @@ def test_auth_builds_continue_url_to_preview_without_returnurl(client, fake_redi
     async def fake_check_message(_, __):
         return MessageStatus(preview_ready=True, timed_out=False)
 
+    async def fake_if_preview(_, __):
+        return True
+
     monkeypatch.setattr(main, "check_message", fake_check_message)
+    monkeypatch.setattr(main, "if_preview", fake_if_preview)
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.get("/auth/msg-002")

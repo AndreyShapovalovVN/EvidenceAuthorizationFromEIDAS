@@ -15,7 +15,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from lib.MessageChecker import check_message
 from lib.PersonRequestService import ContinuePayload, save_person_request
-from lib.RedirectService import resolve_url
+from lib.RedirectService import resolve_url, if_preview
 from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 from lib.eidas_autofill_service import EidasAutofillService
 from lib.preview_service import (
@@ -151,12 +151,16 @@ async def root(request: Request, message_id: str):
             detail=f"Таймаут очікування preview для message_id={message_id}",
         )
 
+    reurnurl = await client.get_from_redis(KEYS.return_url(message_id))
+    preview = await if_preview(client, message_id)
+    coninue_url = f"/preview/{message_id}" if preview else reurnurl
+
     return templates.TemplateResponse(
         request,
         "login.html",
         {
             "message_id": message_id,
-            "continue_url": f"/preview/{message_id}",
+            "continue_url": coninue_url,
         },
     )
 

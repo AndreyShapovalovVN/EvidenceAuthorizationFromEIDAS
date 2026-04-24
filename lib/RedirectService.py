@@ -47,39 +47,11 @@ async def resolve_url(
         return deep_get(edm, 'doc', 'ReturnLocation', default='')
     return None
 
-
-async def resolve_continue_url(
-        client: UseRedisAsync,
-        message_id: str,
-        returnurl: str | None,
-) -> str | None:
-    """
-    Функція, яка визначає URL для редіректу після аутентифікації на основі EDM-прапора PossibilityForPreview.
-    Якщо встановлений прапор вимагає перегляд та підтвердження доказу, то повертає URL з PreviewLocation,
-    інакше повертає returnurl.
-    """
-
-    _logger.debug(f"Отримали параметри returnurl: {returnurl} для message_id: {message_id}")
-
+async def if_preview(client: UseRedisAsync, message_id: str) -> bool:
     key = KEYS.REQUEST_EDM.format(conversation_id=message_id)
-
-    _logger.info(f"Отримуємо EDM дані з Redis для message_id: {message_id} за ключем: {key}")
-
     edm_payload = await client.get_from_redis(key)
-
-    _logger.debug(f"Отримано EDM дані з Redis для message_id {message_id}: {edm_payload}")
-    edm = _get_content(edm_payload[0])  # type: ignore
-
-    resolved_returnurl = await resolve_url(client, message_id)
-    if resolved_returnurl:
-        returnurl = resolved_returnurl
-
+    if not isinstance(edm_payload, list) or not edm_payload:
+        return False
+    edm = _get_content(edm_payload[0])
     preview = deep_get(edm, 'doc', 'PossibilityForPreview', default=False)
-
-    if preview:
-        preview_url = f"{PREVIEW_URL}/{message_id}?returnurl={returnurl}"
-        _logger.debug(preview_url)
-        return preview_url
-    else:
-        _logger.debug(f"Повертаємо на портал запросу: {returnurl}")
-        return returnurl
+    return preview
