@@ -36,6 +36,7 @@ def test_preview_shows_waiting_when_flag_set_but_evidence_missing(client, fake_r
 
     assert response.status_code == 200
     assert "Loading Evidence" in response.text
+    assert 'const continueUrl = "https://example.com/back";' in response.text
 
 
 def test_preview_renders_immediately_when_both_ready(client, fake_redis_client, monkeypatch):
@@ -505,5 +506,23 @@ def test_continue_view_new_structure_sets_permit_flag_in_redis(client, fake_redi
     saved = fake_redis_client.save_to_redis.call_args_list[0].args[1]
     assert saved["evidences"][0]["permit"] is True
     assert saved["evidences"][1]["permit"] is False
+
+
+def test_view_timeout_records_edm_error_and_pushes_queue(client, fake_redis_client, monkeypatch):
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.post("/preview/timeout/msg-timeout")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "timeout_recorded"
+
+    saved_call = fake_redis_client.save_to_redis.await_args
+    assert saved_call.args[0] == Keys().response_exp("msg-timeout")
+    assert saved_call.args[1]["exception"]["code"] == "EDM:ERR:0005"
+    assert saved_call.args[1]["exception"]["message"] == "Preview timeout"
+    assert saved_call.args[1]["exception"]["detail"] == "Timeout reached for message_id=msg-timeout"
+    assert "preview_link" in saved_call.args[1]["exception"]
+
+    fake_redis_client.push_to_queue.assert_awaited_once_with(main.QUEUE_OUTGOING, "msg-timeout")
 
 

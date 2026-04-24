@@ -119,8 +119,9 @@ async def record_view_timeout(client: UseRedisAsync, message_id: str, keys: Keys
         {
             "exception": {
                 "code": "EDM:ERR:0005",
-                "message": f"View timeout for message_id={message_id}",
-                "detail": f"View timeout for message_id={message_id}",
+                "message": "Preview timeout",
+                "detail": f"Timeout reached for message_id={message_id}",
+                "preview_link": None,
             }
         },
     )

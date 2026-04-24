@@ -27,6 +27,7 @@ from lib.preview_service import (
     persist_approvals,
     record_view_timeout,
 )
+
 from redis_keys import Keys
 
 WAIT_EVENT_TIME = int(os.environ.get("EVIDENCE_TIMEOUT", "600"))
@@ -222,6 +223,7 @@ async def view_evidence(request: Request, message_id: str):
 
     # Читаємо returnurl з Redis (збережено при авторизації)
     stored = await client.get_from_redis(KEYS.return_url(message_id))
+    returnurl = stored if isinstance(stored, str) else None
     if not stored:
         query_returnurl = request.query_params.get("returnurl")
         if not query_returnurl:
@@ -231,6 +233,7 @@ async def view_evidence(request: Request, message_id: str):
                 query_returnurl = None
         if query_returnurl:
             await client.save_to_redis(KEYS.return_url(message_id), query_returnurl)
+            returnurl = query_returnurl
 
     evidence_ready = await check_evidence_ready(client, message_id, KEYS)
 
@@ -244,6 +247,7 @@ async def view_evidence(request: Request, message_id: str):
         "view_waiting.html",
         {
             "message_id": message_id,
+            "returnurl": returnurl,
             "wait_time": WAIT_EVENT_TIME,
             "poll_interval": WAIT_EVENT_SLEEP,
         },
