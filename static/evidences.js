@@ -134,9 +134,6 @@
     submitBtn.addEventListener("click", async function () {
         const checkboxes = Array.from(document.querySelectorAll(".js-permit-checkbox"));
         const approvals = {};
-        const continueUrl = pageConfig.returnurl
-            ? `/preview/continue?returnurl=${encodeURIComponent(pageConfig.returnurl)}`
-            : "/preview/continue";
         checkboxes.forEach((checkbox) => {
             const key = checkbox.dataset.approvalKey;
             if (!key) {
@@ -145,7 +142,7 @@
             approvals[key] = Boolean(checkbox.checked);
         });
         try {
-            const response = await fetch(continueUrl, {
+            const response = await fetch("/preview/continue", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

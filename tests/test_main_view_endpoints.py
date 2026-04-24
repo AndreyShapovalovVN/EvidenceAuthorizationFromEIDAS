@@ -4,21 +4,26 @@ from lib.MessageChecker import MessageStatus
 from redis_keys import Keys
 
 
-def test_view_requires_returnurl(client):
+def test_view_without_returnurl_shows_waiting(client, fake_redis_client, monkeypatch):
+    fake_redis_client.get_from_redis.return_value = None
+    fake_redis_client.get_flag.return_value = False
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
     response = client.get("/preview/msg-001")
 
-    assert response.status_code == 400
-    assert "returnurl" in response.json()["detail"]
+    assert response.status_code == 200
+    assert "Loading Evidence" in response.text
 
 
 def test_preview_skips_when_request_preview_flag_not_set(client, fake_redis_client, monkeypatch):
     fake_redis_client.get_flag.return_value = False
+    fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.get("/preview/msg-skip?returnurl=https://example.com/back", follow_redirects=False)
 
-    assert response.status_code == 302
-    assert response.headers["location"] == "https://example.com/back"
+    assert response.status_code == 200
+    assert "Loading Evidence" in response.text
     fake_redis_client.push_to_queue.assert_not_awaited()
 
 
@@ -58,7 +63,6 @@ def test_preview_renders_immediately_when_both_ready(client, fake_redis_client, 
 
     assert response.status_code == 200
     assert "Evidences" in response.text
-    assert 'returnurl: "https://example.com/back"' in response.text
 
 
 def test_auth_builds_continue_url_to_preview_with_returnurl(client, fake_redis_client, monkeypatch):
@@ -355,14 +359,17 @@ def test_continue_view_updates_new_structure_approvals(client, fake_redis_client
 
 
 def test_continue_view_returns_returnurl_for_client_redirect(client, fake_redis_client, monkeypatch):
-    fake_redis_client.get_from_redis.return_value = {
-        "preview": True,
-        "evidences": [{"cid": "doc-ret", "permit": False}],
-    }
+    fake_redis_client.get_from_redis.side_effect = [
+        {
+            "preview": True,
+            "evidences": [{"cid": "doc-ret", "permit": False}],
+        },
+        "https://example.com/back",
+    ]
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.post(
-        "/preview/continue?returnurl=https://example.com/back",
+        "/preview/continue",
         json={
             "message_uuid": "msg-ret",
             "approvals": {"doc-ret": True},

@@ -94,7 +94,7 @@
 <script>
     window.evidencePageConfig = {
         message_uuid: {{ message_uuid | tojson }},
-        returnurl: {{ returnurl | tojson }}
+        returnurl: {{ returnurl | default(None, true) | tojson }}
     };
 </script>
 <script src="/static/evidences.js"></script>

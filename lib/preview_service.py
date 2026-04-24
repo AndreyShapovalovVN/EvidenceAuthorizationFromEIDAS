@@ -33,7 +33,6 @@ async def check_evidence_ready(client: UseRedisAsync, message_id: str, keys: Key
 async def build_evidence_page_context(
     client: UseRedisAsync,
     message_id: str,
-    returnurl: str,
     keys: Keys,
 ) -> dict[str, Any]:
     redis_key = keys.response_evidence(message_id)
@@ -46,7 +45,6 @@ async def build_evidence_page_context(
         raise EmptyEvidenceListError(message_id)
 
     return {
-        "returnurl": returnurl,
         "message_id": message_id,
         "message_uuid": message_id,
         "title": str(data.get("title") or "Evidence Preview"),

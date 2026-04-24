@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from lxml import etree
@@ -24,7 +24,6 @@ from lib.preview_service import (
     build_evidence_page_context,
     build_preview_progress,
     check_evidence_ready,
-    check_preview_ready,
     persist_approvals,
     record_view_timeout,
 )
@@ -123,16 +122,14 @@ async def root(request: Request, message_id: str):
 
     # Зберігаємо returnurl в Redis при першому заході
     query_returnurl = request.query_params.get("returnurl")
-    if query_returnurl:
+    if not query_returnurl:
         try:
-            resolved = await resolve_url(client, message_id, query_returnurl)
-            returnurl_to_save = resolved or query_returnurl
+            query_returnurl = await resolve_url(client, message_id)
         except Exception:
-            returnurl_to_save = query_returnurl
-        try:
-            await client.save_to_redis(KEYS.return_url(message_id), returnurl_to_save)
-        except Exception as exc:
-            _logger.warning("Failed to save returnurl to Redis for message_id=%s: %s", message_id, exc)
+            query_returnurl = None
+
+    if query_returnurl:
+        await client.save_to_redis(KEYS.return_url(message_id), query_returnurl)
 
     status = await check_message(client, message_id)
 
@@ -194,12 +191,12 @@ async def auth_eidas_next():
 
 
 async def _render_evidence_page(
-        request: Request, message_id: str, returnurl: str
+        request: Request, message_id: str
 ) -> HTMLResponse:
     """Render evidence page using prepared context from service layer."""
     client = get_redis_client()
     try:
-        context = await build_evidence_page_context(client, message_id, returnurl, KEYS)
+        context = await build_evidence_page_context(client, message_id, KEYS)
     except EvidenceDataNotFoundError as exc:
         raise HTTPException(
             status_code=404,
@@ -221,39 +218,21 @@ async def view_evidence(request: Request, message_id: str):
 
     # Читаємо returnurl з Redis (збережено при авторизації)
     stored = await client.get_from_redis(KEYS.return_url(message_id))
-    returnurl: str | None = stored if isinstance(stored, str) else None
-
-    # Якщо немає в Redis — читаємо з query param (прямий вхід на preview)
-    if not returnurl:
+    if not stored:
         query_returnurl = request.query_params.get("returnurl")
-        if query_returnurl:
+        if not query_returnurl:
             try:
-                resolved = await resolve_url(client, message_id, query_returnurl)
-                returnurl = resolved or query_returnurl
+                query_returnurl = await resolve_url(client, message_id)
             except Exception:
-                returnurl = query_returnurl
-            # Зберігаємо в Redis для подальшого використання (Submit)
-            try:
-                await client.save_to_redis(KEYS.return_url(message_id), returnurl)
-            except Exception as exc:
-                _logger.warning("Failed to save returnurl to Redis for message_id=%s: %s", message_id, exc)
+                query_returnurl = None
+        if query_returnurl:
+            await client.save_to_redis(KEYS.return_url(message_id), query_returnurl)
 
-    if not returnurl:
-        raise HTTPException(
-            status_code=400,
-            detail="Відсутній URL для подальшого редіректу (returnurl).",
-        )
-
-    preview_requested = await check_preview_ready(client, message_id, KEYS)
-    if not preview_requested:
-        return RedirectResponse(url=returnurl, status_code=302)
-
-    # Превью запрошено, чекаємо евіденс
     evidence_ready = await check_evidence_ready(client, message_id, KEYS)
 
     if evidence_ready:
         # Евіденс готовий, рендеримо evidence сторінку одразу
-        return await _render_evidence_page(request, message_id, returnurl)
+        return await _render_evidence_page(request, message_id)
 
     # Якщо ні, показуємо сторінку чекання
     return templates.TemplateResponse(
@@ -261,7 +240,6 @@ async def view_evidence(request: Request, message_id: str):
         "view_waiting.html",
         {
             "message_id": message_id,
-            "returnurl": returnurl,
             "wait_time": WAIT_EVENT_TIME,
             "poll_interval": WAIT_EVENT_SLEEP,
         },
@@ -291,25 +269,14 @@ async def continue_view(request: Request, payload: ViewContinuePayload):
     except EvidenceDataNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"Data not found in Redis by id: {message_id}") from exc
 
-    query_returnurl = request.query_params.get("returnurl")
-
     # Читаємо returnurl з Redis (збережено при авторизації)
-    stored = await client.get_from_redis(KEYS.return_url(message_id))
-    resolved_returnurl: str | None = stored if isinstance(stored, str) else None
-
-    # Fallback на query param
-    if not resolved_returnurl:
-        try:
-            resolved_returnurl = await resolve_url(client, message_id, query_returnurl)
-        except Exception as exc:
-            _logger.warning("resolve_url failed for message_id=%s: %s", message_id, exc)
-            resolved_returnurl = query_returnurl
+    returnurl = await client.get_from_redis(KEYS.return_url(message_id))
 
     return {
         "status": "success",
         "message": "Approvals received",
         "approvals": approvals,
-        "returnurl": resolved_returnurl,
+        "returnurl": returnurl,
     }
 
 
