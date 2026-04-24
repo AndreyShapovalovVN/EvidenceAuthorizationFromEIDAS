@@ -55,7 +55,8 @@
 
 <script>
     const messageId = "{{ message_id }}";
-    const continueUrl = {{ returnurl | default('', true) | tojson }};
+    const timeoutRedirectUrl = {{ returnurl | default('', true) | tojson }};
+    const previewUrl = `/preview/${messageId}`;
     const maxWaitTime = {{ wait_time }} * 1000; // мілісекунди
     const pollInterval = {{ poll_interval }} * 1000;
     const startTime = Date.now();
@@ -78,13 +79,9 @@
             updateStages(data.stage);
 
             if (data.stage >= 2) {
-                // Обидва етапи готові, редиректимо
+                // Обидва етапи готові: переходимо на preview-сторінку.
                 setTimeout(() => {
-                    if (continueUrl) {
-                        window.location.href = continueUrl;
-                    } else {
-                        window.location.reload();
-                    }
+                    window.location.href = previewUrl;
                 }, 500);
             }
         } catch (error) {
@@ -154,8 +151,8 @@
             }).catch(err => console.error("Failed to record timeout:", err));
 
             setTimeout(() => {
-                if (continueUrl) {
-                    window.location.href = continueUrl;
+                if (timeoutRedirectUrl) {
+                    window.location.href = timeoutRedirectUrl;
                 }
             }, 1200);
         } else {

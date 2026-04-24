@@ -36,7 +36,8 @@ def test_preview_shows_waiting_when_flag_set_but_evidence_missing(client, fake_r
 
     assert response.status_code == 200
     assert "Loading Evidence" in response.text
-    assert 'const continueUrl = "https://example.com/back";' in response.text
+    assert 'const timeoutRedirectUrl = "https://example.com/back";' in response.text
+    assert "const previewUrl = `/preview/${messageId}`;" in response.text
 
 
 def test_preview_renders_immediately_when_both_ready(client, fake_redis_client, monkeypatch):
