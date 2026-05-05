@@ -144,7 +144,10 @@
         try {
             const response = await fetch("/preview/continue", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Action-Token": pageConfig.continue_token || "",
+                },
                 body: JSON.stringify({
                     message_uuid: pageConfig.message_uuid,
                     approvals: approvals

@@ -1,7 +1,12 @@
 import main
+from lib.action_token import issue_action_token
 from lib.evidence_view_model import build_evidence_view_model
 from lib.MessageChecker import MessageStatus
 from redis_keys import Keys
+
+
+def _token_headers(message_id: str, action: str) -> dict[str, str]:
+    return {"X-Action-Token": issue_action_token(message_id, action)}
 
 
 def test_view_without_returnurl_shows_waiting(client, fake_redis_client, monkeypatch):
@@ -167,7 +172,10 @@ def test_view_progress_returns_stage_0_when_no_data(client, fake_redis_client, m
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/preview/progress/msg-002")
+    response = client.get(
+        "/preview/progress/msg-002",
+        headers=_token_headers("msg-002", "preview-progress"),
+    )
 
     assert response.status_code == 200
     assert response.json()["stage"] == 0
@@ -306,6 +314,7 @@ def test_continue_view_updates_legacy_approvals_and_flags(client, fake_redis_cli
 
     response = client.post(
         "/preview/continue",
+        headers=_token_headers("msg-005", "preview-continue"),
         json={
             "message_uuid": "msg-005",
             "approvals": {"doc-1": True, "doc-2": False},
@@ -352,6 +361,7 @@ def test_continue_view_updates_new_structure_approvals(client, fake_redis_client
 
     response = client.post(
         "/preview/continue",
+        headers=_token_headers("msg-777", "preview-continue"),
         json={
             "message_uuid": "msg-777",
             "approvals": {"pkg-42": True},
@@ -378,6 +388,7 @@ def test_continue_view_returns_returnurl_for_client_redirect(client, fake_redis_
 
     response = client.post(
         "/preview/continue",
+        headers=_token_headers("msg-ret", "preview-continue"),
         json={
             "message_uuid": "msg-ret",
             "approvals": {"doc-ret": True},
@@ -401,6 +412,7 @@ def test_continue_view_pushes_to_outgoing_queue(client, fake_redis_client, monke
 
     client.post(
         "/preview/continue",
+        headers=_token_headers("msg-q01", "preview-continue"),
         json={"message_uuid": "msg-q01", "approvals": {"doc-q": True}},
     )
 
@@ -416,6 +428,7 @@ def test_continue_view_returns_404_when_data_missing(client, fake_redis_client, 
 
     response = client.post(
         "/preview/continue",
+        headers=_token_headers("msg-missing", "preview-continue"),
         json={"message_uuid": "msg-missing", "approvals": {}},
     )
 
@@ -436,6 +449,7 @@ def test_continue_view_unknown_approval_key_keeps_original_permit(client, fake_r
 
     client.post(
         "/preview/continue",
+        headers=_token_headers("msg-partial", "preview-continue"),
         json={"message_uuid": "msg-partial", "approvals": {"doc-known": True}},
     )
 
@@ -454,6 +468,7 @@ def test_continue_view_unchecks_permit(client, fake_redis_client, monkeypatch):
 
     client.post(
         "/preview/continue",
+        headers=_token_headers("msg-uncheck", "preview-continue"),
         json={"message_uuid": "msg-uncheck", "approvals": {"doc-was-true": False}},
     )
 
@@ -500,6 +515,7 @@ def test_continue_view_new_structure_sets_permit_flag_in_redis(client, fake_redi
 
     response = client.post(
         "/preview/continue",
+        headers=_token_headers("msg-n2", "preview-continue"),
         json={"message_uuid": "msg-n2", "approvals": {"pkg-n1": True, "pkg-n2": False}},
     )
 
@@ -512,7 +528,10 @@ def test_continue_view_new_structure_sets_permit_flag_in_redis(client, fake_redi
 def test_view_timeout_records_edm_error_and_pushes_queue(client, fake_redis_client, monkeypatch):
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.post("/preview/timeout/msg-timeout")
+    response = client.post(
+        "/preview/timeout/msg-timeout",
+        headers=_token_headers("msg-timeout", "preview-timeout"),
+    )
 
     assert response.status_code == 200
     assert response.json()["status"] == "timeout_recorded"
@@ -525,5 +544,24 @@ def test_view_timeout_records_edm_error_and_pushes_queue(client, fake_redis_clie
     assert "preview_link" in saved_call.args[1]["exception"]
 
     fake_redis_client.push_to_queue.assert_awaited_once_with(main.QUEUE_OUTGOING, "msg-timeout")
+
+
+def test_preview_continue_returns_403_without_action_token(client, fake_redis_client, monkeypatch):
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.post(
+        "/preview/continue",
+        json={"message_uuid": "msg-forbidden", "approvals": {}},
+    )
+
+    assert response.status_code == 403
+
+
+def test_preview_timeout_returns_403_without_action_token(client, fake_redis_client, monkeypatch):
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.post("/preview/timeout/msg-forbidden")
+
+    assert response.status_code == 403
 
 

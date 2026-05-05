@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 
 from fastapi import HTTPException
 from pyRegRep4.RIMParsing import Parsing  # type: ignore
@@ -14,6 +15,29 @@ _logger = logging.getLogger(__name__)
 
 KEYS = Keys()
 PREVIEW_URL = os.getenv("PREVIEW_URL")
+
+
+def filter_returnurl(returnurl: str | None) -> str | None:
+    """Validate returnurl using regex from environment, fallback to permissive default.
+
+    Env:
+      RETURNURL_REGEX - regex pattern, default ".*"
+    """
+    if not returnurl:
+        return None
+
+    pattern = os.getenv("RETURNURL_REGEX", ".*")
+    try:
+        matcher = re.compile(pattern)
+    except re.error:
+        _logger.warning("Invalid RETURNURL_REGEX=%r, fallback to default '.*'", pattern)
+        matcher = re.compile(r".*")
+
+    if matcher.fullmatch(returnurl):
+        return returnurl
+
+    _logger.warning("returnurl rejected by RETURNURL_REGEX pattern")
+    return None
 
 
 def _get_content(edm_payload: dict) -> dict:

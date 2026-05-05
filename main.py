@@ -15,7 +15,8 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from lib.MessageChecker import check_message
 from lib.PersonRequestService import ContinuePayload, save_person_request
-from lib.RedirectService import resolve_url, if_preview
+from lib.action_token import issue_action_token, verify_action_token
+from lib.RedirectService import filter_returnurl, resolve_url, if_preview
 from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 from lib.eidas_autofill_service import EidasAutofillService
 from lib.preview_service import (
@@ -71,6 +72,14 @@ templates.env.filters["fromstring"] = _fromstring_filter
 class ViewContinuePayload(BaseModel):
     message_uuid: str
     approvals: dict[str, bool]
+
+
+def _require_action_token(request: Request, message_id: str, action: str) -> None:
+    token = request.headers.get("X-Action-Token")
+    if token is None:
+        token = request.query_params.get("token")
+    if not verify_action_token(token, message_id, action):
+        raise HTTPException(status_code=403, detail="Forbidden: invalid action token")
 
 
 @asynccontextmanager
@@ -129,6 +138,8 @@ async def root(request: Request, message_id: str):
         except Exception:
             query_returnurl = None
 
+    query_returnurl = filter_returnurl(query_returnurl)
+
     if query_returnurl:
         await client.save_to_redis(KEYS.return_url(message_id), query_returnurl)
 
@@ -162,13 +173,15 @@ async def root(request: Request, message_id: str):
         {
             "message_id": message_id,
             "continue_url": coninue_url,
+            "auth_continue_token": issue_action_token(message_id, "auth-continue"),
         },
     )
 
 
 @app.post("/auth/continue")
-async def continue_auth(payload: ContinuePayload):
+async def continue_auth(request: Request, payload: ContinuePayload):
     """Validate and persist person data received from the login form."""
+    _require_action_token(request, payload.message_id, "auth-continue")
     try:
         redis_key, person_data = await save_person_request(get_redis_client(), payload)
     except ValueError as exc:
@@ -213,6 +226,7 @@ async def _render_evidence_page(
             detail="No evidences found for preview",
         ) from exc
 
+    context["continue_token"] = issue_action_token(message_id, "preview-continue")
     return templates.TemplateResponse(request, "evidences.html", context)
 
 
@@ -223,14 +237,15 @@ async def view_evidence(request: Request, message_id: str):
 
     # Читаємо returnurl з Redis (збережено при авторизації)
     stored = await client.get_from_redis(KEYS.return_url(message_id))
-    returnurl = stored if isinstance(stored, str) else None
-    if not stored:
+    returnurl = filter_returnurl(stored if isinstance(stored, str) else None)
+    if not returnurl:
         query_returnurl = request.query_params.get("returnurl")
         if not query_returnurl:
             try:
                 query_returnurl = await resolve_url(client, message_id)
             except Exception:
                 query_returnurl = None
+        query_returnurl = filter_returnurl(query_returnurl)
         if query_returnurl:
             await client.save_to_redis(KEYS.return_url(message_id), query_returnurl)
             returnurl = query_returnurl
@@ -250,13 +265,16 @@ async def view_evidence(request: Request, message_id: str):
             "returnurl": returnurl,
             "wait_time": WAIT_EVENT_TIME,
             "poll_interval": WAIT_EVENT_SLEEP,
+            "progress_token": issue_action_token(message_id, "preview-progress"),
+            "timeout_token": issue_action_token(message_id, "preview-timeout"),
         },
     )
 
 
 @app.get("/preview/progress/{message_id}")
-async def view_progress(message_id: str):
+async def view_progress(request: Request, message_id: str):
     """API endpoint для отримання прогресу завантаження evidence."""
+    _require_action_token(request, message_id, "preview-progress")
     client = get_redis_client()
     return await build_preview_progress(client, message_id, KEYS)
 
@@ -264,6 +282,7 @@ async def view_progress(message_id: str):
 @app.post("/preview/continue")
 async def continue_view(request: Request, payload: ViewContinuePayload):
     """Persist checkbox approvals for preview evidences."""
+    _require_action_token(request, payload.message_uuid, "preview-continue")
     client = get_redis_client()
     message_id = payload.message_uuid
     try:
@@ -278,7 +297,8 @@ async def continue_view(request: Request, payload: ViewContinuePayload):
         raise HTTPException(status_code=404, detail=f"Data not found in Redis by id: {message_id}") from exc
 
     # Читаємо returnurl з Redis (збережено при авторизації)
-    returnurl = await client.get_from_redis(KEYS.return_url(message_id))
+    stored = await client.get_from_redis(KEYS.return_url(message_id))
+    returnurl = filter_returnurl(stored if isinstance(stored, str) else None)
 
     return {
         "status": "success",
@@ -289,8 +309,9 @@ async def continue_view(request: Request, payload: ViewContinuePayload):
 
 
 @app.post("/preview/timeout/{message_id}")
-async def view_timeout(message_id: str):
+async def view_timeout(request: Request, message_id: str):
     """Записує статус таймауту в Redis при спливанні часу на клієнті."""
+    _require_action_token(request, message_id, "preview-timeout")
     client = get_redis_client()
     await record_view_timeout(client, message_id, KEYS, QUEUE_OUTGOING)
 

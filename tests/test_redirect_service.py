@@ -126,3 +126,23 @@ def test_resolve_url_raises_when_redis_fails():
         assert str(exc) == "redis is down"
 
 
+def test_filter_returnurl_default_pattern_allows_any_url(monkeypatch):
+    monkeypatch.delenv("RETURNURL_REGEX", raising=False)
+
+    url = "https://portal.local/return?token=abc"
+    assert RedirectService.filter_returnurl(url) == url
+
+
+def test_filter_returnurl_rejects_when_pattern_does_not_match(monkeypatch):
+    monkeypatch.setenv("RETURNURL_REGEX", r"^https://allowed\\.example/.*$")
+
+    assert RedirectService.filter_returnurl("https://evil.example/phish") is None
+
+
+def test_filter_returnurl_falls_back_when_pattern_invalid(monkeypatch):
+    monkeypatch.setenv("RETURNURL_REGEX", r"[")
+
+    url = "https://portal.local/return"
+    assert RedirectService.filter_returnurl(url) == url
+
+

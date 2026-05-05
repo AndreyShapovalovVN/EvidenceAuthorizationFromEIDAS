@@ -57,6 +57,8 @@
     const messageId = "{{ message_id }}";
     const timeoutRedirectUrl = {{ returnurl | default('', true) | tojson }};
     const previewUrl = `/preview/${messageId}`;
+    const progressToken = {{ progress_token | default('', true) | tojson }};
+    const timeoutToken = {{ timeout_token | default('', true) | tojson }};
     const maxWaitTime = {{ wait_time }} * 1000; // мілісекунди
     const pollInterval = {{ poll_interval }} * 1000;
     const startTime = Date.now();
@@ -68,7 +70,9 @@
 
     async function checkProgress() {
         try {
-            const response = await fetch(`/preview/progress/${messageId}`);
+            const response = await fetch(`/preview/progress/${messageId}`, {
+                headers: {"X-Action-Token": progressToken}
+            });
             if (!response.ok) {
                 console.error("Progress check failed:", response.status);
                 return;
@@ -147,7 +151,10 @@
             // Записуємо таймаут в Redis
             fetch(`/preview/timeout/${messageId}`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Action-Token': timeoutToken,
+                },
             }).catch(err => console.error("Failed to record timeout:", err));
 
             setTimeout(() => {

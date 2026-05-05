@@ -68,6 +68,7 @@
     const statusEl = document.getElementById("status");
     const messageId = "{{ message_id | default('', true) }}";
     const continueUrl = {{ continue_url | default(None) | tojson }};
+    const authContinueToken = {{ auth_continue_token | default(None) | tojson }};
 
     function setStatus(text, ok) {
         statusEl.textContent = text;
@@ -114,7 +115,10 @@
             try {
                 const response = await fetch("/auth/continue", {
                     method: "POST",
-                    headers: {"Content-Type": "application/json"},
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Action-Token": authContinueToken || "",
+                    },
                     body: JSON.stringify(payload),
                 });
 
