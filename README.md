@@ -187,10 +187,31 @@ JSON API для поллінгу прогресу.
 | `REDIS_URL` | `redis://localhost:6379` | URL підключення до Redis |
 | `REDIS_TTL` | `86400` | TTL для JSON-даних у Redis (секунди) |
 | `REDIS_PREFIX` | _(порожній)_ | Необов'язковий префікс для всіх Redis-ключів |
-| `WAIT_EVENT_TIME` | `120` | Максимальний час очікування evidence на сторінці (секунди) |
+| `EVIDENCE_TIMEOUT` | `600` | Максимальний час очікування evidence/preview (секунди) |
 | `WAIT_EVENT_SLEEP` | `5` | Інтервал поллінгу прогресу (секунди) |
 | `QUEUE_OUTGOING` | `oots:queue:outgoing` | Назва Redis-черги для таймаут-записів |
 | `PREVIEW_URL` | _(не задано)_ | Базовий URL preview-сервісу (для `RedirectService`) |
+| `RETURNURL_REGEX` | `.*` | Regex-фільтр для `returnurl` перед збереженням/використанням |
+| `ACTION_TOKEN_SECRET` | `dev-action-secret` | Секрет HMAC-підпису action-токенів |
+| `ACTION_TOKEN_TTL` | `900` | TTL action-токена у секундах |
+
+### Security-конфігурація (dev/test/prod)
+
+`returnurl` у цьому сервісі фільтрується через `RETURNURL_REGEX`, а state-changing endpoint-и захищені підписаними action-токенами.
+
+Рекомендовані значення:
+
+| Середовище | `RETURNURL_REGEX` | `ACTION_TOKEN_SECRET` | `ACTION_TOKEN_TTL` |
+|---|---|---|---|
+| dev | `.*` | `dev-action-secret` | `900` |
+| test | `^https://(oots-portal\\.oots-test\\.k8s|portal\\.example\\.test)/.*$` | довгий випадковий secret | `600` |
+| prod | `^https://(oots-portal\\.gov\\.example|portal\\.gov\\.example)/.*$` | довгий випадковий secret (з vault/secret manager) | `300-600` |
+
+Мінімальні вимоги для `test/prod`:
+
+- не використовувати `RETURNURL_REGEX=.*`;
+- не використовувати дефолтний `ACTION_TOKEN_SECRET`;
+- періодично ротувати `ACTION_TOKEN_SECRET`.
 
 Приклад `.env`:
 
@@ -198,10 +219,13 @@ JSON API для поллінгу прогресу.
 REDIS_URL=redis://localhost:6379/0
 REDIS_TTL=86400
 REDIS_PREFIX=
-WAIT_EVENT_TIME=120
+EVIDENCE_TIMEOUT=600
 WAIT_EVENT_SLEEP=5
 QUEUE_OUTGOING=oots:queue:outgoing
 PREVIEW_URL=http://localhost:8081/preview
+RETURNURL_REGEX=.*
+ACTION_TOKEN_SECRET=dev-action-secret
+ACTION_TOKEN_TTL=900
 ```
 
 ## Локальний запуск
