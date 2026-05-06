@@ -1,5 +1,6 @@
 """Helpers for validating and storing Person requests in Redis."""
 
+import logging
 from datetime import date, datetime
 
 from pydantic import BaseModel
@@ -9,6 +10,7 @@ from lib.UseRedis import UseRedisAsync
 from redis_keys import Keys
 
 KEYS = Keys()
+_logger = logging.getLogger(__name__)
 
 
 class ContinuePayload(BaseModel):
@@ -69,11 +71,28 @@ async def save_person_request(
 
     return request_person_key, person_data
 
-async def person_push_to_queue(client: UseRedisAsync, message_id: str) -> None:
+async def person_push_to_queue(client: UseRedisAsync, message_id: str) -> bool:
+    """Push message to process queue when request EDM contains a valid queue name.
 
+    Returns:
+        True if message was pushed to queue, otherwise False.
+    """
     edm = await client.get_from_redis(KEYS.request_edm(message_id))
-    if not isinstance(edm, list) or not edm:
-        edm = [edm,]
-    queue = edm[0].get('process_queue')
+
+    if isinstance(edm, list):
+        first_item = edm[0] if edm else None
+    else:
+        first_item = edm
+
+    if not isinstance(first_item, dict):
+        _logger.warning("Skip queue push: request EDM missing or invalid for message_id=%s", message_id)
+        return False
+
+    queue = first_item.get("process_queue")
+    if not isinstance(queue, str) or not queue.strip():
+        _logger.warning("Skip queue push: process_queue is missing for message_id=%s", message_id)
+        return False
+
     await client.push_to_queue(queue, message_id)
+    return True
 
