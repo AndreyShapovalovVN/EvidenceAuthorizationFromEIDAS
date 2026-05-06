@@ -65,6 +65,11 @@ async def save_person_request(
     person_data = person.dict
     request_person_key = KEYS.request_person(message_id)
     await client.save_to_redis(request_person_key, person_data)
+    await person_push_to_queue(client, message_id)
+
+    return request_person_key, person_data
+
+async def person_push_to_queue(client: UseRedisAsync, message_id: str) -> None:
 
     edm = await client.get_from_redis(KEYS.request_edm(message_id))
     if not isinstance(edm, list) or not edm:
@@ -72,4 +77,3 @@ async def save_person_request(
     queue = edm[0].get('process_queue')
     await client.push_to_queue(queue, message_id)
 
-    return request_person_key, person_data
