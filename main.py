@@ -130,6 +130,19 @@ async def favicon():
 async def root(request: Request, message_id: str):
     client = get_redis_client()
 
+    # Перевіряємо чи вже була авторизація для цього message_id
+    existing_person = await client.get_from_redis(KEYS.request_person(message_id))
+    if existing_person is not None:
+        # Авторизація вже відбулась, переходимо на preview
+        return templates.TemplateResponse(
+            request,
+            "redirect_to_preview.html",
+            {
+                "message_id": message_id,
+                "preview_url": f"/preview/{message_id}",
+            },
+        )
+
     # Зберігаємо returnurl в Redis при першому заході
     query_returnurl = request.query_params.get("returnurl")
     if not query_returnurl:

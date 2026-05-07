@@ -565,3 +565,21 @@ def test_preview_timeout_returns_403_without_action_token(client, fake_redis_cli
     assert response.status_code == 403
 
 
+def test_auth_redirects_to_preview_when_person_already_authorized(client, fake_redis_client, monkeypatch):
+    """Перевіряємо що при повторному заході на /auth/{message_id} з вже авторизованою особою
+    користувач перенаправляється на /preview/{message_id}"""
+    keys = Keys()
+
+    # Симулюємо що person вже збережена в Redis
+    fake_redis_client.get_from_redis.side_effect = lambda key: (
+        {"first_name": "John", "last_name": "Doe"} if "request:person" in key else None
+    )
+
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.get("/auth/msg-authorized", follow_redirects=False)
+
+    # Перевіряємо що повертається редирект шаблон з правильним url
+    assert response.status_code == 200
+    assert "redirect_to_preview.html" in response.text or "/preview/msg-authorized" in response.text
+    assert "Авторизація вже виконана" in response.text or "preview/msg-authorized" in response.text

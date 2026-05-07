@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Redirecting...</title>
+    <meta http-equiv="refresh" content="0; url={{ preview_url }}">
+</head>
+<body>
+    <p>Авторизація вже виконана. Перенаправляємо на наступну сторінку...</p>
+    <a href="{{ preview_url }}">Натисніть сюди якщо не перенаправлено</a>
+    <script>
+        window.location.href = "{{ preview_url }}";
+    </script>
+</body>
+</html>
+
