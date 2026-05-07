@@ -23,6 +23,8 @@
 - `lib/PersonRequestService.py` — валідація payload і збереження `Person` у Redis;
 - `lib/UseRedis.py` — асинхронний Redis-клієнт, утиліти доступу та префіксація ключів;
 - `templates/login.html` — UI сторінки авторизації;
+- `templates/redirect_to_preview.html` — авто-перехід на preview, якщо авторизація вже виконана;
+- `templates/invalid_link.html` — повідомлення про невалідне посилання з поверненням на `returnurl`;
 - `templates/view_waiting.html` — сторінка очікування завантаження evidence;
 - `templates/pdf.html` — перегляд PDF evidence;
 - `templates/xml.html` — перегляд XML evidence;
@@ -56,14 +58,19 @@
 
 Перед рендерингом:
 
-1. читається ключ `oots:message:response:evidence:{message_id}`;
-2. якщо знайдено `exception.code == EDM:ERR:0002` — це **успішний** сценарій, рендер продовжується;
-3. якщо знайдено будь-який **інший** `exception.code` — повертається `422`;
-4. якщо exception відсутній — очікується поява прапора `oots:message:request:preview:{message_id}`;
-5. якщо прапор не з'явився за таймаут — повертається `408`;
-6. якщо перевірки пройдено — повертається HTML-сторінка `login.html`.
+1. читається ключ `oots:message:request:edm:{message_id}`;
+2. якщо EDM відсутній:
+   - при наявному `returnurl` рендериться `invalid_link.html` з повідомленням і автоповерненням;
+   - без `returnurl` повертається `400` (`Invalid link: EDM not found and no returnurl provided`);
+3. якщо EDM є, читається `oots:message:request:person:{message_id}`;
+4. якщо `Person` уже збережений, рендериться `redirect_to_preview.html` і користувач одразу переходить на `/preview/{message_id}`;
+5. якщо `Person` відсутній:
+   - зберігається `returnurl` (після фільтра `RETURNURL_REGEX`),
+   - виконується перевірка `check_message(...)`,
+   - можливі `422` (EDM business error) або `408` (таймаут preview),
+   - інакше рендериться `login.html`.
 
-Після успішного заповнення форми браузер переходить на `/preview/{message_id}?returnurl=...`.
+Після успішного заповнення форми браузер переходить на URL із `continue_url` (зазвичай `/preview/{message_id}`).
 
 ---
 
@@ -97,14 +104,15 @@
 
 ---
 
-### `GET /preview/{message_id}?returnurl=<URL>`
+### `GET /preview/{message_id}`
 
 Сторінка очікування та перегляду evidence.
 
-- Параметр `returnurl` є обов'язковим; без нього повертається `400`.
+- `returnurl` береться в такому пріоритеті: Redis (`RETURN_URL`) -> query param `returnurl` -> `resolve_url(...)` з EDM.
+- Якщо знайдений `returnurl` проходить `RETURNURL_REGEX`, він зберігається в Redis.
 - Якщо evidence вже готовий у Redis — одразу рендерить PDF або XML сторінку.
 - Інакше — показує сторінку очікування `view_waiting.html` з двоетапним таскбаром.
-- Клієнт поллінгує `/preview/progress/{message_id}` і при готовності оновлює сторінку.
+- Клієнт поллінгує `/preview/progress/{message_id}`; при готовності переходить на preview-сторінку.
 
 ---
 

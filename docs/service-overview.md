@@ -6,32 +6,36 @@
 
 ## Сценарії авторизації
 
-### Успішний сценарій (EDM:ERR:0002)
+### Базовий сценарій (`GET /auth/{message_id}`)
 
 1. Клієнт відкриває `GET /auth/{message_id}`.
-2. Сервіс читає ключ `oots:message:response:evidence:{message_id}`.
-3. Якщо знайдено `exception.code == EDM:ERR:0002` — це **успішний** маркер; рендер продовжується без очікування.
-4. Рендериться сторінка `login.html`; `continue_url` вказує на `/preview/{message_id}?returnurl=...`.
-5. Користувач заповнює форму і натискає `Continue Securely`.
-6. Браузер надсилає `POST /auth/continue`.
-7. Сервіс зберігає `Person` у Redis і ставить `message_id` у чергу `process_queue` з EDM payload.
-8. Браузер переходить за `continue_url` на `/preview/{message_id}?returnurl=...`.
+2. Сервіс перевіряє наявність `oots:message:request:edm:{message_id}`.
+3. Якщо EDM відсутній:
+   - при наявному `returnurl` рендериться `invalid_link.html` і виконується автоповернення на `returnurl`;
+   - без `returnurl` повертається `400` (`Invalid link: EDM not found and no returnurl provided`).
+4. Якщо EDM наявний, сервіс перевіряє `oots:message:request:person:{message_id}`.
+5. Якщо `Person` вже є, рендериться `redirect_to_preview.html` і користувач автоматично переходить на `/preview/{message_id}`.
+6. Якщо `Person` відсутній, рендериться `login.html` (після `check_message(...)`), а форма відправляється на `POST /auth/continue`.
 
-### Сценарій з очікуванням preview
+### Одноразова авторизація в межах `message_id`
 
-Якщо `exception.code` у evidence відсутній, сервіс поллінгує прапор `oots:message:request:preview:{message_id}` (до `WAIT_EVENT_TIME` секунд). Після появи прапора виконується той самий рендер `login.html`.
+- Перша авторизація зберігає `Person` у `oots:message:request:person:{message_id}`.
+- Повторне відкриття `/auth/{message_id}` для того самого `message_id` не показує форму повторно і одразу переводить на `/preview/{message_id}`.
 
-### Помилковий сценарій
+### Бізнес-помилки/таймаут у `check_message(...)`
 
-Якщо знайдено будь-який `exception.code`, відмінний від `EDM:ERR:0002` — повертається `422`.
+- Якщо знайдено business error від evidence — повертається `422`.
+- Якщо спрацьовує таймаут очікування preview — повертається `408`.
 
 ## Сторінка перегляду evidence (/preview)
 
-1. `GET /preview/{message_id}?returnurl=<URL>` — якщо evidence вже готовий у Redis, рендерить його; інакше повертає `view_waiting.html`.
+1. `GET /preview/{message_id}` — якщо evidence вже готовий у Redis, рендерить його; інакше повертає `view_waiting.html`.
 2. `view_waiting.html` поллінгує `GET /preview/progress/{message_id}` кожні `WAIT_EVENT_SLEEP` секунд.
 3. При `stage=2` браузер оновлює сторінку — отримуємо рендер evidence (PDF або XML).
 4. При таймауті браузер викликає `POST /preview/timeout/{message_id}`, який фіксує `EDM:ERR:0005` у Redis і ставить `message_id` у чергу `QUEUE_OUTGOING`, після чого перенаправляє по `returnurl`.
 5. Після перегляду користувач підтверджує документи через `POST /preview/continue`.
+
+Поточний flow `view_evidence` / `continue_view` / `view_timeout` лишається без змін у бізнес-частині.
 
 ## Маршрути
 
@@ -76,10 +80,13 @@
 | `REDIS_URL` | `redis://localhost:6379` | URL підключення до Redis |
 | `REDIS_TTL` | `86400` | TTL для даних у Redis (секунди) |
 | `REDIS_PREFIX` | _(порожній)_ | Префікс для всіх Redis-ключів |
-| `WAIT_EVENT_TIME` | `120` | Час очікування evidence на сторінці (секунди) |
+| `EVIDENCE_TIMEOUT` | `600` | Час очікування evidence на сторінці (секунди) |
 | `WAIT_EVENT_SLEEP` | `5` | Інтервал поллінгу прогресу (секунди) |
 | `QUEUE_OUTGOING` | `oots:queue:outgoing` | Redis-черга для таймаут-записів |
 | `PREVIEW_URL` | _(не задано)_ | Базовий URL preview-сервісу (RedirectService) |
+| `RETURNURL_REGEX` | `.*` | Regex-фільтр для `returnurl` перед використанням |
+| `ACTION_TOKEN_SECRET` | `dev-action-secret` | Секрет HMAC-підпису action-токенів |
+| `ACTION_TOKEN_TTL` | `900` | TTL action-токена (секунди) |
 
 ## Внутрішні модулі
 
