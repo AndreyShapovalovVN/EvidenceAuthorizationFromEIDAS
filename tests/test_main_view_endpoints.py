@@ -79,6 +79,16 @@ def test_auth_builds_continue_url_to_preview_with_returnurl(client, fake_redis_c
     async def fake_if_preview(_, __):
         return True
 
+    # Мокуємо REQUEST_EDM як наявний, REQUEST_PERSON як відсутній
+    def side_effect_fn(key):
+        if "request:edm" in key:
+            return {"some": "edm"}
+        if "request:person" in key:
+            return None
+        return None
+    
+    fake_redis_client.get_from_redis.side_effect = side_effect_fn
+
     monkeypatch.setattr(main, "check_message", fake_check_message)
     monkeypatch.setattr(main, "if_preview", fake_if_preview)
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
@@ -92,6 +102,16 @@ def test_auth_builds_continue_url_to_preview_with_returnurl(client, fake_redis_c
 def test_auth_saves_returnurl_to_redis(client, fake_redis_client, monkeypatch):
     async def fake_check_message(_, __):
         return MessageStatus(preview_ready=True, timed_out=False)
+
+    # Мокуємо REQUEST_EDM як наявний, REQUEST_PERSON як відсутній
+    def side_effect_fn(key):
+        if "request:edm" in key:
+            return {"some": "edm"}
+        if "request:person" in key:
+            return None
+        return None
+    
+    fake_redis_client.get_from_redis.side_effect = side_effect_fn
 
     monkeypatch.setattr(main, "check_message", fake_check_message)
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
@@ -109,6 +129,16 @@ def test_auth_builds_continue_url_to_preview_without_returnurl(client, fake_redi
 
     async def fake_if_preview(_, __):
         return True
+
+    # Мокуємо REQUEST_EDM як наявний, REQUEST_PERSON як відсутній
+    def side_effect_fn(key):
+        if "request:edm" in key:
+            return {"some": "edm"}
+        if "request:person" in key:
+            return None
+        return None
+    
+    fake_redis_client.get_from_redis.side_effect = side_effect_fn
 
     monkeypatch.setattr(main, "check_message", fake_check_message)
     monkeypatch.setattr(main, "if_preview", fake_if_preview)
@@ -568,18 +598,54 @@ def test_preview_timeout_returns_403_without_action_token(client, fake_redis_cli
 def test_auth_redirects_to_preview_when_person_already_authorized(client, fake_redis_client, monkeypatch):
     """Перевіряємо що при повторному заході на /auth/{message_id} з вже авторизованою особою
     користувач перенаправляється на /preview/{message_id}"""
-    keys = Keys()
-
-    # Симулюємо що person вже збережена в Redis
+    # Мокуємо REQUEST_EDM як наявний та REQUEST_PERSON як наявний
     fake_redis_client.get_from_redis.side_effect = lambda key: (
-        {"first_name": "John", "last_name": "Doe"} if "request:person" in key else None
+        {"first_name": "John", "last_name": "Doe"} if "request:person" in key 
+        else {"some": "edm"} if "request:edm" in key 
+        else None
     )
-
+    
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
-
+    
     response = client.get("/auth/msg-authorized", follow_redirects=False)
-
+    
     # Перевіряємо що повертається редирект шаблон з правильним url
     assert response.status_code == 200
     assert "redirect_to_preview.html" in response.text or "/preview/msg-authorized" in response.text
     assert "Авторизація вже виконана" in response.text or "preview/msg-authorized" in response.text
+
+
+def test_auth_returns_invalid_link_when_edm_missing(client, fake_redis_client, monkeypatch):
+    """Перевіряємо що при відсутності REQUEST_EDM показується помилка про неправильне посилання"""
+    # Симулюємо відсутність EDM, але наявність returnurl
+    def side_effect_fn(key):
+        if "returnurl" in key:
+            return "https://example.com/back"
+        return None
+    
+    fake_redis_client.get_from_redis.side_effect = side_effect_fn
+    
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+    
+    response = client.get("/auth/msg-invalid?returnurl=https://example.com/back", follow_redirects=False)
+    
+    # Перевіряємо що показується сторінка з помилкою
+    assert response.status_code == 200
+    assert "invalid_link.html" in response.text or "Неправильне посилання" in response.text
+    assert "EDM не знайдено" in response.text
+
+
+def test_auth_returns_400_when_edm_missing_and_no_returnurl(client, fake_redis_client, monkeypatch):
+    """Перевіряємо що при відсутності EDM і returnurl повертається 400"""
+    # Симулюємо відсутність EDM
+    fake_redis_client.get_from_redis.return_value = None
+    
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+    
+    response = client.get("/auth/msg-invalid-no-url", follow_redirects=False)
+    
+    # Перевіряємо 400 статус
+    assert response.status_code == 400
+    assert "EDM not found" in response.json()["detail"]
+
+

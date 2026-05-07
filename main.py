@@ -130,6 +130,33 @@ async def favicon():
 async def root(request: Request, message_id: str):
     client = get_redis_client()
 
+    # Перевіряємо наявність EDM — основна передумова для авторизації
+    request_edm = await client.get_from_redis(KEYS.request_edm(message_id))
+    if request_edm is None:
+        # EDM відсутній — посилання неправильне, редирект на returnurl
+        query_returnurl = request.query_params.get("returnurl")
+        if not query_returnurl:
+            try:
+                query_returnurl = await resolve_url(client, message_id)
+            except Exception:
+                query_returnurl = None
+        
+        query_returnurl = filter_returnurl(query_returnurl)
+        
+        if query_returnurl:
+            return templates.TemplateResponse(
+                request,
+                "invalid_link.html",
+                {
+                    "message": "Неправильне посилання: EDM не знайдено",
+                    "returnurl": query_returnurl,
+                },
+            )
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid link: EDM not found and no returnurl provided",
+        )
+
     # Перевіряємо чи вже була авторизація для цього message_id
     existing_person = await client.get_from_redis(KEYS.request_person(message_id))
     if existing_person is not None:
