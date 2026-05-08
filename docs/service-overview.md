@@ -30,10 +30,10 @@
 ## Сторінка перегляду evidence (/preview)
 
 1. `GET /preview/{message_id}` — якщо evidence вже готовий у Redis, рендерить його; інакше повертає `view_waiting.html`.
-2. `view_waiting.html` поллінгує `GET /preview/progress/{message_id}` кожні `WAIT_EVENT_SLEEP` секунд.
+2. `view_waiting.html` поллінгує `GET /preview/progress/{message_id}` кожні `WAIT_EVENT_SLEEP` секунд (із `X-Action-Token`, action=`preview-progress`).
 3. При `stage=2` браузер оновлює сторінку — отримуємо рендер evidence (PDF або XML).
-4. При таймауті браузер викликає `POST /preview/timeout/{message_id}`, який фіксує `EDM:ERR:0005` у Redis і ставить `message_id` у чергу `QUEUE_OUTGOING`, після чого перенаправляє по `returnurl`.
-5. Після перегляду користувач підтверджує документи через `POST /preview/continue`.
+4. При таймауті браузер викликає `POST /preview/timeout/{message_id}` з `X-Action-Token` (action=`preview-timeout`), який фіксує `EDM:ERR:0005` у Redis і ставить `message_id` у чергу `QUEUE_OUTGOING`, після чого перенаправляє по `returnurl`.
+5. Після перегляду користувач підтверджує документи через `POST /preview/continue` з `X-Action-Token` (action=`preview-continue`).
 
 Поточний flow `view_evidence` / `continue_view` / `view_timeout` лишається без змін у бізнес-частині.
 
@@ -85,8 +85,11 @@
 | `QUEUE_OUTGOING` | `oots:queue:outgoing` | Redis-черга для таймаут-записів |
 | `PREVIEW_URL` | _(не задано)_ | Базовий URL preview-сервісу (RedirectService) |
 | `RETURNURL_REGEX` | `.*` | Regex-фільтр для `returnurl` перед використанням |
-| `ACTION_TOKEN_SECRET` | `dev-action-secret` | Секрет HMAC-підпису action-токенів |
+| `ACTION_TOKEN_SECRET` | `dev-action-secret` | Master secret для derivation ключа підпису action-токенів |
+| `ACTION_TOKEN_KEY_SALT` | `action-token-v2` | Salt для derivation dynamic signing key (`message_id` + `action`) |
 | `ACTION_TOKEN_TTL` | `900` | TTL action-токена (секунди) |
+
+Action token-и використовують dynamic signing key, прив'язаний до `message_id` та `action`; legacy signatures не підтримуються.
 
 ## Внутрішні модулі
 

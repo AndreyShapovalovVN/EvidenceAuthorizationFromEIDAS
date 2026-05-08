@@ -78,6 +78,8 @@
 
 Приймає дані форми авторизації, збирає об'єкт `Person`, зберігає його в Redis і ставить `message_id` у чергу обробки (з EDM payload `process_queue`).
 
+Потребує заголовок `X-Action-Token` (action=`auth-continue`).
+
 Приклад запиту:
 
 ```json
@@ -120,6 +122,8 @@
 
 JSON API для поллінгу прогресу.
 
+Потребує заголовок `X-Action-Token` (action=`preview-progress`).
+
 Відповідь:
 
 ```json
@@ -141,6 +145,8 @@ JSON API для поллінгу прогресу.
 
 Зберігає підтвердження (approvals) для evidence-документів.
 
+Потребує заголовок `X-Action-Token` (action=`preview-continue`).
+
 Приклад запиту:
 
 ```json
@@ -155,6 +161,8 @@ JSON API для поллінгу прогресу.
 ### `POST /preview/timeout/{message_id}`
 
 Фіксує таймаут очікування в Redis (викликається браузером при спливанні часу) і ставить `message_id` в чергу `QUEUE_OUTGOING`.
+
+Потребує заголовок `X-Action-Token` (action=`preview-timeout`).
 
 Записує в `oots:message:response:exp:{message_id}`:
 
@@ -200,12 +208,14 @@ JSON API для поллінгу прогресу.
 | `QUEUE_OUTGOING` | `oots:queue:outgoing` | Назва Redis-черги для таймаут-записів |
 | `PREVIEW_URL` | _(не задано)_ | Базовий URL preview-сервісу (для `RedirectService`) |
 | `RETURNURL_REGEX` | `.*` | Regex-фільтр для `returnurl` перед збереженням/використанням |
-| `ACTION_TOKEN_SECRET` | `dev-action-secret` | Секрет HMAC-підпису action-токенів |
+| `ACTION_TOKEN_SECRET` | `dev-action-secret` | Master secret для HMAC; використовується для derivation dynamic signing key |
+| `ACTION_TOKEN_KEY_SALT` | `action-token-v2` | Salt для derivation ключа підпису, прив'язаного до `message_id` + `action` |
 | `ACTION_TOKEN_TTL` | `900` | TTL action-токена у секундах |
 
 ### Security-конфігурація (dev/test/prod)
 
 `returnurl` у цьому сервісі фільтрується через `RETURNURL_REGEX`, а state-changing endpoint-и захищені підписаними action-токенами.
+Підпис токена формується dynamic key, похідним від `message_id` та `action`; legacy-підписи не підтримуються.
 
 Рекомендовані значення:
 
