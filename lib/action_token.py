@@ -10,6 +10,7 @@ from typing import Any
 
 _TOKEN_SECRET = os.getenv("ACTION_TOKEN_SECRET", "dev-action-secret")
 _TOKEN_TTL_SECONDS = int(os.getenv("ACTION_TOKEN_TTL", "900"))
+_TOKEN_KEY_SALT = os.getenv("ACTION_TOKEN_KEY_SALT", "action-token-v2")
 
 
 def _b64encode(raw: bytes) -> str:
@@ -21,8 +22,14 @@ def _b64decode(raw: str) -> bytes:
     return base64.urlsafe_b64decode(padded.encode("ascii"))
 
 
-def _sign(payload_raw: bytes) -> str:
-    signature = hmac.new(_TOKEN_SECRET.encode("utf-8"), payload_raw, hashlib.sha256).digest()
+def _derive_signing_key(message_id: str, action: str) -> bytes:
+    # Derive per-message/action key from the master secret.
+    material = f"{_TOKEN_KEY_SALT}:{message_id}:{action}".encode("utf-8")
+    return hmac.new(_TOKEN_SECRET.encode("utf-8"), material, hashlib.sha256).digest()
+
+
+def _sign(payload_raw: bytes, message_id: str, action: str) -> str:
+    signature = hmac.new(_derive_signing_key(message_id, action), payload_raw, hashlib.sha256).digest()
     return _b64encode(signature)
 
 
@@ -32,9 +39,10 @@ def issue_action_token(message_id: str, action: str, ttl_seconds: int | None = N
         "mid": message_id,
         "act": action,
         "exp": int(time.time()) + int(ttl),
+        "v": 2,
     }
     payload_raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    return f"{_b64encode(payload_raw)}.{_sign(payload_raw)}"
+    return f"{_b64encode(payload_raw)}.{_sign(payload_raw, message_id, action)}"
 
 
 def verify_action_token(token: str | None, message_id: str, action: str) -> bool:
@@ -52,7 +60,7 @@ def verify_action_token(token: str | None, message_id: str, action: str) -> bool
     except Exception:
         return False
 
-    expected_signature = _sign(payload_raw)
+    expected_signature = _sign(payload_raw, message_id, action)
     if not hmac.compare_digest(signature, expected_signature):
         return False
 
