@@ -211,6 +211,29 @@ def test_view_progress_returns_stage_1_when_no_data(client, fake_redis_client, m
     assert response.json()["stage"] == 1
     assert response.json()["preview_ready"] is True
     assert response.json()["evidence_ready"] is False
+    assert response.json()["exp_ready"] is False
+
+
+def test_view_progress_returns_exp_ready_when_exp_exists(client, fake_redis_client, monkeypatch):
+    message_id = "msg-002"
+
+    async def _get_from_redis(key):
+        if key == main.KEYS.response_exp(message_id):
+            return {"exception": {"code": "EDM:ERR:0005"}}
+        return None
+
+    fake_redis_client.get_from_redis.side_effect = _get_from_redis
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.get(
+        f"/preview/progress/{message_id}",
+        headers=_token_headers(message_id, "preview-progress"),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["stage"] == 1
+    assert response.json()["evidence_ready"] is False
+    assert response.json()["exp_ready"] is True
 
 
 def test_view_renders_pdf_template(client, fake_redis_client, monkeypatch):

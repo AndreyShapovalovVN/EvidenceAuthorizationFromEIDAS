@@ -20,10 +20,14 @@ class EmptyEvidenceListError(Exception):
     """Raised when evidence payload contains no renderable evidences."""
 
 
-
 async def check_evidence_ready(client: UseRedisAsync, message_id: str, keys: Keys) -> bool:
     evidence_key = keys.response_evidence(message_id)
     return await client.get_from_redis(evidence_key) is not None
+
+
+async def check_exp_ready(client: UseRedisAsync, message_id: str, keys: Keys) -> bool:
+    exp_key = keys.response_exp(message_id)
+    return await client.get_from_redis(exp_key) is not None
 
 
 async def build_evidence_page_context(
@@ -52,7 +56,10 @@ async def build_evidence_page_context(
 async def build_preview_progress(client: UseRedisAsync, message_id: str, keys: Keys) -> dict[str, Any]:
     # Preview flag is no longer a blocking phase for UI progress.
     preview_ready = True
-    evidence_ready = await check_evidence_ready(client, message_id, keys)
+    evidence_ready, exp_ready = await asyncio.gather(
+        check_evidence_ready(client, message_id, keys),
+        check_exp_ready(client, message_id, keys),
+    )
 
     stage = 2 if evidence_ready else 1
 
@@ -61,6 +68,7 @@ async def build_preview_progress(client: UseRedisAsync, message_id: str, keys: K
         "stage": stage,
         "preview_ready": preview_ready,
         "evidence_ready": evidence_ready,
+        "exp_ready": exp_ready,
     }
 
 

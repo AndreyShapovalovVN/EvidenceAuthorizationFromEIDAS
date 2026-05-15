@@ -63,6 +63,15 @@
             }
 
             const data = await response.json();
+
+            if (data.exp_ready) {
+                clearInterval(pollId);
+                if (timeoutRedirectUrl) {
+                    window.location.href = timeoutRedirectUrl;
+                }
+                return;
+            }
+
             updatePerStageTaskbars(data.stage);
             updateStages(data.stage);
 
