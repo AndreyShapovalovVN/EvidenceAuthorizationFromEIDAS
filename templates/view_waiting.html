@@ -13,27 +13,12 @@
         <h1 class="waiting-title">⏳ Loading Evidence</h1>
 
         <ul class="stage-list">
-            <li class="stage-item" id="stage-preview">
+            <li class="stage-item" id="stage-evidence">
                 <div class="stage-badge active">
                     <div class="spinner"></div>
                 </div>
                 <div class="stage-content">
-                    <p class="stage-name">Step 1: Preview Ready</p>
-                    <p class="stage-hint">Waiting for preview flag from service...</p>
-                    <div class="stage-progress-head">
-                        <span id="stage1Checks">0 / 0 checks</span>
-                        <span id="stage1Percent">0%</span>
-                    </div>
-                    <div class="stage-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="stage1Track">
-                        <div id="stage1Fill" class="stage-progress-fill"></div>
-                    </div>
-                </div>
-            </li>
-
-            <li class="stage-item" id="stage-evidence">
-                <div class="stage-badge pending">2</div>
-                <div class="stage-content">
-                    <p class="stage-name">Step 2: Evidence Retrieved</p>
+                    <p class="stage-name">Evidence Retrieved</p>
                     <p class="stage-hint">Waiting for evidence from service...</p>
                     <div class="stage-progress-head">
                         <span id="stage2Checks">0 / 0 checks</span>
@@ -64,7 +49,6 @@
     const startTime = Date.now();
     const maxChecks = Math.max(1, Math.ceil(maxWaitTime / pollInterval));
     const stageChecks = {
-        stage1: 0,
         stage2: 0,
     };
 
@@ -83,7 +67,7 @@
             updateStages(data.stage);
 
             if (data.stage >= 2) {
-                // Обидва етапи готові: переходимо на preview-сторінку.
+                // Evidence ready: redirect to preview page.
                 setTimeout(() => {
                     window.location.href = previewUrl;
                 }, 500);
@@ -94,18 +78,14 @@
     }
 
     function updatePerStageTaskbars(stage) {
-        if (stage < 1) {
-            stageChecks.stage1 = Math.min(stageChecks.stage1 + 1, maxChecks);
-        } else if (stage < 2) {
+        if (stage < 2) {
             stageChecks.stage2 = Math.min(stageChecks.stage2 + 1, maxChecks);
         }
 
-        const stage1Progress = stage >= 1 ? 100 : Math.min(99, Math.round((stageChecks.stage1 / maxChecks) * 100));
         const stage2Progress = stage >= 2
             ? 100
-            : (stage >= 1 ? Math.min(99, Math.round((stageChecks.stage2 / maxChecks) * 100)) : 0);
+            : Math.min(99, Math.round((stageChecks.stage2 / maxChecks) * 100));
 
-        renderStageTaskbar("1", stage1Progress, stageChecks.stage1);
         renderStageTaskbar("2", stage2Progress, stageChecks.stage2);
     }
 
@@ -122,14 +102,8 @@
     }
 
     function updateStages(stage) {
-        const stagePreview = document.getElementById("stage-preview");
         const stageEvidence = document.getElementById("stage-evidence");
 
-        if (stage >= 1) {
-            const badge1 = stagePreview.querySelector(".stage-badge");
-            badge1.innerHTML = '✓';
-            badge1.className = "stage-badge done";
-        }
 
         if (stage >= 2) {
             const badge2 = stageEvidence.querySelector(".stage-badge");

@@ -197,7 +197,7 @@ def test_view_returns_404_when_data_missing(client, fake_redis_client, monkeypat
     assert "Loading Evidence" in response.text
 
 
-def test_view_progress_returns_stage_0_when_no_data(client, fake_redis_client, monkeypatch):
+def test_view_progress_returns_stage_1_when_no_data(client, fake_redis_client, monkeypatch):
     fake_redis_client.get_flag.return_value = False
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
@@ -208,8 +208,8 @@ def test_view_progress_returns_stage_0_when_no_data(client, fake_redis_client, m
     )
 
     assert response.status_code == 200
-    assert response.json()["stage"] == 0
-    assert response.json()["preview_ready"] is False
+    assert response.json()["stage"] == 1
+    assert response.json()["preview_ready"] is True
     assert response.json()["evidence_ready"] is False
 
 

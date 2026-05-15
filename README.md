@@ -244,7 +244,10 @@ PREVIEW_URL=http://localhost:8081/preview
 RETURNURL_REGEX=.*
 ACTION_TOKEN_SECRET=dev-action-secret
 ACTION_TOKEN_TTL=900
+STATIC_VERSION=dev-1
 ```
+
+`STATIC_VERSION` додається до URL статичних ресурсів (`/static/...?...v=...`) і дозволяє швидко скидати кеш браузера після змін у JS/CSS. Після UI-змін достатньо оновити значення в `.env` і перезапустити сервіс.
 
 ## Локальний запуск
 
