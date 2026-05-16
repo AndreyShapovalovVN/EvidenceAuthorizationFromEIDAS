@@ -27,8 +27,22 @@
     function findContent(evidence, contentId) {
         return evidence.contents.find((item) => item.id === contentId) || null;
     }
-    function formatContent(rawContent) {
+    function looksLikeJsonType(contentType) {
+        if (typeof contentType !== "string") {
+            return false;
+        }
+        const normalized = contentType.toLowerCase();
+        return normalized === "application/json" || normalized.endsWith("+json") || normalized.includes("/json");
+    }
+    function formatContent(rawContent, contentType) {
         if (typeof rawContent === "string") {
+            if (looksLikeJsonType(contentType)) {
+                try {
+                    return JSON.stringify(JSON.parse(rawContent), null, 2);
+                } catch (_error) {
+                    return rawContent;
+                }
+            }
             return rawContent;
         }
         try {
@@ -52,7 +66,7 @@
         }
         const hasContent = content.content !== null && content.content !== undefined && content.content !== "";
         if (hasContent) {
-            textViewer.textContent = formatContent(content.content);
+            textViewer.textContent = formatContent(content.content, content.content_type);
             textViewer.style.display = "block";
             pdfViewer.style.display = "none";
             emptyViewer.style.display = "none";
@@ -119,7 +133,7 @@
             // Create a combined text view
             const allContent = evidence.contents
                 .filter(c => c.content !== null && c.content !== undefined)
-                .map(c => `\n=== ${c.label} ===\nType: ${c.content_type}\nCID: ${c.cid}\n\n${formatContent(c.content)}`)
+                .map(c => `\n=== ${c.label} ===\nType: ${c.content_type}\nCID: ${c.cid}\n\n${formatContent(c.content, c.content_type)}`)
                 .join("\n\n");
             activeEvidenceIndex = evidenceIndex;
             activeContentId = "all-contents";
