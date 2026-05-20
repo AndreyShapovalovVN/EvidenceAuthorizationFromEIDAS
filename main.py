@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from lib.MessageChecker import check_message
-from lib.PersonRequestService import ContinuePayload, save_person_request, person_push_to_queue
+from lib.PersonRequestService import ContinuePayload, save_person_request
 from lib.action_token import issue_action_token, verify_action_token
 from lib.RedirectService import filter_returnurl, resolve_url, if_preview
 from lib.UseRedis import close_redis, get_redis_client, initialize_redis
@@ -295,9 +295,6 @@ async def view_evidence(request: Request, message_id: str):
     if evidence_ready:
         # Евіденс готовий, рендеримо evidence сторінку одразу
         return await _render_evidence_page(request, message_id)
-
-    # Якщо евіденс не готовий, ставимо в чергу на обробку (якщо ще не поставлено)
-    await person_push_to_queue(get_redis_client(), message_id)
 
     # Якщо ні, показуємо сторінку чекання
     return templates.TemplateResponse(
