@@ -27,7 +27,10 @@ async def check_evidence_ready(client: UseRedisAsync, message_id: str, keys: Key
 
 async def check_exp_ready(client: UseRedisAsync, message_id: str, keys: Keys) -> bool:
     exp_key = keys.response_exp(message_id)
-    return await client.get_from_redis(exp_key) is not None
+    exp_payload = await client.get_from_redis(exp_key)
+    if isinstance(exp_payload, dict):
+        return isinstance(exp_payload.get("exception"), dict)
+    return bool(exp_payload)
 
 
 async def build_evidence_page_context(

@@ -72,6 +72,28 @@ def test_preview_renders_immediately_when_both_ready(client, fake_redis_client, 
     assert "Evidences" in response.text
 
 
+def test_preview_redirects_to_returnurl_when_exp_ready(client, fake_redis_client, monkeypatch):
+    message_id = "msg-exp"
+    return_url = "https://example.com/back"
+
+    async def _get_from_redis(key):
+        if key == main.KEYS.return_url(message_id):
+            return return_url
+        if key == main.KEYS.response_exp(message_id):
+            return {"exception": {"code": "EDM:ERR:0005"}}
+        if key == main.KEYS.response_evidence(message_id):
+            return None
+        return None
+
+    fake_redis_client.get_from_redis.side_effect = _get_from_redis
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    response = client.get(f"/preview/{message_id}", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == return_url
+
+
 def test_auth_builds_continue_url_to_preview_with_returnurl(client, fake_redis_client, monkeypatch):
     async def fake_check_message(_, __):
         return MessageStatus(preview_ready=True, timed_out=False)

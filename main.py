@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from lxml import etree
@@ -24,6 +24,7 @@ from lib.preview_service import (
     EvidenceDataNotFoundError,
     build_evidence_page_context,
     build_preview_progress,
+    check_exp_ready,
     check_evidence_ready,
     persist_approvals,
     record_view_timeout,
@@ -289,6 +290,11 @@ async def view_evidence(request: Request, message_id: str):
         if query_returnurl:
             await client.save_to_redis(KEYS.return_url(message_id), query_returnurl)
             returnurl = query_returnurl
+
+    exp_ready = await check_exp_ready(client, message_id, KEYS)
+    if exp_ready and returnurl:
+        # If exp is already raised, return user immediately to caller system.
+        return RedirectResponse(url=returnurl, status_code=307)
 
     evidence_ready = await check_evidence_ready(client, message_id, KEYS)
 
