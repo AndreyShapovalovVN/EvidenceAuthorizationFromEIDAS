@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import main
-from lib.ICEI import DEFAULT_FIELDS, ICEIError, IdICEI, UserProfile
+from lib.ICEI import ICEIError, IdICEI, UserProfile
 from tests.conftest import FakeRedisClient
 
 
