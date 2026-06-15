@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Path
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -357,7 +357,7 @@ async def icei_callback(code: str, state: str):
     await client.delete_from_redis(state_key)
 
     if not isinstance(state_data, dict) or not state_data.get("message_id"):
-        _logger.warning("ICEI callback: invalid or expired state=%s", state)
+        _logger.warning("ICEI callback: invalid or expired state")
         raise HTTPException(
             status_code=400, detail="Invalid or expired state parameter"
         )
