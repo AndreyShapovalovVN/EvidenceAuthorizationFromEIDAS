@@ -83,7 +83,6 @@ async def persist_approvals(
     queue_outgoing: str,
 ) -> dict[str, bool]:
     evidence_key = keys.get_response_evidence(message_id)
-    # permit_key = keys.get_response_permit(message_id)
 
     json_data = await client.get_from_redis(evidence_key)
     if not isinstance(json_data, dict):

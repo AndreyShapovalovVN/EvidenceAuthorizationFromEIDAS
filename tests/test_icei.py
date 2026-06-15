@@ -87,7 +87,7 @@ def _make_http_mock(*responses):
     """Return a context-manager mock that returns responses in sequence."""
     call_count = [0]
 
-    async def fake_post(url, **kwargs):
+    def fake_post(url, **kwargs):
         idx = min(call_count[0], len(responses) - 1)
         call_count[0] += 1
         return responses[idx]
@@ -315,7 +315,7 @@ class TestIceiRoutes:
             auth_type="dig_sign", subjectcn=None,
         )
 
-        async def fake_fetch(self, code):
+        def fake_fetch(self, code):
             return profile
 
         with patch.object(IdICEI, "fetch_person", fake_fetch):
