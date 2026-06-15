@@ -87,7 +87,7 @@ def _make_http_mock(*responses):
     """Return a context-manager mock that returns responses in sequence."""
     call_count = [0]
 
-    def fake_post(url, **kwargs):
+    def _next_response(*_args, **_kwargs):
         idx = min(call_count[0], len(responses) - 1)
         call_count[0] += 1
         return responses[idx]
@@ -95,7 +95,7 @@ def _make_http_mock(*responses):
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.post = fake_post
+    mock_client.post = AsyncMock(side_effect=_next_response)
     return mock_client
 
 
@@ -285,7 +285,7 @@ class TestIceiRoutes:
         monkeypatch.setattr(main, "get_redis_client", lambda: fake)
 
         with TestClient(main.app, follow_redirects=False) as c:
-            resp = c.get("/auth/icei/start/msg-001")
+            resp = c.get("/auth/icei/start/11111111-1111-1111-1111-111111111111")
 
         assert resp.status_code == 307
         assert "id.gov.ua" in resp.headers["location"]
@@ -297,7 +297,7 @@ class TestIceiRoutes:
         monkeypatch.setattr(main, "get_redis_client", lambda: fake)
 
         with TestClient(main.app) as c:
-            resp = c.get("/auth/icei/start/no-edm")
+            resp = c.get("/auth/icei/start/22222222-2222-2222-2222-222222222222")
 
         assert resp.status_code == 400
 
@@ -315,10 +315,7 @@ class TestIceiRoutes:
             auth_type="dig_sign", subjectcn=None,
         )
 
-        def fake_fetch(self, code):
-            return profile
-
-        with patch.object(IdICEI, "fetch_person", fake_fetch):
+        with patch.object(IdICEI, "fetch_person", new=AsyncMock(return_value=profile)):
             with TestClient(main.app, follow_redirects=False) as c:
                 resp = c.get("/auth/icei/callback", params={"code": "c123", "state": "s456"})
 
@@ -341,12 +338,12 @@ class TestIceiRoutes:
         fake = _make_fake_redis(state_data={"message_id": "msg-err"})
         monkeypatch.setattr(main, "get_redis_client", lambda: fake)
 
-        async def failing_fetch(self, code):
-            raise ICEIError("invalid_grant: bad code")
-
-        with patch.object(IdICEI, "fetch_person", failing_fetch):
+        with patch.object(
+            IdICEI,
+            "fetch_person",
+            new=AsyncMock(side_effect=ICEIError("invalid_grant: bad code")),
+        ):
             with TestClient(main.app) as c:
                 resp = c.get("/auth/icei/callback", params={"code": "bad", "state": "s"})
 
         assert resp.status_code == 502
-
