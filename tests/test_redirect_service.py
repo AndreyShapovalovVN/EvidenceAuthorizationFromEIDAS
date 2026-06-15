@@ -12,9 +12,6 @@ class FakeRedisForRedirect:
 
 def test_if_preview_returns_true_when_preview_possible(monkeypatch):
     class DummyParsing:
-        def __init__(self, _):
-            pass
-
         def serialize(self):
             return {"doc": {"PossibilityForPreview": True}}
 
@@ -36,9 +33,6 @@ def test_if_preview_returns_true_when_preview_possible(monkeypatch):
 
 def test_if_preview_returns_false_when_preview_not_possible(monkeypatch):
     class DummyParsing:
-        def __init__(self, _):
-            pass
-
         def serialize(self):
             return {"doc": {"PossibilityForPreview": False}}
 
@@ -60,9 +54,6 @@ def test_if_preview_returns_false_when_preview_not_possible(monkeypatch):
 
 def test_resolve_url_uses_return_location_from_edm_v2(monkeypatch):
     class DummyParsing:
-        def __init__(self, _):
-            pass
-
         def serialize(self):
             return {
                 "doc": {
@@ -85,9 +76,6 @@ def test_resolve_url_uses_return_location_from_edm_v2(monkeypatch):
 
 def test_resolve_url_returns_none_for_legacy_protocol(monkeypatch):
     class DummyParsing:
-        def __init__(self, _):
-            pass
-
         def serialize(self):
             return {"doc": {"SpecificationIdentifier": "oots-edm:v1.0"}}
 

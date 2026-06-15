@@ -77,11 +77,11 @@ def test_preview_redirects_to_returnurl_when_exp_ready(client, fake_redis_client
     return_url = "https://example.com/back"
 
     async def _get_from_redis(key):
-        if key == main.KEYS.return_url(message_id):
+        if key == main.KEYS.get_return_url(message_id):
             return return_url
-        if key == main.KEYS.response_exp(message_id):
+        if key == main.KEYS.get_response_exp(message_id):
             return {"exception": {"code": "EDM:ERR:0005"}}
-        if key == main.KEYS.response_evidence(message_id):
+        if key == main.KEYS.get_response_evidence(message_id):
             return None
         return None
 
@@ -140,7 +140,7 @@ def test_auth_saves_returnurl_to_redis(client, fake_redis_client, monkeypatch):
 
     client.get("/auth/msg-save?returnurl=https://example.com/callback")
 
-    returnurl_key = Keys().return_url("msg-save")
+    returnurl_key = Keys().get_return_url("msg-save")
     save_calls = [c.args for c in fake_redis_client.save_to_redis.await_args_list]
     assert any(c[0] == returnurl_key for c in save_calls)
 
@@ -240,7 +240,7 @@ def test_view_progress_returns_exp_ready_when_exp_exists(client, fake_redis_clie
     message_id = "msg-002"
 
     async def _get_from_redis(key):
-        if key == main.KEYS.response_exp(message_id):
+        if key == main.KEYS.get_response_exp(message_id):
             return {"exception": {"code": "EDM:ERR:0005"}}
         return None
 
@@ -612,7 +612,7 @@ def test_view_timeout_records_edm_error_and_pushes_queue(client, fake_redis_clie
     assert response.json()["status"] == "timeout_recorded"
 
     saved_call = fake_redis_client.save_to_redis.await_args
-    assert saved_call.args[0] == Keys().response_exp("msg-timeout")
+    assert saved_call.args[0] == Keys().get_response_exp("msg-timeout")
     assert saved_call.args[1]["exception"]["code"] == "EDM:ERR:0005"
     assert saved_call.args[1]["exception"]["message"] == "Preview timeout"
     assert saved_call.args[1]["exception"]["detail"] == "Timeout reached for message_id=msg-timeout"

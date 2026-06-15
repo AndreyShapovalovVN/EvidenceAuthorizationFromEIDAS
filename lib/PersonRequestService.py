@@ -65,7 +65,7 @@ async def save_person_request(
     )
 
     person_data = person.dict
-    request_person_key = KEYS.request_person(message_id)
+    request_person_key = KEYS.get_request_person(message_id)
     await client.save_to_redis(request_person_key, person_data)
     await person_push_to_queue(client, message_id)
 
@@ -77,7 +77,7 @@ async def person_push_to_queue(client: UseRedisAsync, message_id: str) -> bool:
     Returns:
         True if message was pushed to queue, otherwise False.
     """
-    edm = await client.get_from_redis(KEYS.request_edm(message_id))
+    edm = await client.get_from_redis(KEYS.get_request_edm(message_id))
 
     if isinstance(edm, list):
         first_item = edm[0] if edm else None
@@ -148,7 +148,7 @@ async def save_identified_person_request(
     )
 
     person_data = person.dict
-    request_person_key = KEYS.request_person(clean_id)
+    request_person_key = KEYS.get_request_person(clean_id)
     await client.save_to_redis(request_person_key, person_data)
     await person_push_to_queue(client, clean_id)
 

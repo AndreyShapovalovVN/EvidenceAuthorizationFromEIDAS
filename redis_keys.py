@@ -20,35 +20,35 @@ class Keys:
     # ICEI (id.gov.ua): тимчасовий ключ state → message_id (TTL = REDIS_TTL)
     REQUEST_ICEI_STATE: str = "oots:icei:state:{state}"
 
-    def request_icei_state(self, state: str) -> str:
+    def get_request_icei_state(self, state: str) -> str:
         return self.REQUEST_ICEI_STATE.format(state=state)
 
-    def return_url(self, conversation_id: str) -> str:
+    def get_return_url(self, conversation_id: str) -> str:
         return self.RETURN_URL.format(conversation_id=conversation_id)
 
-    def response_evidence(self, conversation_id: str) -> str:
+    def get_response_evidence(self, conversation_id: str) -> str:
         return self.RESPONSE_EVIDENCE.format(conversation_id=conversation_id)
 
-    def response_permit(self, conversation_id: str) -> str:
+    def get_response_permit(self, conversation_id: str) -> str:
         return self.RESPONSE_PERMIT.format(conversation_id=conversation_id)
 
-    def response_edm(self, conversation_id: str) -> str:
+    def get_response_edm(self, conversation_id: str) -> str:
         return self.RESPONSE_EDM.format(conversation_id=conversation_id)
 
-    def response_exp(self, conversation_id: str) -> str:
+    def get_response_exp(self, conversation_id: str) -> str:
         return self.RESPONSE_EXP.format(conversation_id=conversation_id)
 
-    def request_person(self, conversation_id: str) -> str:
+    def get_request_person(self, conversation_id: str) -> str:
         return self.REQUEST_PERSON.format(conversation_id=conversation_id)
 
-    def request_edm(self, conversation_id: str) -> str:
+    def get_request_edm(self, conversation_id: str) -> str:
         return self.REQUEST_EDM.format(conversation_id=conversation_id)
 
-    def request_as4(self, conversation_id: str) -> str:
+    def get_request_as4(self, conversation_id: str) -> str:
         return self.REQUEST_AS4.format(conversation_id=conversation_id)
 
-    def request_preview(self, conversation_id: str) -> str:
+    def get_request_preview(self, conversation_id: str) -> str:
         return self.REQUEST_PREVIEW.format(conversation_id=conversation_id)
 
-    def evidence_type(self, evidence_type_id: str) -> str:
+    def get_evidence_type(self, evidence_type_id: str) -> str:
         return self.EVIDENCE_TYPE.format(evidence_type_id=evidence_type_id)

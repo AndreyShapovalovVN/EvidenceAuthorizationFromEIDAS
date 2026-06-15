@@ -219,13 +219,13 @@ async def favicon():
 async def root(request: Request, message_id: UUID):
 
     client = get_redis_client()
-    request_edm = await client.get_from_redis(KEYS.request_edm(message_id))
+    request_edm = await client.get_from_redis(KEYS.get_request_edm(message_id))
     returnurl = await _get_safe_returnurl(client, request, message_id)
 
     if request_edm is None:
         return _render_invalid_link_or_raise(request, returnurl)
 
-    existing_person = await client.get_from_redis(KEYS.request_person(message_id))
+    existing_person = await client.get_from_redis(KEYS.get_request_person(message_id))
     if existing_person is not None:
         return templates.TemplateResponse(
             request,
@@ -237,13 +237,13 @@ async def root(request: Request, message_id: UUID):
         )
 
     if returnurl:
-        await client.save_to_redis(KEYS.return_url(message_id), returnurl)
+        await client.save_to_redis(KEYS.get_return_url(message_id), returnurl)
 
     status = await check_message(client, message_id)
     _raise_if_message_failed(status)
     _raise_if_message_timed_out(status, message_id)
 
-    stored_returnurl = await client.get_from_redis(KEYS.return_url(message_id))
+    stored_returnurl = await client.get_from_redis(KEYS.get_return_url(message_id))
     preview = await if_preview(client, message_id)
     continue_url = f"/preview/{message_id}" if preview else stored_returnurl
 
@@ -314,7 +314,7 @@ async def icei_start(message_id: UUID):
     """
     client = get_redis_client()
 
-    edm = await client.get_from_redis(KEYS.request_edm(message_id))
+    edm = await client.get_from_redis(KEYS.get_request_edm(message_id))
     if edm is None:
         raise HTTPException(
             status_code=400,
@@ -324,7 +324,7 @@ async def icei_start(message_id: UUID):
     icei = IdICEI(redirect_uri=ICEI_REDIRECT_URI)
 
     # Зберігаємо state → message_id (видалимо одразу після callback)
-    state_key = KEYS.request_icei_state(icei.state)
+    state_key = KEYS.get_request_icei_state(icei.state)
     await client.save_to_redis(state_key, {"message_id": message_id})
 
     _logger.info(
@@ -352,7 +352,7 @@ async def icei_callback(code: str, state: str):
     client = get_redis_client()
 
     # Зчитуємо message_id та одразу видаляємо state (одноразовий)
-    state_key = KEYS.request_icei_state(state)
+    state_key = KEYS.get_request_icei_state(state)
     state_data = await client.get_from_redis(state_key)
     await client.delete_from_redis(state_key)
 
@@ -440,7 +440,7 @@ async def view_evidence(request: Request, message_id: UUID):
     client = get_redis_client()
 
     # Читаємо returnurl з Redis (збережено при авторизації)
-    stored = await client.get_from_redis(KEYS.return_url(message_id))
+    stored = await client.get_from_redis(KEYS.get_return_url(message_id))
     returnurl = filter_returnurl(stored if isinstance(stored, str) else None)
     if not returnurl:
         query_returnurl = request.query_params.get("returnurl")
@@ -451,7 +451,7 @@ async def view_evidence(request: Request, message_id: UUID):
                 query_returnurl = None
         query_returnurl = filter_returnurl(query_returnurl)
         if query_returnurl:
-            await client.save_to_redis(KEYS.return_url(message_id), query_returnurl)
+            await client.save_to_redis(KEYS.get_return_url(message_id), query_returnurl)
             returnurl = query_returnurl
 
     exp_ready = await check_exp_ready(client, message_id, KEYS)
@@ -517,7 +517,7 @@ async def continue_view(request: Request, payload: ViewContinuePayload):
         ) from exc
 
     # Читаємо returnurl з Redis (збережено при авторизації)
-    stored = await client.get_from_redis(KEYS.return_url(message_id))
+    stored = await client.get_from_redis(KEYS.get_return_url(message_id))
     returnurl = filter_returnurl(stored if isinstance(stored, str) else None)
 
     return {

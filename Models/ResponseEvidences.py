@@ -32,8 +32,8 @@ class Description:
 
 @dataclass
 class Classification:
-    classificationNode: str
-    classificationScheme: str = 'urn:fdc:oots:classification:edm'
+    classificationNode: str  # NOSONAR
+    classificationScheme: str = 'urn:fdc:oots:classification:edm'  # NOSONAR
     id: str = field(default_factory=_generate_identifier)
 
     def __post_init__(self):
@@ -62,8 +62,8 @@ class ExtrinsicObjectType:
     - то що
     """
     classification: Classification
-    EvidenceMetadata: str
-    RepositoryItemRef: RepositoryItemRef
+    EvidenceMetadata: str   # NOSONAR
+    RepositoryItemRef: RepositoryItemRef   # NOSONAR
     content_type: Optional[str] = None
     content: Optional[Any] = None
     encoding: Optional[str] = None
@@ -78,7 +78,7 @@ class RegistryPackageType:
     Містить кілька представлень (ExtrinsicObjectType) одного й того ж доказу
     у різних форматах, але з єдиними метаданими.
     """
-    RegistryPackage: list[ExtrinsicObjectType]
+    RegistryPackage: list[ExtrinsicObjectType]  # NOSONAR
     id: str = field(default_factory=_generate_identifier)
     permit: bool = False
 
@@ -94,9 +94,9 @@ class Evidences:
     - Унікальний ідентифікатор відповіді
     """
     title: str
-    PreviewDescription: list[Description]
+    PreviewDescription: list[Description]  # NOSONAR
     preview: bool
-    evidences: list[RegistryPackageType]
+    evidences: list[RegistryPackageType]  # NOSONAR
 
 
 async def save_evidences_to_redis(redis_client, key: str, evidences: Evidences) -> None:

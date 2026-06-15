@@ -21,12 +21,12 @@ class EmptyEvidenceListError(Exception):
 
 
 async def check_evidence_ready(client: UseRedisAsync, message_id: str, keys: Keys) -> bool:
-    evidence_key = keys.response_evidence(message_id)
+    evidence_key = keys.get_response_evidence(message_id)
     return await client.get_from_redis(evidence_key) is not None
 
 
 async def check_exp_ready(client: UseRedisAsync, message_id: str, keys: Keys) -> bool:
-    exp_key = keys.response_exp(message_id)
+    exp_key = keys.get_response_exp(message_id)
     exp_payload = await client.get_from_redis(exp_key)
     if isinstance(exp_payload, dict):
         return isinstance(exp_payload.get("exception"), dict)
@@ -38,7 +38,7 @@ async def build_evidence_page_context(
     message_id: str,
     keys: Keys,
 ) -> dict[str, Any]:
-    redis_key = keys.response_evidence(message_id)
+    redis_key = keys.get_response_evidence(message_id)
     data = await client.get_from_redis(redis_key)
     if not isinstance(data, dict):
         raise EvidenceDataNotFoundError(message_id)
@@ -82,8 +82,8 @@ async def persist_approvals(
     keys: Keys,
     queue_outgoing: str,
 ) -> dict[str, bool]:
-    evidence_key = keys.response_evidence(message_id)
-    # permit_key = keys.response_permit(message_id)
+    evidence_key = keys.get_response_evidence(message_id)
+    # permit_key = keys.get_response_permit(message_id)
 
     json_data = await client.get_from_redis(evidence_key)
     if not isinstance(json_data, dict):
@@ -117,7 +117,7 @@ async def persist_approvals(
 
 
 async def record_view_timeout(client: UseRedisAsync, message_id: str, keys: Keys, queue_outgoing: str) -> None:
-    timeout_key = keys.response_exp(message_id)
+    timeout_key = keys.get_response_exp(message_id)
     await client.save_to_redis(
         timeout_key,
         {
