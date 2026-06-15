@@ -96,3 +96,61 @@ async def person_push_to_queue(client: UseRedisAsync, message_id: str) -> bool:
     await client.push_to_queue(queue, message_id)
     return True
 
+
+async def save_identified_person_request(
+        client: UseRedisAsync,
+        *,
+        message_id: str,
+        first_name: str,
+        last_name: str,
+        identifier: str,
+        date_of_birth: str | None,
+        gender: str | None = None,
+        level_of_assurance: str = "High",
+) -> tuple[str, dict]:
+    """Зберегти дані особи, отримані від зовнішнього провайдера ідентифікації.
+
+    Використовується для ICEI (id.gov.ua) та інших провайдерів,
+    де дані особи надходять безпосередньо від сервера ідентифікації,
+    а не вводяться вручну.
+
+    Args:
+        client: клієнт Redis
+        message_id: ідентифікатор повідомлення OOTS
+        first_name: ім'я (givenname)
+        last_name: прізвище (lastname)
+        identifier: РНОКПП / ДРФО / УНЗР / eIDAS-ідентифікатор
+        date_of_birth: дата народження у форматі YYYY-MM-DD або DD.MM.YYYY,
+                       або None якщо провайдер не повертає цю інформацію
+        gender: стать ("M"/"F" або інше представлення провайдера),
+                або None якщо провайдер не повертає цю інформацію
+        level_of_assurance: рівень гарантії (за замовч. "High")
+
+    Returns:
+        (redis_key, person_data)
+
+    Raises:
+        ValueError: якщо message_id або identifier порожній
+    """
+    clean_id = message_id.strip()
+    if not clean_id:
+        raise ValueError("message_id не може бути порожнім")
+
+    parsed_date = _parse_birth_date(date_of_birth) if date_of_birth else None
+
+    person = Person(
+        LevelOfAssurance=level_of_assurance,
+        identifier=Identifier(_build_eidas_identifier(identifier)),
+        FamilyNameNonLatin=last_name.strip(),
+        GivenNameNonLatin=first_name.strip(),
+        DateOfBirth=parsed_date,
+        Gender=gender.strip() if isinstance(gender, str) and gender.strip() else None,
+    )
+
+    person_data = person.dict
+    request_person_key = KEYS.request_person(clean_id)
+    await client.save_to_redis(request_person_key, person_data)
+    await person_push_to_queue(client, clean_id)
+
+    return request_person_key, person_data
+

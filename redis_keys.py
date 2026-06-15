@@ -17,6 +17,12 @@ class Keys:
 
     RETURN_URL: str = "oots:message:response:returnurl:{conversation_id}"
 
+    # ICEI (id.gov.ua): тимчасовий ключ state → message_id (TTL = REDIS_TTL)
+    REQUEST_ICEI_STATE: str = "oots:icei:state:{state}"
+
+    def request_icei_state(self, state: str) -> str:
+        return self.REQUEST_ICEI_STATE.format(state=state)
+
     def return_url(self, conversation_id: str) -> str:
         return self.RETURN_URL.format(conversation_id=conversation_id)
 

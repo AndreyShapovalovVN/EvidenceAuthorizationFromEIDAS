@@ -14,11 +14,12 @@ from pydantic import BaseModel
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from lib.MessageChecker import check_message
-from lib.PersonRequestService import ContinuePayload, save_person_request
+from lib.PersonRequestService import ContinuePayload, save_identified_person_request, save_person_request
 from lib.action_token import issue_action_token, verify_action_token
 from lib.RedirectService import filter_returnurl, resolve_url, if_preview
 from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 from lib.eidas_autofill_service import EidasAutofillService
+from lib.ICEI import ICEIError, IdICEI
 from lib.preview_service import (
     EmptyEvidenceListError,
     EvidenceDataNotFoundError,
@@ -36,6 +37,9 @@ WAIT_EVENT_TIME = int(os.getenv("EVIDENCE_TIMEOUT", "600"))
 WAIT_EVENT_SLEEP = int(os.getenv('REDIS_TIMEOUT', '6'))/2
 
 QUEUE_OUTGOING = os.getenv("QUEUE_OUTGOING", "oots:queue:outgoing")
+
+# id.gov.ua (ICEI) налаштування
+ICEI_REDIRECT_URI = os.getenv("ICEI_REDIRECT_URI", "http://localhost:8000/auth/icei/callback")
 
 KEYS = Keys()
 
@@ -247,6 +251,95 @@ async def auth_eidas_next():
     if EIDAS_AUTOFILL_SERVICE is None:
         raise HTTPException(status_code=503, detail="eIDAS test data is not configured")
     return EIDAS_AUTOFILL_SERVICE.get_next_payload()
+
+
+# ---------------------------------------------------------------------------
+# id.gov.ua (ICEI) identification routes
+# ---------------------------------------------------------------------------
+
+@app.get("/auth/icei/start/{message_id}", tags=["ICEI"])
+async def icei_start(message_id: str):
+    """Крок 3: перенаправити користувача на сторінку ідентифікації id.gov.ua.
+
+    Зберігає `state → message_id` у Redis і виконує 307-редирект.
+    """
+    client = get_redis_client()
+
+    edm = await client.get_from_redis(KEYS.request_edm(message_id))
+    if edm is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid message_id: EDM not found for {message_id}",
+        )
+
+    icei = IdICEI(redirect_uri=ICEI_REDIRECT_URI)
+
+    # Зберігаємо state → message_id (видалимо одразу після callback)
+    state_key = KEYS.request_icei_state(icei.state)
+    await client.save_to_redis(state_key, {"message_id": message_id})
+
+    _logger.info("ICEI start: message_id=%s state=%s → %s", message_id, icei.state, icei.auth_url)
+    return RedirectResponse(url=icei.auth_url, status_code=307)
+
+
+@app.get("/auth/icei/callback", tags=["ICEI"])
+async def icei_callback(code: str, state: str):
+    """Крок 10–11: обробка callback від id.gov.ua.
+
+    Обмінює code на access_token, отримує дані особи, зберігає в Redis
+    та перенаправляє на /preview/{message_id}.
+    """
+    client = get_redis_client()
+
+    # Зчитуємо message_id та одразу видаляємо state (одноразовий)
+    state_key = KEYS.request_icei_state(state)
+    state_data = await client.get_from_redis(state_key)
+    await client.delete_from_redis(state_key)
+
+    if not isinstance(state_data, dict) or not state_data.get("message_id"):
+        _logger.warning("ICEI callback: invalid or expired state=%s", state)
+        raise HTTPException(status_code=400, detail="Invalid or expired state parameter")
+
+    message_id: str = state_data["message_id"]
+    _logger.info("ICEI callback: message_id=%s code=***", message_id)
+
+    # Кроки 11.1–11.6: code → UserProfile
+    try:
+        icei = IdICEI(redirect_uri=ICEI_REDIRECT_URI)
+        profile = await icei.fetch_person(code)
+    except ICEIError as exc:
+        _logger.error("ICEI identification failed for message_id=%s: %s", message_id, exc)
+        raise HTTPException(
+            status_code=502,
+            detail=f"ICEI identification failed: {exc}",
+        ) from exc
+
+    # Зберігаємо Person у Redis та ставимо в чергу (кроки 11.5–11.6)
+    # Сесію/токени не зберігаємо: беремо тільки персональні атрибути.
+    try:
+        await save_identified_person_request(
+            client,
+            message_id=message_id,
+            first_name=profile.givenname,
+            last_name=profile.lastname,
+            identifier=profile.identifier,
+            date_of_birth=profile.date_of_birth,
+            gender=profile.gender,
+            level_of_assurance="High",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Не вдалося зберегти дані в Redis: {exc}",
+        ) from exc
+
+    _logger.info(
+        "ICEI: person saved for message_id=%s (%s %s)",
+        message_id, profile.lastname, profile.givenname,
+    )
+    return RedirectResponse(url=f"/preview/{message_id}", status_code=307)
 
 
 async def _render_evidence_page(

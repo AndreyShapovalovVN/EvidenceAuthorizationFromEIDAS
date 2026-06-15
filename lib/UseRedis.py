@@ -167,6 +167,23 @@ class UseRedisAsync:
         await self._redis_client.set(redis_key, data, ex=TTL)
         _logger.debug(f"Збережено сирі дані до Redis для ключа {redis_key}: {data}")
 
+    async def delete_from_redis(self, key: str) -> int:
+        """Видаляє ключ з Redis.
+
+        Args:
+            key: Ключ Redis для видалення
+
+        Returns:
+            Кількість видалених ключів (0 або 1)
+        """
+        if key is None:
+            raise ValueError("Ключ не може бути None")
+
+        redis_key = self._prefixed_key(key)
+        result = await self._redis_client.delete(redis_key)
+        _logger.debug(f"Видалено ключ {redis_key}, кількість: {result}")
+        return result  # type: ignore[return-value]
+
     async def push_to_queue(self, queue_name: str, message: str) -> None:
         """Поміщає повідомлення до Redis-черги list.
 
