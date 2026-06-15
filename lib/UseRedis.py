@@ -1,4 +1,5 @@
 # mypy: ignore-errors
+import inspect
 import json
 import logging
 import os
@@ -16,6 +17,10 @@ REDIS_TIMEOUT = int(os.getenv("REDIS_TIMEOUT", "6"))
 
 # Глобальний екземпляр для централізованого управління з'єднанням
 _redis_instance: Optional["UseRedisAsync"] = None
+
+
+class KeyIsNone(ValueError):
+    """Виключення для випадків, коли ключ Redis є None."""
 
 
 def get_redis_client() -> "UseRedisAsync":
@@ -98,7 +103,7 @@ class UseRedisAsync:
             return key
         return f"{self._redis_prefix}{key}"
 
-    async def get_from_redis(self, key: str) -> dict | list | None:
+    async def get_from_redis(self, key: Optional[str]) -> dict | list | None:
         """Отримує та десеріалізує JSON дані з Redis за ключем.
 
         Args:
@@ -108,7 +113,7 @@ class UseRedisAsync:
             Десеріалізований словник або None, якщо ключ не існує або дані невалідні
         """
         if key is None:
-            raise ValueError("Ключ не може бути None")
+            raise KeyIsNone()
 
         redis_key = self._prefixed_key(key)
         data = await self._redis_client.get(redis_key)
@@ -119,10 +124,10 @@ class UseRedisAsync:
             _logger.debug(f"Отримано дані з Redis для ключа {redis_key}: {data}")
             return data
         except json.JSONDecodeError as e:
-            _logger.error(f"Не вдалось розшифрувати JSON для ключа {redis_key}: {e}")
+            _logger.exception(f"Не вдалось розшифрувати JSON для ключа {redis_key}: {e}")
             return None
 
-    async def get_raw_from_redis(self, key: str) -> bytes | None:
+    async def get_raw_from_redis(self, key: Optional[str]) -> bytes | None:
         """Отримує сирі bytes дані з Redis.
 
         Args:
@@ -132,14 +137,14 @@ class UseRedisAsync:
             Сирі дані або None, якщо ключ не існує
         """
         if key is None:
-            raise ValueError("Ключ не може бути None")
+            raise KeyIsNone
 
         redis_key = self._prefixed_key(key)
         data = await self._redis_client.get(redis_key)
         _logger.debug(f"Отримано сирі дані з Redis для ключа {redis_key}: {data}")
         return data if isinstance(data, bytes) else None
 
-    async def save_to_redis(self, key: str, data: dict[Any, Any] | list | str) -> None:
+    async def save_to_redis(self, key: Optional[str], data: dict[Any, Any] | list | str) -> None:
         """Зберігає дані як JSON до Redis з TTL.
 
         Args:
@@ -147,13 +152,13 @@ class UseRedisAsync:
             data: Дані для серіалізації та зберігання
         """
         if key is None:
-            raise ValueError("Ключ не може бути None")
+            raise KeyIsNone()
 
         redis_key = self._prefixed_key(key)
         await self._redis_client.set(redis_key, json.dumps(data, default=str), ex=TTL)
         _logger.debug(f"Збережено дані до Redis для ключа {redis_key}: {data}")
 
-    async def save_raw_to_redis(self, key: str, data: bytes) -> None:
+    async def save_raw_to_redis(self, key: Optional[str], data: Optional[bytes]) -> None:
         """Зберігає сирі bytes дані до Redis з TTL.
 
         Args:
@@ -161,28 +166,11 @@ class UseRedisAsync:
             data: Сирі дані для зберігання
         """
         if key is None:
-            raise ValueError("Ключ не може бути None")
+            raise KeyIsNone()
 
         redis_key = self._prefixed_key(key)
         await self._redis_client.set(redis_key, data, ex=TTL)
         _logger.debug(f"Збережено сирі дані до Redis для ключа {redis_key}: {data}")
-
-    async def delete_from_redis(self, key: str) -> int:
-        """Видаляє ключ з Redis.
-
-        Args:
-            key: Ключ Redis для видалення
-
-        Returns:
-            Кількість видалених ключів (0 або 1)
-        """
-        if key is None:
-            raise ValueError("Ключ не може бути None")
-
-        redis_key = self._prefixed_key(key)
-        result = await self._redis_client.delete(redis_key)
-        _logger.debug(f"Видалено ключ {redis_key}, кількість: {result}")
-        return result  # type: ignore[return-value]
 
     async def push_to_queue(self, queue_name: str, message: str) -> None:
         """Поміщає повідомлення до Redis-черги list.
@@ -195,7 +183,7 @@ class UseRedisAsync:
         await self._redis_client.lpush(redis_queue, message)
         _logger.debug(f"Поміщено повідомлення до черги {redis_queue}: {message}")
 
-    async def set_flag(self, key: str, value: bool) -> None:
+    async def set_flag(self, key: Optional[str], value: Optional[bool]) -> None:
         """Зберігає булевий прапор до Redis з TTL.
 
         Args:
@@ -203,10 +191,10 @@ class UseRedisAsync:
             value: Булеве значення для зберігання
 
         Raises:
-            ValueError: Якщо ключ є None
+            KeyIsNone: Якщо ключ є None
         """
         if key is None:
-            raise ValueError("Ключ не може бути None")
+            raise KeyIsNone()
 
         redis_key = self._prefixed_key(key)
         # Зберігаємо як JSON boolean: true/false
@@ -214,7 +202,7 @@ class UseRedisAsync:
         await self._redis_client.set(redis_key, flag_value, ex=TTL)
         _logger.debug(f"Встановлено прапор {redis_key} = {value}")
 
-    async def get_flag(self, key: str, default: bool = False) -> bool:
+    async def get_flag(self, key: Optional[str], default: bool = False) -> bool:
         """Отримує булевий прапор з Redis.
 
         Args:
@@ -225,10 +213,10 @@ class UseRedisAsync:
             Булеве значення прапора або default, якщо ключ не існує
 
         Raises:
-            ValueError: Якщо ключ є None
+            KeyIsNone: Якщо ключ є None
         """
         if key is None:
-            raise ValueError("Ключ не може бути None")
+            raise KeyIsNone()
 
         redis_key = self._prefixed_key(key)
         data = await self._redis_client.get(redis_key)
@@ -245,12 +233,16 @@ class UseRedisAsync:
             _logger.debug(f"Отримано прапор {redis_key} = {value}")
             return value
         except json.JSONDecodeError as e:
-            _logger.error(f"Не вдалося розшифрувати булевий прапор {redis_key}: {e}")
+            _logger.exception(f"Не вдалося розшифрувати булевий прапор {redis_key}: {e}")
             return default
+
+    @staticmethod
+    def _decode(value: Any) -> str:
+        return value.decode("utf-8") if isinstance(value, bytes) else str(value)
 
     async def pop_from_queue(
             self,
-            queue_name: str,
+            queue_name: Optional[str] = None,
             return_tuple_as_string: bool = False,
     ) -> Optional[str]:
         """Отримує повідомлення з Redis-черги list.
@@ -265,31 +257,21 @@ class UseRedisAsync:
             Повідомлення з черги або None якщо черга порожня
         """
         if queue_name is None:
-            raise ValueError("Назва черги не може бути None")
+            raise KeyIsNone()
 
         redis_queue = self._prefixed_key(queue_name)
+
         result = await self._redis_client.brpop([redis_queue], timeout=REDIS_TIMEOUT)
-        if result:
-            if return_tuple_as_string:
-                if isinstance(result, tuple) and len(result) == 2:
-                    queue_part = result[0].decode("utf-8") if isinstance(result[0], bytes) else str(result[0])
-                    payload_part = result[1].decode("utf-8") if isinstance(result[1], bytes) else str(result[1])
-                    tuple_str = f"({queue_part}, {payload_part})"
-                    _logger.debug(f"Отримано кортеж-повідомлення з черги {redis_queue}: {tuple_str}")
-                    return tuple_str
 
-                tuple_str = str(result)
-                _logger.debug(f"Отримано кортеж-повідомлення з черги {redis_queue}: {tuple_str}")
-                return tuple_str
+        if result is None:
+            return None
 
-            payload = result[1] if isinstance(result, tuple) and len(result) == 2 else result
-            if payload is None:
-                return None
+        queue, payload = result
 
-            message = payload.decode("utf-8") if isinstance(payload, bytes) else str(payload)
-            _logger.debug(f"Отримано повідомлення з черги {redis_queue}: {message}")
-            return message
-        return None
+        if return_tuple_as_string:
+            return f"({self._decode(queue)}, {self._decode(payload)})"
+
+        return self._decode(payload)
 
     async def health(self) -> bool:
         """Перевіряє здоров'я з'єднання з Redis без виключень.
@@ -327,10 +309,20 @@ class UseRedisAsync:
     async def disconnect(self) -> None:
         """Закриває з'єднання з Redis."""
         try:
-            await self._redis_client.aclose()
+            close_fn = getattr(self._redis_client, "close", None)
+            if close_fn is None:
+                close_fn = getattr(self._redis_client, "aclose", None)
+
+            if close_fn is None:
+                _logger.debug("Redis клієнт не має close/aclose")
+                return
+
+            close_result = close_fn()
+            if inspect.isawaitable(close_result):
+                await close_result
             _logger.debug("Redis з'єднання закрито")
         except Exception as e:
-            _logger.error(f"Помилка при закритті Redis: {e}")
+            _logger.exception(f"Помилка при закритті Redis: {e}")
 
     async def __aenter__(self) -> "UseRedisAsync":
         return self
@@ -346,3 +338,16 @@ class UseRedisAsync:
             Екземпляр клієнта Redis
         """
         return self._redis_client
+
+    async def delete_from_redis(self, key: str) -> None:
+        """Видаляє ключ з Redis.
+
+        Args:
+            key: Ключ для видалення
+        """
+        if key is None:
+            raise ValueError("Ключ не може бути None")
+
+        redis_key = self._prefixed_key(key)
+        await self._redis_client.delete(redis_key)
+        _logger.debug(f"Видалено ключ з Redis: {redis_key}")
