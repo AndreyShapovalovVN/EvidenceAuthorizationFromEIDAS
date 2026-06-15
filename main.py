@@ -4,6 +4,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -215,9 +216,9 @@ async def favicon():
         422: {"description": "Evidence error"},
     },
 )
-async def root(request: Request, message_id: str):
-    client = get_redis_client()
+async def root(request: Request, message_id: UUID):
 
+    client = get_redis_client()
     request_edm = await client.get_from_redis(KEYS.request_edm(message_id))
     returnurl = await _get_safe_returnurl(client, request, message_id)
 
@@ -306,7 +307,7 @@ async def auth_eidas_next():
     tags=["ICEI"],
     responses={400: {"description": "Invalid message_id"}},
 )
-async def icei_start(message_id: str):
+async def icei_start(message_id: UUID):
     """Крок 3: перенаправити користувача на сторінку ідентифікації id.gov.ua.
 
     Зберігає `state → message_id` у Redis і виконує 307-редирект.
@@ -407,7 +408,7 @@ async def icei_callback(code: str, state: str):
     return RedirectResponse(url=f"/preview/{message_id}", status_code=307)
 
 
-async def _render_evidence_page(request: Request, message_id: str) -> HTMLResponse:
+async def _render_evidence_page(request: Request, message_id: UUID) -> HTMLResponse:
     """Render evidence page using prepared context from service layer."""
     client = get_redis_client()
     try:
@@ -434,7 +435,7 @@ async def _render_evidence_page(request: Request, message_id: str) -> HTMLRespon
         404: {"description": "Preview data not found"},
     },
 )
-async def view_evidence(request: Request, message_id: str):
+async def view_evidence(request: Request, message_id: UUID):
     """Показує сторінку з таскбаром очікування, потім рендер evidence."""
     client = get_redis_client()
 
@@ -483,7 +484,7 @@ async def view_evidence(request: Request, message_id: str):
     "/preview/progress/{message_id}",
     responses={403: {"description": "Invalid action token"}},
 )
-async def view_progress(request: Request, message_id: str):
+async def view_progress(request: Request, message_id: UUID):
     """API endpoint для отримання прогресу завантаження evidence."""
     _require_action_token(request, message_id, "preview-progress")
     client = get_redis_client()
@@ -531,7 +532,7 @@ async def continue_view(request: Request, payload: ViewContinuePayload):
     "/preview/timeout/{message_id}",
     responses={403: {"description": "Invalid action token"}},
 )
-async def view_timeout(request: Request, message_id: str):
+async def view_timeout(request: Request, message_id: UUID):
     """Записує статус таймауту в Redis при спливанні часу на клієнті."""
     _require_action_token(request, message_id, "preview-timeout")
     client = get_redis_client()
