@@ -217,43 +217,44 @@ async def favicon():
     },
 )
 async def root(request: Request, message_id: UUID):
+    message_id_str = str(message_id)
 
     client = get_redis_client()
-    request_edm = await client.get_from_redis(KEYS.get_request_edm(message_id))
-    returnurl = await _get_safe_returnurl(client, request, message_id)
+    request_edm = await client.get_from_redis(KEYS.get_request_edm(message_id_str))
+    returnurl = await _get_safe_returnurl(client, request, message_id_str)
 
     if request_edm is None:
         return _render_invalid_link_or_raise(request, returnurl)
 
-    existing_person = await client.get_from_redis(KEYS.get_request_person(message_id))
+    existing_person = await client.get_from_redis(KEYS.get_request_person(message_id_str))
     if existing_person is not None:
         return templates.TemplateResponse(
             request,
             "redirect_to_preview.html",
             {
-                "message_id": message_id,
-                "preview_url": f"/preview/{message_id}",
+                "message_id": message_id_str,
+                "preview_url": f"/preview/{message_id_str}",
             },
         )
 
     if returnurl:
-        await client.save_to_redis(KEYS.get_return_url(message_id), returnurl)
+        await client.save_to_redis(KEYS.get_return_url(message_id_str), returnurl)
 
-    status = await check_message(client, message_id)
+    status = await check_message(client, message_id_str)
     _raise_if_message_failed(status)
-    _raise_if_message_timed_out(status, message_id)
+    _raise_if_message_timed_out(status, message_id_str)
 
-    stored_returnurl = await client.get_from_redis(KEYS.get_return_url(message_id))
-    preview = await if_preview(client, message_id)
-    continue_url = f"/preview/{message_id}" if preview else stored_returnurl
+    stored_returnurl = await client.get_from_redis(KEYS.get_return_url(message_id_str))
+    preview = await if_preview(client, message_id_str)
+    continue_url = f"/preview/{message_id_str}" if preview else stored_returnurl
 
     return templates.TemplateResponse(
         request,
         "login.html",
         {
-            "message_id": message_id,
+            "message_id": message_id_str,
             "continue_url": continue_url,
-            "auth_continue_token": issue_action_token(message_id, "auth-continue"),
+            "auth_continue_token": issue_action_token(message_id_str, "auth-continue"),
         },
     )
 
@@ -308,27 +309,31 @@ async def auth_eidas_next():
     responses={400: {"description": "Invalid message_id"}},
 )
 async def icei_start(message_id: UUID):
+    message_id_str = str(message_id)
     """Крок 3: перенаправити користувача на сторінку ідентифікації id.gov.ua.
 
     Зберігає `state → message_id` у Redis і виконує 307-редирект.
     """
     client = get_redis_client()
 
-    edm = await client.get_from_redis(KEYS.get_request_edm(message_id))
+    edm = await client.get_from_redis(KEYS.get_request_edm(message_id_str))
     if edm is None:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid message_id: EDM not found for {message_id}",
+            detail=f"Invalid message_id: EDM not found for {message_id_str}",
         )
 
     icei = IdICEI(redirect_uri=ICEI_REDIRECT_URI)
 
     # Зберігаємо state → message_id (видалимо одразу після callback)
     state_key = KEYS.get_request_icei_state(icei.state)
-    await client.save_to_redis(state_key, {"message_id": message_id})
+    await client.save_to_redis(state_key, {"message_id": message_id_str})
 
     _logger.info(
-        "ICEI start: message_id=%s state=%s → %s", message_id, icei.state, icei.auth_url
+        "ICEI start: message_id=%s state=%s → %s",
+        message_id_str,
+        icei.state,
+        icei.auth_url,
     )
     return RedirectResponse(url=icei.auth_url, status_code=307)
 
@@ -408,7 +413,7 @@ async def icei_callback(code: str, state: str):
     return RedirectResponse(url=f"/preview/{message_id}", status_code=307)
 
 
-async def _render_evidence_page(request: Request, message_id: UUID) -> HTMLResponse:
+async def _render_evidence_page(request: Request, message_id: str) -> HTMLResponse:
     """Render evidence page using prepared context from service layer."""
     client = get_redis_client()
     try:
@@ -436,46 +441,49 @@ async def _render_evidence_page(request: Request, message_id: UUID) -> HTMLRespo
     },
 )
 async def view_evidence(request: Request, message_id: UUID):
+    message_id_str = str(message_id)
     """Показує сторінку з таскбаром очікування, потім рендер evidence."""
     client = get_redis_client()
 
     # Читаємо returnurl з Redis (збережено при авторизації)
-    stored = await client.get_from_redis(KEYS.get_return_url(message_id))
+    stored = await client.get_from_redis(KEYS.get_return_url(message_id_str))
     returnurl = filter_returnurl(stored if isinstance(stored, str) else None)
     if not returnurl:
         query_returnurl = request.query_params.get("returnurl")
         if not query_returnurl:
             try:
-                query_returnurl = await resolve_url(client, message_id)
+                query_returnurl = await resolve_url(client, message_id_str)
             except Exception:
                 query_returnurl = None
         query_returnurl = filter_returnurl(query_returnurl)
         if query_returnurl:
-            await client.save_to_redis(KEYS.get_return_url(message_id), query_returnurl)
+            await client.save_to_redis(
+                KEYS.get_return_url(message_id_str), query_returnurl
+            )
             returnurl = query_returnurl
 
-    exp_ready = await check_exp_ready(client, message_id, KEYS)
+    exp_ready = await check_exp_ready(client, message_id_str, KEYS)
     if exp_ready and returnurl:
         # If exp is already raised, return user immediately to caller system.
         return RedirectResponse(url=returnurl, status_code=307)
 
-    evidence_ready = await check_evidence_ready(client, message_id, KEYS)
+    evidence_ready = await check_evidence_ready(client, message_id_str, KEYS)
 
     if evidence_ready:
         # Евіденс готовий, рендеримо evidence сторінку одразу
-        return await _render_evidence_page(request, message_id)
+        return await _render_evidence_page(request, message_id_str)
 
     # Якщо ні, показуємо сторінку чекання
     return templates.TemplateResponse(
         request,
         "view_waiting.html",
         {
-            "message_id": message_id,
+            "message_id": message_id_str,
             "returnurl": returnurl,
             "wait_time": WAIT_EVENT_TIME,
             "poll_interval": WAIT_EVENT_SLEEP,
-            "progress_token": issue_action_token(message_id, "preview-progress"),
-            "timeout_token": issue_action_token(message_id, "preview-timeout"),
+            "progress_token": issue_action_token(message_id_str, "preview-progress"),
+            "timeout_token": issue_action_token(message_id_str, "preview-timeout"),
         },
     )
 
@@ -485,10 +493,11 @@ async def view_evidence(request: Request, message_id: UUID):
     responses={403: {"description": "Invalid action token"}},
 )
 async def view_progress(request: Request, message_id: UUID):
+    message_id_str = str(message_id)
     """API endpoint для отримання прогресу завантаження evidence."""
-    _require_action_token(request, message_id, "preview-progress")
+    _require_action_token(request, message_id_str, "preview-progress")
     client = get_redis_client()
-    return await build_preview_progress(client, message_id, KEYS)
+    return await build_preview_progress(client, message_id_str, KEYS)
 
 
 @app.post(
@@ -533,14 +542,15 @@ async def continue_view(request: Request, payload: ViewContinuePayload):
     responses={403: {"description": "Invalid action token"}},
 )
 async def view_timeout(request: Request, message_id: UUID):
+    message_id_str = str(message_id)
     """Записує статус таймауту в Redis при спливанні часу на клієнті."""
-    _require_action_token(request, message_id, "preview-timeout")
+    _require_action_token(request, message_id_str, "preview-timeout")
     client = get_redis_client()
-    await record_view_timeout(client, message_id, KEYS, QUEUE_OUTGOING)
+    await record_view_timeout(client, message_id_str, KEYS, QUEUE_OUTGOING)
 
-    _logger.warning("View timeout recorded for message_id=%s", message_id)
+    _logger.warning("View timeout recorded for message_id=%s", message_id_str)
 
     return {
         "status": "timeout_recorded",
-        "message_id": message_id,
+        "message_id": message_id_str,
     }
