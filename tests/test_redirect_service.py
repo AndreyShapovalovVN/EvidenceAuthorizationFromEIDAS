@@ -10,12 +10,23 @@ class FakeRedisForRedirect:
         self.get_from_redis = AsyncMock(return_value=edm_payload)
 
 
-def test_if_preview_returns_true_when_preview_possible(monkeypatch):
-    class DummyParsing:
-        def serialize(self):
-            return {"doc": {"PossibilityForPreview": True}}
+class _ParsedContent:
+    def __init__(self, result):
+        self._result = result
 
-    monkeypatch.setattr(RedirectService, "Parsing", DummyParsing)
+    def serialize(self):
+        return self._result
+
+
+def _patch_parsing(monkeypatch, result):
+    def _fake_parsing(*_args, **_kwargs):
+        return _ParsedContent(result)
+
+    monkeypatch.setattr(RedirectService, "Parsing", _fake_parsing)
+
+
+def test_if_preview_returns_true_when_preview_possible(monkeypatch):
+    _patch_parsing(monkeypatch, {"doc": {"PossibilityForPreview": True}})
 
     client = FakeRedisForRedirect([
         {"content": "<Root><PossibilityForPreview>true</PossibilityForPreview></Root>"}
@@ -32,11 +43,7 @@ def test_if_preview_returns_true_when_preview_possible(monkeypatch):
 
 
 def test_if_preview_returns_false_when_preview_not_possible(monkeypatch):
-    class DummyParsing:
-        def serialize(self):
-            return {"doc": {"PossibilityForPreview": False}}
-
-    monkeypatch.setattr(RedirectService, "Parsing", DummyParsing)
+    _patch_parsing(monkeypatch, {"doc": {"PossibilityForPreview": False}})
 
     client = FakeRedisForRedirect([
         {"content": "<Root><PossibilityForPreview>false</PossibilityForPreview></Root>"}
@@ -53,17 +60,16 @@ def test_if_preview_returns_false_when_preview_not_possible(monkeypatch):
 
 
 def test_resolve_url_uses_return_location_from_edm_v2(monkeypatch):
-    class DummyParsing:
-        def serialize(self):
-            return {
-                "doc": {
-                    "SpecificationIdentifier": "oots-edm:v2.0",
-                    "ReturnLocation": "https://portal.local/return/from-body",
-                    "PossibilityForPreview": False,
-                }
+    _patch_parsing(
+        monkeypatch,
+        {
+            "doc": {
+                "SpecificationIdentifier": "oots-edm:v2.0",
+                "ReturnLocation": "https://portal.local/return/from-body",
+                "PossibilityForPreview": False,
             }
-
-    monkeypatch.setattr(RedirectService, "Parsing", DummyParsing)
+        },
+    )
 
     client = FakeRedisForRedirect([
         {"content": "<Root><SpecificationIdentifier>oots-edm:v2.0</SpecificationIdentifier></Root>"}
@@ -75,11 +81,7 @@ def test_resolve_url_uses_return_location_from_edm_v2(monkeypatch):
 
 
 def test_resolve_url_returns_none_for_legacy_protocol(monkeypatch):
-    class DummyParsing:
-        def serialize(self):
-            return {"doc": {"SpecificationIdentifier": "oots-edm:v1.0"}}
-
-    monkeypatch.setattr(RedirectService, "Parsing", DummyParsing)
+    _patch_parsing(monkeypatch, {"doc": {"SpecificationIdentifier": "oots-edm:v1.0"}})
 
     client = FakeRedisForRedirect([
         {"content": "<Root><SpecificationIdentifier>oots-edm:v1.0</SpecificationIdentifier></Root>"}
@@ -132,4 +134,3 @@ def test_filter_returnurl_falls_back_when_pattern_invalid(monkeypatch):
 
     url = "https://portal.local/return"
     assert RedirectService.filter_returnurl(url) == url
-
