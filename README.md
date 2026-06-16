@@ -252,13 +252,11 @@ STATIC_VERSION=dev-1
 ## Локальний запуск
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync --group dev
 set -a
 source .env
 set +a
-uvicorn main:app --reload
+uv run uvicorn main:app --reload
 ```
 
 Після запуску:
@@ -280,22 +278,22 @@ docker run --rm -p 8000:8000 --env-file .env authorization-app:local
 Запуск усіх тестів:
 
 ```bash
-PYTHONPATH=. pytest -q
+uv run pytest -q
 ```
 
 Точковий запуск:
 
 ```bash
-PYTHONPATH=. pytest tests/test_main_view_endpoints.py -q
-PYTHONPATH=. pytest tests/test_message_checker.py -q
-PYTHONPATH=. pytest tests/test_redirect_service.py -q
-PYTHONPATH=. pytest tests/test_person_request_service.py -q
+uv run pytest tests/test_main_view_endpoints.py -q
+uv run pytest tests/test_message_checker.py -q
+uv run pytest tests/test_redirect_service.py -q
+uv run pytest tests/test_person_request_service.py -q
 ```
 
 Перевірка типів:
 
 ```bash
-python3 -m mypy --config-file mypy.ini
+uv run mypy --config-file pyproject.toml
 ```
 
 ## Документація для DevOps
