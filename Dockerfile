@@ -11,6 +11,8 @@ RUN groupadd --system --gid 10001 app && \
 COPY pyproject.toml uv.lock ./
 RUN python -m pip install --no-cache-dir uv && uv sync --frozen --no-dev
 
+ENV PATH="/app/.venv/bin:$PATH"
+
 COPY main.py redis_keys.py ./
 COPY lib ./lib
 COPY Models ./Models
