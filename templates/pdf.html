@@ -14,6 +14,7 @@
     <div class="evidence-block">
         <h5>{{ pdf.title }}</h5>
         <iframe class="pdf-frame"
+                title="{{ pdf.title }}"
                 src="data:application/pdf;base64,{{ pdf.pdf_preview }}">
         </iframe>
         <div class="approval-section">
