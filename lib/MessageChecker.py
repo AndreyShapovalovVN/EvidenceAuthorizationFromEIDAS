@@ -95,18 +95,20 @@ async def _get_evidence_exception(
 async def _wait_for_preview_flag(
     client: UseRedisAsync,
     message_id: str,
+    timeout: float,
+    interval: float,
 ) -> bool:
     """Очікує появи прапора preview в Redis з поллінгом.
 
     Args:
         client:     активний UseRedisAsync
         message_id: ідентифікатор повідомлення
+        timeout:    максимальний час очікування (секунди)
+        interval:   пауза між спробами поллінгу (секунди)
 
     Returns:
         True — прапор знайдено, False — таймаут
     """
-    timeout = DEFAULT_TIMEOUT
-    interval = DEFAULT_INTERVAL
 
     flag_key = KEYS.REQUEST_PREVIEW.format(conversation_id=message_id)
     loop = asyncio.get_running_loop()
