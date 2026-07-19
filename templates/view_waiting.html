@@ -24,9 +24,7 @@
                         <span id="stage2Checks">0 / 0 checks</span>
                         <span id="stage2Percent">0%</span>
                     </div>
-                    <div class="stage-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="stage2Track">
-                        <div id="stage2Fill" class="stage-progress-fill"></div>
-                    </div>
+                    <progress class="stage-progress-track" max="100" value="0" id="stage2Track" aria-label="Evidence retrieval progress"></progress>
                 </div>
             </li>
         </ul>
@@ -99,15 +97,13 @@
     }
 
     function renderStageTaskbar(stageNo, progress, checksDone) {
-        const fill = document.getElementById(`stage${stageNo}Fill`);
         const percent = document.getElementById(`stage${stageNo}Percent`);
         const checks = document.getElementById(`stage${stageNo}Checks`);
         const track = document.getElementById(`stage${stageNo}Track`);
 
-        fill.style.width = `${progress}%`;
+        track.value = progress;
         percent.textContent = `${progress}%`;
         checks.textContent = `${checksDone} / ${maxChecks} checks`;
-        track.setAttribute("aria-valuenow", String(progress));
     }
 
     function updateStages(stage) {

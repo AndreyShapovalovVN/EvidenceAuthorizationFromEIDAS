@@ -21,9 +21,6 @@ _logger = logging.getLogger(__name__)
 KEYS = Keys
 EDM_ERR_CODE = "EDM:ERR:0002"
 
-# EVIDENCE_KEY = "oots:message:response:evidence:{message_id}"
-# PREVIEW_FLAG_KEY = "oots:message:request:preview:{message_id}"
-
 DEFAULT_TIMEOUT: float = float(os.getenv("EVIDENCE_TIMEOUT", "600"))   # секунд — максимальний час очікування прапора
 DEFAULT_INTERVAL: float = 5.0   # секунд між спробами поллінгу
 
@@ -98,24 +95,18 @@ async def _get_evidence_exception(
 async def _wait_for_preview_flag(
     client: UseRedisAsync,
     message_id: str,
-    timeout: float | None = None,
-    interval: float | None = None,
 ) -> bool:
     """Очікує появи прапора preview в Redis з поллінгом.
 
     Args:
         client:     активний UseRedisAsync
         message_id: ідентифікатор повідомлення
-        timeout:    максимальний час очікування (секунди)
-        interval:   пауза між спробами (секунди)
 
     Returns:
         True — прапор знайдено, False — таймаут
     """
-    if timeout is None:
-        timeout = DEFAULT_TIMEOUT
-    if interval is None:
-        interval = DEFAULT_INTERVAL
+    timeout = DEFAULT_TIMEOUT
+    interval = DEFAULT_INTERVAL
 
     flag_key = KEYS.REQUEST_PREVIEW.format(conversation_id=message_id)
     loop = asyncio.get_running_loop()
