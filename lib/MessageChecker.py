@@ -95,7 +95,7 @@ async def _get_evidence_exception(
 async def _wait_for_preview_flag(
     client: UseRedisAsync,
     message_id: str,
-    timeout: float,
+    timeout: float,  # NOSONAR
     interval: float,
 ) -> bool:
     """Очікує появи прапора preview в Redis з поллінгом.
@@ -134,7 +134,7 @@ async def _wait_for_preview_flag(
 async def check_message(
     client: UseRedisAsync,
     message_id: str,
-    timeout: float | None = None,
+    timeout: float | None = None,  # NOSONAR
     interval: float | None = None,
 ) -> MessageStatus:
     """Повна перевірка повідомлення перед рендерингом сторінки.
