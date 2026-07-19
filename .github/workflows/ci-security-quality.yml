@@ -37,7 +37,7 @@ jobs:
         run: ruff check . --extend-exclude 'tests/~*.py'
 
       - name: Type check with mypy
-        run: mypy . --ignore-missing-imports --pretty --show-error-codes
+        run: mypy . --ignore-missing-imports --pretty --show-error-codes --exclude '^(build|dist|\.venv)/'
 
       - name: Run tests with pytest
         run: pytest --maxfail=2 --disable-warnings --ignore-glob='tests/~*.py'
