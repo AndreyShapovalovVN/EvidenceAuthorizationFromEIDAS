@@ -1,7 +1,8 @@
 # Модель для представлення набору доказів у відповіді EDM версії 2.0
 import uuid
-from dataclasses import dataclass, field, asdict
-from typing import Any, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any
+
 
 # Дозволені значення classificationNode.
 # За потреби можна розширити без зміни логіки моделі.
@@ -32,8 +33,8 @@ class Description:
 
 @dataclass
 class Classification:
-    classificationNode: str  # NOSONAR
-    classificationScheme: str = 'urn:fdc:oots:classification:edm'  # NOSONAR
+    classificationNode: str    # NOSONAR
+    classificationScheme: str = 'urn:fdc:oots:classification:edm'    # NOSONAR
     id: str = field(default_factory=_generate_identifier)
 
     def __post_init__(self):
@@ -62,11 +63,11 @@ class ExtrinsicObjectType:
     - то що
     """
     classification: Classification
-    EvidenceMetadata: str   # NOSONAR
-    RepositoryItemRef: RepositoryItemRef   # NOSONAR
-    content_type: Optional[str] = None
-    content: Optional[Any] = None
-    encoding: Optional[str] = None
+    EvidenceMetadata: str    # NOSONAR
+    RepositoryItemRef: RepositoryItemRef    # NOSONAR
+    content_type: str | None = None
+    content: Any | None = None
+    encoding: str | None = None
     id: str = field(default_factory=_generate_identifier)
 
 
@@ -78,7 +79,7 @@ class RegistryPackageType:
     Містить кілька представлень (ExtrinsicObjectType) одного й того ж доказу
     у різних форматах, але з єдиними метаданими.
     """
-    RegistryPackage: list[ExtrinsicObjectType]  # NOSONAR
+    RegistryPackage: list[ExtrinsicObjectType]   # NOSONAR
     id: str = field(default_factory=_generate_identifier)
     permit: bool = False
 
@@ -94,9 +95,9 @@ class Evidences:
     - Унікальний ідентифікатор відповіді
     """
     title: str
-    PreviewDescription: list[Description]  # NOSONAR
+    PreviewDescription: list[Description]    # NOSONAR
     preview: bool
-    evidences: list[RegistryPackageType]  # NOSONAR
+    evidences: list[RegistryPackageType]   # NOSONAR
 
 
 async def save_evidences_to_redis(redis_client, key: str, evidences: Evidences) -> None:
@@ -144,7 +145,7 @@ async def get_evidences_from_redis(redis_client, key: str) -> Evidences | None:
         evidences = _dict_to_evidences(data)
         return evidences
     except (KeyError, TypeError, ValueError) as e:
-        raise ValueError(f"Не вдалось десеріалізувати Evidences з Redis: {e}")
+        raise ValueError(f"Не вдалось десеріалізувати Evidences з Redis: {e}") from e
 
 
 def to_legacy_evidences_dict(evidences: Evidences) -> dict:

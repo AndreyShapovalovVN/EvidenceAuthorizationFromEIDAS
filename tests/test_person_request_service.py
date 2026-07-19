@@ -48,9 +48,10 @@ def test_save_person_request_raises_on_empty_message_id():
         level_of_assurance="High",
     )
     client = FakeRedisSaver()
+    coro = save_person_request(cast(Any, client), payload)
 
     with pytest.raises(ValueError, match="message_id"):
-        asyncio.run(save_person_request(cast(Any, client), payload))
+        asyncio.run(coro)
 
 
 def test_save_identified_person_request_accepts_missing_birth_and_gender():

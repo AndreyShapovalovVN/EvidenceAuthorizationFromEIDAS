@@ -1,122 +1,80 @@
 import datetime
 import logging
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, field
+from typing import Any
 
 from lxml import etree
 
 from lib.NS import NS
+from Models.Base import Base, MainBase
+
 
 _logger = logging.getLogger(__name__)
 
+COUNTRY = os.getenv("COUNTRY", "UA")
 
-class Identifier(NS):
-    """
-    Represents an identifier with a specific format and scheme.
+__all__ = [
+    "Identifier",
+    "Person",
+    "save_person_to_redis",
+    "get_person_from_redis",
+]
 
-    This class is used to parse, validate, and represent an identifier in the format
-    'country/country_nationality/identifier'. It provides properties to access individual
-    components of the identifier and ensures that the identifier adheres to the required format.
+@dataclass(init=False)
+class Identifier(Base, NS):
+    """Ідентифікатор у форматі `country/country_nationality/identifier`."""
 
-    :ivar schemeID: The scheme ID associated with the identifier.
-    :type schemeID: str
-    """
+    country_identifier: str = COUNTRY
+    country_nationality: str = COUNTRY
+    identifier: str | None = None
+    schemeID: str = "eidas"
 
-    def __init__(self, value: str | None, schemeID: str = "eidas"):
-        """
-        Represents an object for managing a structured identifier with a specific scheme.
-
-        This class is designed to process and store a structured identifier in the
-        format 'country/country_nationality/identifier', as well as an associated
-        scheme ID. If no value is provided, it initializes with a default structure
-        containing None values. The scheme ID defaults to 'eidas' if not otherwise
-        specified.
-
-        :param value: The structured identifier in the format
-                      'country/country_nationality/identifier'. If None, the
-                      structure will be initialized with default None values.
-        :type value: str | None
-        :param schemeID: The scheme ID associated with the identifier. Defaults to 'eidas'.
-        :type schemeID: str
-        :raises ValueError: If the `value` does not match the required format 
-                            'country/country_nationality/identifier'.
-        """
-        self._value: list = [None, None, None]
+    def __init__(self, value: str | None = None, schemeID: str | None = "eidas"):     # NOSONAR
+        super().__init__()
+        self.country_identifier = COUNTRY
+        self.country_nationality = COUNTRY
+        self.identifier = None
+        self.schemeID = schemeID or "eidas"
         self.value = value
-        self.schemeID = schemeID
 
-    @property
-    def country_identifier(self) -> str | None:
-        """
-        Retrieves the country identifier from an internal value.
-
-        This property provides access to the first element of the internal value, 
-        which represents the country identifier. If the value is not set, it 
-        returns None.
-
-        :return: The country identifier as a string or None if not available
-        :rtype: str or None
-        """
-        return self._value[0]
-
-    @property
-    def country_nationality(self) -> str | None:
-        """
-        Provides access to the nationality of a country.
-
-        This property retrieves the nationality associated with a country from
-        the stored value. If the value is not set, it will return None.
-
-        :return: The nationality of the country, or None if not available.
-        :rtype: str or None
-        """
-        return self._value[1]
-
-    @property
-    def identifier(self) -> str | None:
-        """
-        Gets the identifier value from a specific index in the internal value storage.
-
-        This property retrieves the identifier value, which may either be a string or
-        None, depending on the state of the internal data. It accesses and returns the
-        data from the third position (index 2) of the internal storage. The design
-        ensures encapsulation by not exposing the internal storage directly.
-
-        :return: The identifier contained in the third position (index 2) of the 
-            internal value storage, or None if the value is not available or is unset.
-        :rtype: str | None
-        """
-        return self._value[2]
+    def get_element(self, sdg: bool=True) -> etree._Element:
+        if sdg:
+            element = etree.Element(
+                self._tname("sdg", "Identifier"),
+                attrib={"schemeID": self.schemeID},
+                nsmap={"sdg": self._ns["sdg"]})
+            self._set_text(element, self.value)
+        else:
+            element = etree.Element("Identifier")
+            self._set_text(element, self.identifier)
+        return element
 
     @property
     def value(self) -> str | None:
-        """
-        Provides a property to retrieve a computed value based on internal elements.
-
-        :attribute value: A read-only property returning the formatted value derived 
-            from joining the internal elements with '/' separator. If no internal 
-            elements exist, returns None.
-
-        :return: Computed string representation of the internal elements separated 
-            by '/', or None if no elements exist.
-        :rtype: str | None
-        """
-
-        if self._value == [None, None, None]:
+        """Повертає повне значення ідентифікатора або `None`."""
+        ci = self.country_identifier
+        cn = self.country_nationality
+        ident = self.identifier
+        if ci is None or cn is None or ident is None:
             return None
-        return '/'.join(self._value)
+        return f"{ci}/{cn}/{ident}"
 
     @value.setter
     def value(self, value: str | None) -> None:
         if value is None:
-            self._value = [None, None, None]
-        elif len(value.split("/")) != 3:
+            self.identifier = None
+            return
+
+        parts = value.split("/")
+        if len(parts) != 3:
             raise ValueError("Значення має бути у форматі 'country/country_nationality/identifier'")
-        else:
-            self._value = value.split("/")
+
+        self.country_identifier, self.country_nationality, self.identifier = parts
 
 
 @dataclass
-class Person(NS):
+class Person(MainBase, NS):
     LevelOfAssurance: str = "High"
     identifier: Identifier | None = None  # РНОКПП
     FamilyName: str | None = None  # Призвище
@@ -133,7 +91,11 @@ class Person(NS):
     CountryOfBirth: str | None = None
     TownOfBirth: str | None = None
     CountryOfResidence: str | None = None
-    _ns = {"sdg": "http://data.europa.eu/p4s"}
+    _xml: etree._Element | None = field(init=False, repr=False, default=None)
+    _ns = {"sdg": "http://data.europa.eu/p4s"}  # NOSONAR
+
+    def __post_init__(self) -> None:
+        self._xml = None
 
     @staticmethod
     def _parse_name(element: etree._Element):
@@ -154,18 +116,77 @@ class Person(NS):
         return element.text
 
     @property
-    def xml(self):
+    def xml(self) -> str:
+        return self.get_xml()
+
+    @xml.setter
+    def xml(self, xml: str | bytes | etree._Element) -> None:
+        if isinstance(xml, str | bytes):
+            root = etree.fromstring(xml)
+            _logger.debug("XML зчитано")
+        elif isinstance(xml, etree._Element):
+            root = xml
+            _logger.debug("XML зчитано")
+        else:
+            raise TypeError("xml має бути str або bytes")
+
+        _logger.debug("Парсинг значень")
+        self.LevelOfAssurance = self._get_text(
+            root.find(".//sdg:LevelOfAssurance", self._ns)  # type: ignore
+        )
+        self.identifier = Identifier(
+            *self._get_id(
+                root.find(".//sdg:Identifier", self._ns)  # type: ignore
+            )
+        )
+        self.FamilyName, self.FamilyNameNonLatin = self._parse_name(
+            root.find(".//sdg:FamilyName", self._ns)  # type: ignore
+        )
+        self.GivenName, self.GivenNameNonLatin = self._parse_name(
+            root.find(".//sdg:GivenName", self._ns)  # type: ignore
+        )
+        self.AdditionalName, self.AdditionalNameNonLatin = self._parse_name(
+            root.find(".//sdg:AdditionalName", self._ns)  # type: ignore
+        )
+        self.BirthName, self.BirthNameNonLatin = self._parse_name(
+            root.find(".//sdg:BirthName", self._ns)  # type: ignore
+        )
+        self.DateOfBirth = self._parse_date(
+            self._get_text(
+                root.find(".//sdg:DateOfBirth", self._ns)  # type: ignore
+            )
+        )
+        self.Gender = self._get_text(
+            root.find(".//sdg:Gender", self._ns)  # type: ignore
+        )
+        self.Nationality = self._get_text(
+            root.find(".//sdg:Nationality", self._ns)  # type: ignore
+        )
+        self.CountryOfBirth = self._get_text(
+            root.find(".//sdg:CountryOfBirth", self._ns)  # type: ignore
+        )
+        self.TownOfBirth = self._get_text(
+            root.find(".//sdg:TownOfBirth", self._ns)  # type: ignore
+        )
+        self.CountryOfResidence = self._get_text(
+            root.find(".//sdg:CountryOfResidence", self._ns)  # type: ignore
+        )
+        self._xml = root
+        _logger.debug("Дані зчитані")
+
+    @property
+    def xml_tree(self) -> etree._Element | None:
+        return self.get_element()
+
+    def get_element(self) -> etree._Element:
         root = etree.Element(self._tname("sdg", "Person"), nsmap=self._ns)
 
         etree.SubElement(
             root, self._tname("sdg", "LevelOfAssurance")
         ).text = self.LevelOfAssurance
 
-        if self.identifier.value:
-            etree.SubElement(
-                root, self._tname("sdg", "Identifier"),
-                attrib={"schemeID": self.identifier.schemeID}
-            ).text = self.identifier.value
+        if self.identifier is not None and self.identifier.value:
+            root.append(self.identifier.get_element(sdg=True))
 
         if self.FamilyNameNonLatin:
             etree.SubElement(
@@ -235,87 +256,189 @@ class Person(NS):
         ).text = self.CountryOfResidence
 
         self._xml = root
+        return root
 
-        return self.xml_string
+    def get_xml(self) -> str:
+        return super().get_xml()
 
-    @xml.setter
-    def xml(self, xml: str | bytes | etree._Element):
-        if isinstance(xml, str | bytes):
-            root = etree.fromstring(xml)
-            _logger.debug("Xml зчитано")
-        elif isinstance(xml, etree._Element):
-            root = xml
-            _logger.debug("Xml зчитано")
-        else:
-            raise TypeError("xml має бути str або bytes")
+    def get_dict(self) -> dict[str, Any]:
+        return {
+            "LevelOfAssurance": self.LevelOfAssurance,
+            "identifier": (
+                {
+                    "value": self.identifier.value,
+                    "schemeID": self.identifier.schemeID,
+                }
+                if self.identifier is not None
+                else None
+            ),
+            "FamilyName": self.FamilyName,
+            "FamilyNameNonLatin": self.FamilyNameNonLatin,
+            "GivenName": self.GivenName,
+            "GivenNameNonLatin": self.GivenNameNonLatin,
+            "AdditionalName": self.AdditionalName,
+            "AdditionalNameNonLatin": self.AdditionalNameNonLatin,
+            "BirthName": self.BirthName,
+            "BirthNameNonLatin": self.BirthNameNonLatin,
+            "DateOfBirth": (
+                self.DateOfBirth.isoformat()
+                if isinstance(self.DateOfBirth, datetime.date)
+                else self.DateOfBirth
+            ),
+            "Gender": self.Gender,
+            "Nationality": self.Nationality,
+            "CountryOfBirth": self.CountryOfBirth,
+            "TownOfBirth": self.TownOfBirth,
+            "CountryOfResidence": self.CountryOfResidence,
+        }
 
-        _logger.debug("Парсинг значень")
-        self.LevelOfAssurance = self._get_text(
-            root.find(".//sdg:LevelOfAssurance", self._ns)  # type: ignore
-        )
-        self.identifier = Identifier(
-            *self._get_id(
-                root.find(".//sdg:Identifier", self._ns)  # type: ignore
+    @classmethod
+    def set_from_dict(cls, data: dict[str, Any]) -> "Person":
+        if not isinstance(data, dict):
+            raise TypeError(f"Очікувався dict, отримано {type(data).__name__}")
+
+        identifier_data = data.get("identifier")
+        identifier: Identifier | None
+        if isinstance(identifier_data, Identifier):
+            identifier = identifier_data
+        elif isinstance(identifier_data, dict):
+            identifier = Identifier(
+                identifier_data.get("value"),
+                identifier_data.get("schemeID", "eidas"),
             )
+        elif isinstance(identifier_data, str):
+            identifier = Identifier(identifier_data)
+        else:
+            legacy_identifier = data.get("eidas_identifier")
+            identifier = Identifier(value=legacy_identifier) if legacy_identifier is not None else None
+
+        date_of_birth = data.get("DateOfBirth", data.get("date_of_birth"))
+
+        return cls(
+            LevelOfAssurance=str(data.get("LevelOfAssurance", data.get("level_of_assurance", "High")) or "High"),
+            identifier=identifier,
+            FamilyName=data.get("FamilyName", data.get("family_name")),
+            FamilyNameNonLatin=data.get("FamilyNameNonLatin", data.get("family_name_non_latin")),
+            GivenName=data.get("GivenName", data.get("given_name")),
+            GivenNameNonLatin=data.get("GivenNameNonLatin", data.get("given_name_non_latin")),
+            AdditionalName=data.get("AdditionalName", data.get("additional_name")),
+            AdditionalNameNonLatin=data.get(
+                "AdditionalNameNonLatin",
+                data.get("additional_name_non_latin"),
+            ),
+            BirthName=data.get("BirthName", data.get("birth_name")),
+            BirthNameNonLatin=data.get("BirthNameNonLatin", data.get("birth_name_non_latin")),
+            DateOfBirth=cls._parse_date(date_of_birth),
+            Gender=data.get("Gender", data.get("gender")),
+            Nationality=data.get("Nationality", data.get("nationality")),
+            CountryOfBirth=data.get("CountryOfBirth", data.get("country_of_birth")),
+            TownOfBirth=data.get("TownOfBirth", data.get("town_of_birth")),
+            CountryOfResidence=data.get(
+                "CountryOfResidence",
+                data.get("country_of_residence"),
+            ),
         )
-        self.FamilyName, self.FamilyNameNonLatin = self._parse_name(
-            root.find(".//sdg:FamilyName", self._ns)  # type: ignore
-        )
-        self.GivenName, self.GivenNameNonLatin = self._parse_name(
-            root.find(".//sdg:GivenName", self._ns)  # type: ignore
-        )
-        self.BirthName, self.BirthNameNonLatin = self._parse_name(
-            root.find(".//sdg:BirthName", self._ns)  # type: ignore
-        )
-        self.DateOfBirth = self._get_text(
-            root.find(".//sdg:DateOfBirth", self._ns)  # type: ignore
-        )
-        self.Gender = self._get_text(
-            root.find(".//sdg:Gender", self._ns)  # type: ignore
-        )
-        self.Nationality = self._get_text(
-            root.find(".//sdg:Nationality", self._ns)  # type: ignore
-        )
-        self.CountryOfBirth = self._get_text(
-            root.find(".//sdg:CountryOfBirth", self._ns)  # type: ignore
-        )
-        self.TownOfBirth = self._get_text(
-            root.find(".//sdg:TownOfBirth", self._ns)  # type: ignore
-        )
-        self.CountryOfResidence = self._get_text(
-            root.find(".//sdg:CountryOfResidence", self._ns)  # type: ignore
-        )
-        _logger.debug("Дані зчитані")
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Person":
+        return cls.set_from_dict(data)
+
 
     @property
-    def dict(self):
-        r = {
+    def dict(self) -> dict[str, Any]:
+        return {
             "level_of_assurance": self.LevelOfAssurance,
-            "eidas_identifier": self.identifier.value,
+            "eidas_identifier": self.identifier.value if self.identifier else None,
             "family_name": self.FamilyName,
             "family_name_non_latin": self.FamilyNameNonLatin,
             "given_name": self.GivenName,
             "given_name_non_latin": self.GivenNameNonLatin,
+            "additional_name": self.AdditionalName,
+            "additional_name_non_latin": self.AdditionalNameNonLatin,
+            "birth_name": self.BirthName,
+            "birth_name_non_latin": self.BirthNameNonLatin,
             "date_of_birth": (
                 self.DateOfBirth.isoformat()
                 if isinstance(self.DateOfBirth, datetime.date)
                 else self.DateOfBirth
             ),
-            "gender": self.Gender}
-
-        return r
+            "gender": self.Gender,
+            "nationality": self.Nationality,
+            "country_of_birth": self.CountryOfBirth,
+            "town_of_birth": self.TownOfBirth,
+            "country_of_residence": self.CountryOfResidence,
+        }
 
     @dict.setter
-    def dict(self, d):
-        self.LevelOfAssurance = d.get("level_of_assurance")
-        self.identifier = Identifier(d.get("eidas_identifier"))
-        self.FamilyName = d.get("family_name")
-        self.FamilyNameNonLatin = d.get("family_name_non_latin")
-        self.GivenName = d.get("given_name")
-        self.GivenNameNonLatin = d.get("given_name_non_latin")
-        self.DateOfBirth = d.get("date_of_birth")
+    def dict(self, d: Any) -> None:
+        person = self.set_from_dict(d)
+        self.LevelOfAssurance = person.LevelOfAssurance
+        self.identifier = person.identifier
+        self.FamilyName = person.FamilyName
+        self.FamilyNameNonLatin = person.FamilyNameNonLatin
+        self.GivenName = person.GivenName
+        self.GivenNameNonLatin = person.GivenNameNonLatin
+        self.AdditionalName = person.AdditionalName
+        self.AdditionalNameNonLatin = person.AdditionalNameNonLatin
+        self.BirthName = person.BirthName
+        self.BirthNameNonLatin = person.BirthNameNonLatin
+        self.DateOfBirth = person.DateOfBirth
+        self.Gender = person.Gender
+        self.Nationality = person.Nationality
+        self.CountryOfBirth = person.CountryOfBirth
+        self.TownOfBirth = person.TownOfBirth
+        self.CountryOfResidence = person.CountryOfResidence
 
     async def from_redis(self, redis, key):
-        data = await redis.get_from_redis(key)
-        if data is not None:
-            self.dict = data
+        person = await get_person_from_redis(redis, key)
+        if person is not None:
+            self.dict = person.dict
+
+
+async def save_person_to_redis(redis_client, key: str, person: Person) -> None:
+    """
+    Зберігає Person до Redis як JSON через властивість dict.
+
+    Args:
+        redis_client: Екземпляр UseRedisAsync
+        key: Ключ Redis для збереження
+        person: Об'єкт Person
+    """
+    if not isinstance(person, Person):
+        raise TypeError(f"Очікувався Person, отримано {type(person).__name__}")
+
+    await redis_client.save_to_redis(key, person.dict)
+
+
+async def get_person_from_redis(redis_client, key: str) -> Person | None:
+    """
+    Отримує Person з Redis і десеріалізує у модель.
+
+    Args:
+        redis_client: Екземпляр UseRedisAsync
+        key: Ключ Redis для читання
+
+    Returns:
+        Person або None, якщо ключ відсутній
+    """
+    data = await redis_client.get_from_redis(key)
+    if data is None:
+        return None
+
+    # Підтримка старого формату зі списком
+    if isinstance(data, list):
+        if not data:
+            return None
+        data = data[0]
+
+    if not isinstance(data, dict):
+        raise ValueError(f"Некоректний формат Person у Redis: {type(data).__name__}")
+
+    return _dict_to_person(data)
+
+
+def _dict_to_person(data: dict) -> Person:
+    """Конвертує словник у Person."""
+    person = Person()
+    person.dict = data
+    return person
