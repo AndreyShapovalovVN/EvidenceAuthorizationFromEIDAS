@@ -19,6 +19,40 @@ class EvidenceDataNotFoundError(Exception):
 class EmptyEvidenceListError(Exception):
     """Raised when evidence payload contains no renderable evidences."""
 
+def _get_approval_key(
+    evidence: object,
+    index: int,
+    *,
+    new_structure: bool,
+) -> str | None:
+    if not isinstance(evidence, dict):
+        return None
+
+    if new_structure:
+        approval_key = str(evidence.get("id") or "")
+        return approval_key or None
+
+    return str(evidence.get("cid") or f"legacy-{index}")
+
+
+def _apply_approvals(
+    evidences: list[Any],
+    approvals: dict[str, bool],
+    *,
+    new_structure: bool,
+) -> None:
+    for index, evidence in enumerate(evidences):
+        approval_key = _get_approval_key(
+            evidence,
+            index,
+            new_structure=new_structure,
+        )
+
+        if approval_key not in approvals:
+            continue
+
+        evidence["permit"] = bool(approvals[approval_key])
+
 
 async def check_evidence_ready(client: UseRedisAsync, message_id: str, keys: Keys) -> bool:
     evidence_key = keys.get_response_evidence(message_id)
@@ -83,32 +117,23 @@ async def persist_approvals(
     queue_outgoing: str,
 ) -> dict[str, bool]:
     evidence_key = keys.get_response_evidence(message_id)
-
     json_data = await client.get_from_redis(evidence_key)
+
     if not isinstance(json_data, dict):
         raise EvidenceDataNotFoundError(message_id)
 
     evidences = json_data.get("evidences") or []
-    if is_new_evidences_structure(json_data):
-        for package in evidences:
-            if not isinstance(package, dict):
-                continue
-            approval_key = str(package.get("id") or "")
-            if approval_key and approval_key in approvals:
-                package["permit"] = bool(approvals[approval_key])
-    else:
-        for index, evidence in enumerate(evidences):
-            if not isinstance(evidence, dict):
-                continue
-            approval_key = str(evidence.get("cid") or f"legacy-{index}")
-            if approval_key in approvals:
-                evidence["permit"] = bool(approvals[approval_key])
+
+    _apply_approvals(
+        evidences,
+        approvals,
+        new_structure=is_new_evidences_structure(json_data),
+    )
 
     json_data["preview"] = False
 
     await asyncio.gather(
         client.save_to_redis(evidence_key, json_data),
-        # client.set_flag(permit_key, True),
         client.push_to_queue(queue_outgoing, message_id),
     )
 
