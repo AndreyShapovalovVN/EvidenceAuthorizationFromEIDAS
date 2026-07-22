@@ -26,11 +26,13 @@ COPY templates ./templates
 
 ENV PYTHONPATH=/app
 
+COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /uvx /usr/local/bin/
+
 RUN uv sync \
     --frozen \
     --no-dev \
     --no-build \
-    --no-install-project \
+    --no-install-project
 
 ENV PATH="/app/.venv/bin:$PATH"
 
