@@ -85,7 +85,7 @@
     if (fillBtn) {
         fillBtn.addEventListener("click", async () => {
             try {
-                const response = await fetch("/auth/eidas/next");
+                const response = await fetch("/auth/eidas/login");
                 const body = await response.json();
 
                 if (!response.ok) {
@@ -148,4 +148,3 @@
 </script>
 </body>
 </html>
-

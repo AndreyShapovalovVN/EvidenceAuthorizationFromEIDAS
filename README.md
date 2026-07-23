@@ -106,6 +106,14 @@
 
 ---
 
+### `GET /auth/eidas/login`
+
+Тимчасовий eIDAS login endpoint для демо: повертає тестові дані для автозаповнення форми.
+
+Кнопка `Log in via eIDAS` викликає саме цей маршрут.
+
+---
+
 ### `GET /preview/{message_id}`
 
 Сторінка очікування та перегляду evidence.
@@ -123,8 +131,6 @@
 JSON API для поллінгу прогресу.
 
 Потребує заголовок `X-Action-Token` (action=`preview-progress`).
-
-Перший виклик також читає EDM payload, бере `process_queue` і ставить `message_id` у чергу лише один раз.
 
 Перший виклик також читає EDM payload, бере `process_queue` і ставить `message_id` у чергу лише один раз.
 

@@ -173,7 +173,7 @@ def test_auth_builds_continue_url_to_preview_without_returnurl(client, fake_redi
     assert 'const continueUrl = "/preview/00000000-0000-0000-0000-000000000007";' in response.text
 
 
-def test_auth_eidas_next_returns_sequential_records(client, monkeypatch):
+def test_auth_eidas_login_returns_sequential_records(client, monkeypatch):
     class StubAutofillService:
         def __init__(self):
             self._counter = 0
@@ -190,8 +190,8 @@ def test_auth_eidas_next_returns_sequential_records(client, monkeypatch):
 
     monkeypatch.setattr(main, "EIDAS_AUTOFILL_SERVICE", StubAutofillService())
 
-    first = client.get("/auth/eidas/next")
-    second = client.get("/auth/eidas/next")
+    first = client.get("/auth/eidas/login")
+    second = client.get("/auth/eidas/login")
 
     assert first.status_code == 200
     assert second.status_code == 200
@@ -199,13 +199,36 @@ def test_auth_eidas_next_returns_sequential_records(client, monkeypatch):
     assert second.json()["identifier"] == "UA/UA/2"
 
 
-def test_auth_eidas_next_returns_503_when_service_disabled(client, monkeypatch):
+def test_auth_eidas_login_returns_503_when_service_disabled(client, monkeypatch):
     monkeypatch.setattr(main, "EIDAS_AUTOFILL_SERVICE", None)
 
-    response = client.get("/auth/eidas/next")
+    response = client.get("/auth/eidas/login")
 
     assert response.status_code == 503
     assert "not configured" in response.json()["detail"]
+
+
+def test_auth_eidas_next_aliases_login_endpoint(client, monkeypatch):
+    class StubAutofillService:
+        def __init__(self):
+            self._counter = 0
+
+        def get_next_payload(self):
+            self._counter += 1
+            return {
+                "first_name": f"Alias{self._counter}",
+                "last_name": "User",
+                "date_of_birth": "1990-01-01",
+                "identifier": f"UA/UA/{self._counter}",
+                "level_of_assurance": "High",
+            }
+
+    monkeypatch.setattr(main, "EIDAS_AUTOFILL_SERVICE", StubAutofillService())
+
+    response = client.get("/auth/eidas/next")
+
+    assert response.status_code == 200
+    assert response.json()["first_name"] == "Alias1"
 
 
 def test_eidas_autofill_uses_bundled_fallback(monkeypatch):

@@ -307,15 +307,28 @@ async def continue_auth(request: Request, payload: ContinuePayload):
     }
 
 
+def _get_eidas_autofill_payload():
+    if EIDAS_AUTOFILL_SERVICE is None:
+        raise HTTPException(status_code=503, detail="eIDAS test data is not configured")
+    return EIDAS_AUTOFILL_SERVICE.get_next_payload()
+
+
+@app.get(
+    "/auth/eidas/login",
+    responses={503: {"description": "eIDAS test data is not configured"}},
+)
+async def auth_eidas_login():
+    """Return next eIDAS test record for form autofill."""
+    return _get_eidas_autofill_payload()
+
+
 @app.get(
     "/auth/eidas/next",
     responses={503: {"description": "eIDAS test data is not configured"}},
 )
 async def auth_eidas_next():
-    """Return next eIDAS test record for form autofill."""
-    if EIDAS_AUTOFILL_SERVICE is None:
-        raise HTTPException(status_code=503, detail="eIDAS test data is not configured")
-    return EIDAS_AUTOFILL_SERVICE.get_next_payload()
+    """Legacy alias for the eIDAS autofill endpoint."""
+    return _get_eidas_autofill_payload()
 
 
 # ---------------------------------------------------------------------------
