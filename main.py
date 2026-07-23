@@ -62,11 +62,31 @@ EIDAS_TEST_DATA_PATH = Path(
     )
 )
 
+
+def _build_eidas_autofill_service() -> EidasAutofillService | None:
+    candidates = [EIDAS_TEST_DATA_PATH]
+    if not EIDAS_TEST_DATA_PATH.is_absolute():
+        candidates.append(BASE_DIR / EIDAS_TEST_DATA_PATH)
+    bundled_default = BASE_DIR / "tests" / "eIDAS-id-data-test.csv"
+    if bundled_default not in candidates:
+        candidates.append(bundled_default)
+
+    last_error: ValueError | None = None
+    for candidate in candidates:
+        try:
+            return EidasAutofillService(candidate)
+        except ValueError as exc:
+            last_error = exc
+            continue
+
+    if last_error is not None:
+        _logger.warning("eIDAS autofill is disabled: %s", last_error)
+    return None
+
+
 try:
-    EIDAS_AUTOFILL_SERVICE: EidasAutofillService | None = EidasAutofillService(
-        EIDAS_TEST_DATA_PATH
-    )
-except ValueError as exc:
+    EIDAS_AUTOFILL_SERVICE: EidasAutofillService | None = _build_eidas_autofill_service()
+except Exception as exc:
     _logger.warning("eIDAS autofill is disabled: %s", exc)
     EIDAS_AUTOFILL_SERVICE = None
 

@@ -208,6 +208,25 @@ def test_auth_eidas_next_returns_503_when_service_disabled(client, monkeypatch):
     assert "not configured" in response.json()["detail"]
 
 
+def test_eidas_autofill_uses_bundled_fallback(monkeypatch):
+    class StubAutofillService:
+        def __init__(self, csv_path):
+            self.csv_path = csv_path
+            if csv_path.name == "broken.csv":
+                raise ValueError("missing")
+
+        def get_next_payload(self):
+            return {"identifier": "UA/UA/1"}
+
+    monkeypatch.setattr(main, "EIDAS_TEST_DATA_PATH", main.BASE_DIR / "broken.csv")
+    monkeypatch.setattr(main, "EidasAutofillService", StubAutofillService)
+
+    service = main._build_eidas_autofill_service()
+
+    assert service is not None
+    assert service.csv_path == main.BASE_DIR / "tests" / "eIDAS-id-data-test.csv"
+
+
 def test_view_returns_404_when_data_missing(client, fake_redis_client, monkeypatch):
     fake_redis_client.get_flag.return_value = True
     fake_redis_client.get_from_redis.return_value = None
