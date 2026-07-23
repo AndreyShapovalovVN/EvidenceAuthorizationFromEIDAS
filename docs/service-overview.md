@@ -37,13 +37,15 @@
 
 Поточний flow `view_evidence` / `continue_view` / `view_timeout` лишається без змін у бізнес-частині.
 
+`GET /preview/progress/{message_id}` також одноразово дістає `process_queue` з EDM payload і ставить `message_id` у цю чергу.
+
 ## Маршрути
 
 | Метод | Шлях | Призначення |
 |-------|------|-------------|
 | `GET` | `/health` | Перевірка Redis та застосунку |
 | `GET` | `/auth/{message_id}` | Сторінка авторизації |
-| `POST` | `/auth/continue` | Збереження Person, постановка в чергу |
+| `POST` | `/auth/continue` | Збереження Person |
 | `GET` | `/preview/{message_id}` | Сторінка перегляду/очікування evidence |
 | `GET` | `/preview/progress/{message_id}` | API поллінгу прогресу |
 | `POST` | `/preview/continue` | Збереження підтверджень evidence |
@@ -67,6 +69,7 @@
 | `oots:message:request:preview:{id}` | Прапор готовності preview |
 | `oots:message:request:edm:{id}` | EDM payload (content, process_queue) |
 | `oots:message:request:person:{id}` | Збережений Person.dict |
+| `oots:message:request:process_queue_dispatched:{id}` | Маркер одноразової постановки в process_queue |
 | `oots:message:request:permit:{id}` | Прапор дозволу після підтвердження |
 | `oots:message:request:as4:{id}` | AS4 payload |
 | `oots:message:response:edm:{id}` | EDM response |

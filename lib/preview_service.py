@@ -1,6 +1,7 @@
 """Preview flow services: readiness, page context, approvals, timeout."""
 
 import asyncio
+import logging
 from typing import Any
 
 from lib.evidence_view_model import (
@@ -10,6 +11,9 @@ from lib.evidence_view_model import (
 )
 from lib.UseRedis import UseRedisAsync
 from redis_keys import Keys
+
+_logger = logging.getLogger(__name__)
+_PROCESS_QUEUE_DISPATCHED_KEY = "oots:message:request:process_queue_dispatched:{conversation_id}"
 
 
 class EvidenceDataNotFoundError(Exception):
@@ -91,6 +95,8 @@ async def build_evidence_page_context(
 
 
 async def build_preview_progress(client: UseRedisAsync, message_id: str, keys: Keys) -> dict[str, Any]:
+    await _enqueue_process_queue(client, message_id, keys)
+
     # Preview flag is no longer a blocking phase for UI progress.
     preview_ready = True
     evidence_ready, exp_ready = await asyncio.gather(
@@ -107,6 +113,43 @@ async def build_preview_progress(client: UseRedisAsync, message_id: str, keys: K
         "evidence_ready": evidence_ready,
         "exp_ready": exp_ready,
     }
+
+
+def _extract_process_queue(edm: Any) -> str | None:
+    if isinstance(edm, list):
+        first_item = edm[0] if edm else None
+    else:
+        first_item = edm
+
+    if not isinstance(first_item, dict):
+        return None
+
+    queue = first_item.get("process_queue")
+    if not isinstance(queue, str) or not queue.strip():
+        return None
+
+    return queue.strip()
+
+
+async def _enqueue_process_queue(client: UseRedisAsync, message_id: str, keys: Keys) -> bool:
+    dispatch_key = _PROCESS_QUEUE_DISPATCHED_KEY.format(conversation_id=message_id)
+    if await client.get_flag(dispatch_key, default=False):
+        return False
+
+    queue = _extract_process_queue(await client.get_from_redis(keys.get_request_edm(message_id)))
+    if queue is None:
+        _logger.debug("Skip queue push: process_queue missing for message_id=%s", message_id)
+        return False
+
+    await client.set_flag(dispatch_key, True)
+    try:
+        await client.push_to_queue(queue, message_id)
+    except Exception:
+        await client.delete_from_redis(dispatch_key)
+        raise
+
+    _logger.debug("Queued message_id=%s to process_queue=%s", message_id, queue)
+    return True
 
 
 async def persist_approvals(
@@ -154,4 +197,3 @@ async def record_view_timeout(client: UseRedisAsync, message_id: str, keys: Keys
         },
     )
     await client.push_to_queue(queue_outgoing, message_id)
-

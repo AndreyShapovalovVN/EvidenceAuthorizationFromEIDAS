@@ -235,6 +235,52 @@ def test_view_progress_returns_stage_1_when_no_data(client, fake_redis_client, m
     assert response.json()["preview_ready"] is True
     assert response.json()["evidence_ready"] is False
     assert response.json()["exp_ready"] is False
+    fake_redis_client.push_to_queue.assert_not_awaited()
+
+
+def test_view_progress_enqueues_process_queue_once(client, fake_redis_client, monkeypatch):
+    message_id = "00000000-0000-0000-0000-000000000009"
+    dispatch_key = f"oots:message:request:process_queue_dispatched:{message_id}"
+    state = {"dispatched": False}
+
+    def _get_from_redis(key):
+        if key == main.KEYS.get_request_edm(message_id):
+            return [{"process_queue": "oots:queue:process"}]
+        if key == main.KEYS.get_response_evidence(message_id):
+            return None
+        if key == main.KEYS.get_response_exp(message_id):
+            return None
+        return None
+
+    def _get_flag(key, default=False):
+        if key == dispatch_key:
+            return state["dispatched"]
+        return default
+
+    def _set_flag(key, value):
+        if key != dispatch_key:
+            return None
+        state["dispatched"] = bool(value)
+        return None
+
+    fake_redis_client.get_from_redis.side_effect = _get_from_redis
+    fake_redis_client.get_flag.side_effect = _get_flag
+    fake_redis_client.set_flag.side_effect = _set_flag
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    first = client.get(
+        f"/preview/progress/{message_id}",
+        headers=_token_headers(message_id, "preview-progress"),
+    )
+    second = client.get(
+        f"/preview/progress/{message_id}",
+        headers=_token_headers(message_id, "preview-progress"),
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    fake_redis_client.push_to_queue.assert_awaited_once_with("oots:queue:process", message_id)
+    assert state["dispatched"] is True
 
 
 def test_view_progress_returns_exp_ready_when_exp_exists(client, fake_redis_client, monkeypatch):

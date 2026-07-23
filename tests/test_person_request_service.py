@@ -34,8 +34,8 @@ def test_save_person_request_stores_by_message_id_key():
     assert redis_key == "oots:message:request:person:msg-500"
     assert isinstance(person_data, dict)
     client.save_to_redis.assert_awaited_once()
-    client.get_from_redis.assert_awaited_once_with("oots:message:request:edm:msg-500")
-    client.push_to_queue.assert_awaited_once_with("oots:queue:process", "msg-500")
+    client.get_from_redis.assert_not_awaited()
+    client.push_to_queue.assert_not_awaited()
 
 
 def test_save_person_request_raises_on_empty_message_id():
@@ -73,6 +73,7 @@ def test_save_identified_person_request_accepts_missing_birth_and_gender():
     assert person_data["date_of_birth"] is None
     assert person_data["gender"] is None
     assert person_data["eidas_identifier"] == "UA/UA/5566778899"
+    client.push_to_queue.assert_not_awaited()
 
 
 def test_save_identified_person_request_stores_birth_and_gender_when_present():
@@ -92,4 +93,4 @@ def test_save_identified_person_request_stores_birth_and_gender_when_present():
 
     assert person_data["date_of_birth"] == "1988-03-11"
     assert person_data["gender"] == "M"
-
+    client.push_to_queue.assert_not_awaited()

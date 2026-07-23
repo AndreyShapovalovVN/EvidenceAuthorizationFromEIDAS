@@ -76,7 +76,7 @@
 
 ### `POST /auth/continue`
 
-Приймає дані форми авторизації, збирає об'єкт `Person`, зберігає його в Redis і ставить `message_id` у чергу обробки (з EDM payload `process_queue`).
+Приймає дані форми авторизації, збирає об'єкт `Person` і зберігає його в Redis.
 
 Потребує заголовок `X-Action-Token` (action=`auth-continue`).
 
@@ -123,6 +123,10 @@
 JSON API для поллінгу прогресу.
 
 Потребує заголовок `X-Action-Token` (action=`preview-progress`).
+
+Перший виклик також читає EDM payload, бере `process_queue` і ставить `message_id` у чергу лише один раз.
+
+Перший виклик також читає EDM payload, бере `process_queue` і ставить `message_id` у чергу лише один раз.
 
 Відповідь:
 
@@ -188,6 +192,7 @@ JSON API для поллінгу прогресу.
 | `oots:message:request:preview:{id}` | Прапор готовності preview |
 | `oots:message:request:edm:{id}` | EDM payload з `content`/`content2`, `process_queue` |
 | `oots:message:request:person:{id}` | Збережений `Person.dict` |
+| `oots:message:request:process_queue_dispatched:{id}` | Маркер одноразової постановки в process_queue |
 | `oots:message:request:permit:{id}` | Прапор дозволу після підтвердження evidence |
 | `oots:message:request:as4:{id}` | AS4 payload |
 | `oots:message:response:edm:{id}` | EDM response |

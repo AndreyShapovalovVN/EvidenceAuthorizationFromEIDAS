@@ -14,6 +14,7 @@ class FakeRedisClient:
         self.get_raw_from_redis = AsyncMock(return_value=None)
         self.get_flag = AsyncMock(return_value=False)
         self.set_flag = AsyncMock(return_value=None)
+        self.set_flag_once = AsyncMock(return_value=True)
         self.push_to_queue = AsyncMock(return_value=None)
         self.delete_from_redis = AsyncMock(return_value=1)
 
@@ -27,4 +28,3 @@ def client():
 @pytest.fixture
 def fake_redis_client():
     return FakeRedisClient()
-
