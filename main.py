@@ -26,6 +26,7 @@ from lib.PersonRequestService import (
 from lib.preview_service import (
     EmptyEvidenceListError,
     EvidenceDataNotFoundError,
+    PreviewKeys,
     build_evidence_page_context,
     build_preview_progress,
     check_evidence_ready,
@@ -35,7 +36,6 @@ from lib.preview_service import (
 )
 from lib.RedirectService import filter_returnurl, if_preview, resolve_url
 from lib.UseRedis import close_redis, get_redis_client, initialize_redis
-from redis_keys import Keys
 
 WAIT_EVENT_TIME = int(os.getenv("EVIDENCE_TIMEOUT", "600"))
 WAIT_EVENT_SLEEP = int(os.getenv("REDIS_TIMEOUT", "6")) / 2
@@ -47,7 +47,7 @@ ICEI_REDIRECT_URI = os.getenv(
     "ICEI_REDIRECT_URI", "http://localhost:8000/auth/icei/callback"
 )
 
-KEYS = Keys()
+KEYS = PreviewKeys()
 
 logging.basicConfig(level=logging.DEBUG)
 _logger = logging.getLogger("Authorization UI")
