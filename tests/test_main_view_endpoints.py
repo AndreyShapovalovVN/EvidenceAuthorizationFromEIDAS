@@ -282,7 +282,7 @@ def test_view_progress_returns_stage_1_when_no_data(client, fake_redis_client, m
 
 def test_view_progress_enqueues_process_queue_once(client, fake_redis_client, monkeypatch):
     message_id = "00000000-0000-0000-0000-000000000009"
-    dispatch_key = f"oots:message:request:process_queue_dispatched:{message_id}"
+    dispatch_key = f"oots:preview:process_queue_dispatched:{message_id}"
     state = {"dispatched": False}
 
     def _get_from_redis(key):

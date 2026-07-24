@@ -69,7 +69,7 @@
 | `oots:message:request:preview:{id}` | Прапор готовності preview |
 | `oots:message:request:edm:{id}` | EDM payload (content, process_queue) |
 | `oots:message:request:person:{id}` | Збережений Person.dict |
-| `oots:message:request:process_queue_dispatched:{id}` | Маркер одноразової постановки в process_queue |
+| `oots:preview:process_queue_dispatched:{id}` | Маркер одноразової постановки в process_queue |
 | `oots:message:request:permit:{id}` | Прапор дозволу після підтвердження |
 | `oots:message:request:as4:{id}` | AS4 payload |
 | `oots:message:response:edm:{id}` | EDM response |

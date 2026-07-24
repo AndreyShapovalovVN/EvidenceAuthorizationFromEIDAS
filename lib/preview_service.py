@@ -2,18 +2,26 @@
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from typing import Any
 
+from lib.UseRedis import UseRedisAsync
 from lib.evidence_view_model import (
     build_evidence_view_model,
     is_new_evidences_structure,
     normalize_preview_descriptions,
 )
-from lib.UseRedis import UseRedisAsync
 from redis_keys import Keys
 
 _logger = logging.getLogger(__name__)
-_PROCESS_QUEUE_DISPATCHED_KEY = "oots:message:request:process_queue_dispatched:{conversation_id}"
+
+
+@dataclass
+class PreviewKeys(Keys):
+    PROCESS_QUEUE_DISPATCHED_KEY = "oots:preview:process_queue_dispatched:{conversation_id}"
+
+    def get_process_queue_dispatched_key(self, message_id: str) -> str:
+        return self.PROCESS_QUEUE_DISPATCHED_KEY.format(conversation_id=message_id)
 
 
 class EvidenceDataNotFoundError(Exception):
@@ -23,11 +31,12 @@ class EvidenceDataNotFoundError(Exception):
 class EmptyEvidenceListError(Exception):
     """Raised when evidence payload contains no renderable evidences."""
 
+
 def _get_approval_key(
-    evidence: object,
-    index: int,
-    *,
-    new_structure: bool,
+        evidence: object,
+        index: int,
+        *,
+        new_structure: bool,
 ) -> str | None:
     if not isinstance(evidence, dict):
         return None
@@ -40,10 +49,10 @@ def _get_approval_key(
 
 
 def _apply_approvals(
-    evidences: list[Any],
-    approvals: dict[str, bool],
-    *,
-    new_structure: bool,
+        evidences: list[Any],
+        approvals: dict[str, bool],
+        *,
+        new_structure: bool,
 ) -> None:
     for index, evidence in enumerate(evidences):
         approval_key = _get_approval_key(
@@ -72,9 +81,9 @@ async def check_exp_ready(client: UseRedisAsync, message_id: str, keys: Keys) ->
 
 
 async def build_evidence_page_context(
-    client: UseRedisAsync,
-    message_id: str,
-    keys: Keys,
+        client: UseRedisAsync,
+        message_id: str,
+        keys: Keys,
 ) -> dict[str, Any]:
     redis_key = keys.get_response_evidence(message_id)
     data = await client.get_from_redis(redis_key)
@@ -131,8 +140,8 @@ def _extract_process_queue(edm: Any) -> str | None:
     return queue.strip()
 
 
-async def _enqueue_process_queue(client: UseRedisAsync, message_id: str, keys: Keys) -> bool:
-    dispatch_key = _PROCESS_QUEUE_DISPATCHED_KEY.format(conversation_id=message_id)
+async def _enqueue_process_queue(client: UseRedisAsync, message_id: str, keys: PreviewKeys) -> bool:
+    dispatch_key = keys.get_process_queue_dispatched_key(message_id)
     if await client.get_flag(dispatch_key, default=False):
         return False
 
@@ -153,11 +162,11 @@ async def _enqueue_process_queue(client: UseRedisAsync, message_id: str, keys: K
 
 
 async def persist_approvals(
-    client: UseRedisAsync,
-    message_id: str,
-    approvals: dict[str, bool],
-    keys: Keys,
-    queue_outgoing: str,
+        client: UseRedisAsync,
+        message_id: str,
+        approvals: dict[str, bool],
+        keys: Keys,
+        queue_outgoing: str,
 ) -> dict[str, bool]:
     evidence_key = keys.get_response_evidence(message_id)
     json_data = await client.get_from_redis(evidence_key)
