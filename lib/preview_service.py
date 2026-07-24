@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-from dataclasses import dataclass
 from typing import Any
 
 from lib.UseRedis import UseRedisAsync
@@ -16,7 +15,6 @@ from redis_keys import Keys
 _logger = logging.getLogger(__name__)
 
 
-@dataclass
 class PreviewKeys(Keys):
     PROCESS_QUEUE_DISPATCHED_KEY = "oots:preview:process_queue_dispatched:{conversation_id}"
 
@@ -67,12 +65,12 @@ def _apply_approvals(
         evidence["permit"] = bool(approvals[approval_key])
 
 
-async def check_evidence_ready(client: UseRedisAsync, message_id: str, keys: Keys) -> bool:
+async def check_evidence_ready(client: UseRedisAsync, message_id: str, keys: PreviewKeys) -> bool:
     evidence_key = keys.get_response_evidence(message_id)
     return await client.get_from_redis(evidence_key) is not None
 
 
-async def check_exp_ready(client: UseRedisAsync, message_id: str, keys: Keys) -> bool:
+async def check_exp_ready(client: UseRedisAsync, message_id: str, keys: PreviewKeys) -> bool:
     exp_key = keys.get_response_exp(message_id)
     exp_payload = await client.get_from_redis(exp_key)
     if isinstance(exp_payload, dict):
@@ -83,7 +81,7 @@ async def check_exp_ready(client: UseRedisAsync, message_id: str, keys: Keys) ->
 async def build_evidence_page_context(
         client: UseRedisAsync,
         message_id: str,
-        keys: Keys,
+        keys: PreviewKeys,
 ) -> dict[str, Any]:
     redis_key = keys.get_response_evidence(message_id)
     data = await client.get_from_redis(redis_key)
@@ -103,7 +101,7 @@ async def build_evidence_page_context(
     }
 
 
-async def build_preview_progress(client: UseRedisAsync, message_id: str, keys: Keys) -> dict[str, Any]:
+async def build_preview_progress(client: UseRedisAsync, message_id: str, keys: PreviewKeys) -> dict[str, Any]:
     await _enqueue_process_queue(client, message_id, keys)
 
     # Preview flag is no longer a blocking phase for UI progress.
@@ -165,7 +163,7 @@ async def persist_approvals(
         client: UseRedisAsync,
         message_id: str,
         approvals: dict[str, bool],
-        keys: Keys,
+        keys: PreviewKeys,
         queue_outgoing: str,
 ) -> dict[str, bool]:
     evidence_key = keys.get_response_evidence(message_id)
@@ -192,7 +190,7 @@ async def persist_approvals(
     return approvals
 
 
-async def record_view_timeout(client: UseRedisAsync, message_id: str, keys: Keys, queue_outgoing: str) -> None:
+async def record_view_timeout(client: UseRedisAsync, message_id: str, keys: PreviewKeys, queue_outgoing: str) -> None:
     timeout_key = keys.get_response_exp(message_id)
     await client.save_to_redis(
         timeout_key,
