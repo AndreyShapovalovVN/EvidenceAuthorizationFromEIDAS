@@ -18,15 +18,18 @@ RUN apt-get update && \
     useradd --system --uid 10001 --gid app --home-dir /nonexistent --shell /usr/sbin/nologin app
 
 COPY pyproject.toml uv.lock README.md ./
-COPY main.py redis_keys.py ./
-COPY lib ./lib
-COPY Models ./Models
-COPY static ./static
-COPY templates ./templates
-
-ENV PYTHONPATH=/app
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /uvx /usr/local/bin/
+
+RUN uv sync \
+    --frozen \
+    --no-dev \
+    --no-build \
+    --no-install-project
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+COPY app ./app
 
 RUN uv sync \
     --frozen \
