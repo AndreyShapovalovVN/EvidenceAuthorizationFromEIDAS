@@ -509,68 +509,69 @@ async def eidas_start(request: Request, message_id: UUID):
     )
 
 
-@app.post(
-    "/auth/eidas/callback",
-    tags=["eIDAS"],
-    responses={
-        400: {"description": "Invalid or expired request id / malformed SimpleResponse"},
-        422: {"description": "Invalid identified person data"},
-        502: {"description": "eIDAS authentication failed"},
-        503: {"description": "Redis save failed"},
-    },
-)
-async def eidas_callback(request: Request):
-    """Крок 2: прийняти SimpleResponse від Specific Connector (guide §12.4),
-    зберегти Person у Redis та повернути користувача на /preview/{message_id}."""
-    raw_body: str | None = None
+async def _read_simple_response_body(request: Request) -> str | None:
+    """Extract the raw SimpleResponse payload from a JSON body or an
+    urlencoded/multipart form field, whichever the Specific Connector used."""
     content_type = request.headers.get("content-type", "")
     if "application/json" in content_type:
         body_bytes = await request.body()
-        raw_body = body_bytes.decode("utf-8") if body_bytes else None
-    else:
-        form = await request.form()
-        raw_body = form.get("SimpleResponse")
+        return body_bytes.decode("utf-8") if body_bytes else None
 
+    form = await request.form()
+    form_value = form.get("SimpleResponse")
+    if form_value is not None and not isinstance(form_value, str):
+        raise HTTPException(
+            status_code=400,
+            detail="SimpleResponse must be a form text field, not a file upload",
+        )
+    return form_value
+
+
+def _parse_simple_response(raw_body: str | None):
     if not raw_body:
         raise HTTPException(status_code=400, detail="Missing SimpleResponse payload")
-
     try:
-        simple_response = EIDAS_SP_SERVICE.parse_response(raw_body)
+        return EIDAS_SP_SERVICE.parse_response(raw_body)
     except SimpleResponseError as exc:
         raise HTTPException(status_code=400, detail=f"Malformed SimpleResponse: {exc}") from exc
 
-    client = get_redis_client()
-    state_key = f"{EIDAS_STATE_KEY_PREFIX}{simple_response.inresponse_to}"
+
+async def _pop_eidas_message_id(client, request_id: str) -> str:
+    """Look up and consume the one-time request_id -> message_id mapping
+    saved by eidas_start; raises 400 if it's missing or already used."""
+    state_key = f"{EIDAS_STATE_KEY_PREFIX}{request_id}"
     state_data = await client.get_from_redis(state_key)
     await client.delete_from_redis(state_key)
 
     if not isinstance(state_data, dict) or not state_data.get("message_id"):
         _logger.warning("eIDAS callback: invalid or expired request id")
-        raise HTTPException(
-            status_code=400, detail="Invalid or expired eIDAS request id"
-        )
+        raise HTTPException(status_code=400, detail="Invalid or expired eIDAS request id")
 
-    message_id: str = state_data["message_id"]
+    return state_data["message_id"]
 
-    if not simple_response.is_success:
-        _logger.warning(
-            "eIDAS authentication failed for message_id=%s: %s / %s",
-            message_id,
-            simple_response.status.status_code,
-            simple_response.status.status_message,
-        )
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "code": simple_response.status.sub_status_code
-                or simple_response.status.status_code,
-                "message": simple_response.status.status_message
-                or "eIDAS authentication failed",
-            },
-        )
 
-    person_payload = simple_response.to_person_payload()
+def _raise_if_eidas_failed(simple_response, message_id: str) -> None:
+    if simple_response.is_success:
+        return
 
+    _logger.warning(
+        "eIDAS authentication failed for message_id=%s: %s / %s",
+        message_id,
+        simple_response.status.status_code,
+        simple_response.status.status_message,
+    )
+    raise HTTPException(
+        status_code=502,
+        detail={
+            "code": simple_response.status.sub_status_code
+            or simple_response.status.status_code,
+            "message": simple_response.status.status_message
+            or "eIDAS authentication failed",
+        },
+    )
+
+
+async def _save_eidas_person(client, message_id: str, person_payload: dict) -> None:
     try:
         await save_identified_person_request(
             client,
@@ -589,6 +590,30 @@ async def eidas_callback(request: Request):
             status_code=503,
             detail=f"Не вдалося зберегти дані в Redis: {exc}",
         ) from exc
+
+
+@app.post(
+    "/auth/eidas/callback",
+    tags=["eIDAS"],
+    responses={
+        400: {"description": "Invalid or expired request id / malformed SimpleResponse"},
+        422: {"description": "Invalid identified person data"},
+        502: {"description": "eIDAS authentication failed"},
+        503: {"description": "Redis save failed"},
+    },
+)
+async def eidas_callback(request: Request):
+    """Крок 2: прийняти SimpleResponse від Specific Connector (guide §12.4),
+    зберегти Person у Redis та повернути користувача на /preview/{message_id}."""
+    raw_body = await _read_simple_response_body(request)
+    simple_response = _parse_simple_response(raw_body)
+
+    client = get_redis_client()
+    message_id = await _pop_eidas_message_id(client, simple_response.inresponse_to)
+    _raise_if_eidas_failed(simple_response, message_id)
+
+    person_payload = simple_response.to_person_payload()
+    await _save_eidas_person(client, message_id, person_payload)
 
     _logger.info(
         "eIDAS: person saved for message_id=%s (%s %s)",
