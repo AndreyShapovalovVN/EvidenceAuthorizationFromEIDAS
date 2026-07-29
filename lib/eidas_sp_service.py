@@ -104,7 +104,4 @@ class EidasSpService:
         )
 
     def parse_response(self, raw_body: str) -> SimpleResponse:
-        try:
-            return SimpleResponse.from_json(raw_body)
-        except SimpleResponseError:
-            raise
+        return SimpleResponse.from_json(raw_body)

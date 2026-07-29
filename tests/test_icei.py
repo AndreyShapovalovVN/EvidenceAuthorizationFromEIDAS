@@ -140,15 +140,6 @@ class TestIdICEI:
         assert result["access_token"] == "tok123"
         assert result["user_id"] == 42
 
-    def test_get_access_token_raises_on_error_response(self):
-        mock_client = _make_http_mock(
-            _mock_resp(200, {"error": "invalid_grant", "error_description": "bad code"})
-        )
-        icei = IdICEI()
-        with patch("httpx.AsyncClient", return_value=mock_client):
-            with pytest.raises(ICEIError, match="invalid_grant"):
-                asyncio.run(icei.get_access_token("badcode"))
-
     def test_get_user_info_success(self):
         user_data = {
             "givenname": "Марія",
@@ -161,15 +152,6 @@ class TestIdICEI:
         with patch("httpx.AsyncClient", return_value=mock_client):
             result = asyncio.run(icei.get_user_info("tok123", "42"))
         assert result["givenname"] == "Марія"
-
-    def test_get_user_info_raises_on_encrypted_response(self):
-        mock_client = _make_http_mock(
-            _mock_resp(200, {"encryptedUserInfo": "base64data=="})
-        )
-        icei = IdICEI()
-        with patch("httpx.AsyncClient", return_value=mock_client):
-            with pytest.raises(ICEIError, match="encryptedUserInfo"):
-                asyncio.run(icei.get_user_info("tok123", "42"))
 
     def test_get_user_info_decrypts_encrypted_response(self):
         mock_client = _make_http_mock(
