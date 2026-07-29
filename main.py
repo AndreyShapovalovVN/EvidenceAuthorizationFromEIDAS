@@ -16,7 +16,9 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from lib.action_token import issue_action_token, verify_action_token
 from lib.eidas_autofill_service import EidasAutofillService
+from lib.eidas_sp_service import EidasSpService
 from lib.ICEI import ICEIError, IdICEI
+from Models.eIDAS_SP_Response import SimpleResponseError
 from lib.MessageChecker import check_message
 from lib.PersonRequestService import (
     ContinuePayload,
@@ -47,7 +49,13 @@ ICEI_REDIRECT_URI = os.getenv(
     "ICEI_REDIRECT_URI", "http://localhost:8000/auth/icei/callback"
 )
 
+# eIDAS Simple Protocol (guide §12) налаштування
+EIDAS_SP_PUBLIC_BASE_URL = os.getenv("EIDAS_SP_PUBLIC_BASE_URL")
+EIDAS_SP_CALLBACK_PATH = "/auth/eidas/callback"
+EIDAS_STATE_KEY_PREFIX = "eidas:sp:state:"
+
 KEYS = PreviewKeys()
+EIDAS_SP_SERVICE = EidasSpService()
 
 logging.basicConfig(level=logging.DEBUG)
 _logger = logging.getLogger("Authorization UI")
@@ -313,12 +321,16 @@ def _get_eidas_autofill_payload():
     return EIDAS_AUTOFILL_SERVICE.get_next_payload()
 
 
+# NOTE: these two endpoints return canned data from a local CSV for manual
+# QA of the "Manual Entry" form; they are no longer linked from login.html
+# now that "Log in via eIDAS" performs the real Simple Protocol flow below
+# (/auth/eidas/start -> Specific Connector -> /auth/eidas/callback).
 @app.get(
     "/auth/eidas/login",
     responses={503: {"description": "eIDAS test data is not configured"}},
 )
 async def auth_eidas_login():
-    """Return next eIDAS test record for form autofill."""
+    """Return next eIDAS test record for form autofill (dev/QA only)."""
     return _get_eidas_autofill_payload()
 
 
@@ -327,7 +339,7 @@ async def auth_eidas_login():
     responses={503: {"description": "eIDAS test data is not configured"}},
 )
 async def auth_eidas_next():
-    """Legacy alias for the eIDAS autofill endpoint."""
+    """Legacy alias for the eIDAS autofill endpoint (dev/QA only)."""
     return _get_eidas_autofill_payload()
 
 
@@ -442,6 +454,147 @@ async def icei_callback(code: str, state: str):
         message_id,
         profile.lastname,
         profile.givenname,
+    )
+    return RedirectResponse(url=f"/preview/{message_id}", status_code=307)
+
+
+# ---------------------------------------------------------------------------
+# eIDAS Simple Protocol (guide §12) routes: SP -> Specific Connector -> SP
+# ---------------------------------------------------------------------------
+
+
+@app.get(
+    "/auth/eidas/start/{message_id}",
+    response_class=HTMLResponse,
+    tags=["eIDAS"],
+    responses={400: {"description": "Invalid message_id"}},
+)
+async def eidas_start(request: Request, message_id: UUID):
+    """Крок 1: побудувати SimpleRequest і повернути авто-сабміт форму,
+    що передає запит на Specific Connector (guide §12.2)."""
+    message_id_str = str(message_id)
+
+    client = get_redis_client()
+    request_edm = await client.get_from_redis(KEYS.get_request_edm(message_id_str))
+    if request_edm is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid message_id: EDM not found for {message_id_str}",
+        )
+
+    base_url = EIDAS_SP_PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
+    callback_url = f"{base_url}{EIDAS_SP_CALLBACK_PATH}"
+
+    auth_request = EIDAS_SP_SERVICE.build_auth_request(service_url=callback_url)
+
+    # Зберігаємо request.id -> message_id, щоб зіставити SimpleResponse
+    # (поле inresponse_to) з message_id при отриманні callback-у.
+    state_key = f"{EIDAS_STATE_KEY_PREFIX}{auth_request.id}"
+    await client.save_to_redis(state_key, {"message_id": message_id_str})
+
+    _logger.info(
+        "eIDAS SP start: message_id=%s request_id=%s -> %s",
+        message_id_str,
+        auth_request.id,
+        EIDAS_SP_SERVICE.specific_connector_url,
+    )
+
+    return templates.TemplateResponse(
+        request,
+        "eidas_redirect.html",
+        {
+            "specific_connector_url": EIDAS_SP_SERVICE.specific_connector_url,
+            "simple_request_json": auth_request.to_json(),
+        },
+    )
+
+
+@app.post(
+    "/auth/eidas/callback",
+    tags=["eIDAS"],
+    responses={
+        400: {"description": "Invalid or expired request id / malformed SimpleResponse"},
+        422: {"description": "Invalid identified person data"},
+        502: {"description": "eIDAS authentication failed"},
+        503: {"description": "Redis save failed"},
+    },
+)
+async def eidas_callback(request: Request):
+    """Крок 2: прийняти SimpleResponse від Specific Connector (guide §12.4),
+    зберегти Person у Redis та повернути користувача на /preview/{message_id}."""
+    raw_body: str | None = None
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        body_bytes = await request.body()
+        raw_body = body_bytes.decode("utf-8") if body_bytes else None
+    else:
+        form = await request.form()
+        raw_body = form.get("SimpleResponse")
+
+    if not raw_body:
+        raise HTTPException(status_code=400, detail="Missing SimpleResponse payload")
+
+    try:
+        simple_response = EIDAS_SP_SERVICE.parse_response(raw_body)
+    except SimpleResponseError as exc:
+        raise HTTPException(status_code=400, detail=f"Malformed SimpleResponse: {exc}") from exc
+
+    client = get_redis_client()
+    state_key = f"{EIDAS_STATE_KEY_PREFIX}{simple_response.inresponse_to}"
+    state_data = await client.get_from_redis(state_key)
+    await client.delete_from_redis(state_key)
+
+    if not isinstance(state_data, dict) or not state_data.get("message_id"):
+        _logger.warning("eIDAS callback: invalid or expired request id")
+        raise HTTPException(
+            status_code=400, detail="Invalid or expired eIDAS request id"
+        )
+
+    message_id: str = state_data["message_id"]
+
+    if not simple_response.is_success:
+        _logger.warning(
+            "eIDAS authentication failed for message_id=%s: %s / %s",
+            message_id,
+            simple_response.status.status_code,
+            simple_response.status.status_message,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": simple_response.status.sub_status_code
+                or simple_response.status.status_code,
+                "message": simple_response.status.status_message
+                or "eIDAS authentication failed",
+            },
+        )
+
+    person_payload = simple_response.to_person_payload()
+
+    try:
+        await save_identified_person_request(
+            client,
+            message_id=message_id,
+            first_name=person_payload["first_name"],
+            last_name=person_payload["last_name"],
+            identifier=person_payload["identifier"],
+            date_of_birth=person_payload["date_of_birth"],
+            gender=person_payload["gender"],
+            level_of_assurance=person_payload["level_of_assurance"],
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Не вдалося зберегти дані в Redis: {exc}",
+        ) from exc
+
+    _logger.info(
+        "eIDAS: person saved for message_id=%s (%s %s)",
+        message_id,
+        person_payload["last_name"],
+        person_payload["first_name"],
     )
     return RedirectResponse(url=f"/preview/{message_id}", status_code=307)
 

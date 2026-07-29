@@ -56,7 +56,9 @@
             <div class="eidas-card">
                 <p class="eidas-title">eIDAS</p>
                 <p class="eidas-subtitle">Use national eID to authenticate securely across the EU.</p>
-                <button id="fill-eidas" class="eidas-btn" type="button">Log in via eIDAS</button>
+                <a id="eidas-login-btn" class="eidas-btn" style="display:inline-block;text-align:center;text-decoration:none;" href="/auth/eidas/start/{{ message_id }}">
+                    Log in via eIDAS
+                </a>
             </div>
             <div class="eidas-card" style="margin-top:1rem;">
                 <p class="eidas-title">id.gov.ua</p>
@@ -71,7 +73,6 @@
 
 <script>
     const form = document.getElementById("auth-form");
-    const fillBtn = document.getElementById("fill-eidas");
     const statusEl = document.getElementById("status");
     const messageId = "{{ message_id | default('', true) }}";
     const continueUrl = {{ continue_url | default(None) | tojson }};
@@ -80,30 +81,6 @@
     function setStatus(text, ok) {
         statusEl.textContent = text;
         statusEl.className = "status " + (ok ? "ok" : "err");
-    }
-
-    if (fillBtn) {
-        fillBtn.addEventListener("click", async () => {
-            try {
-                const response = await fetch("/auth/eidas/login");
-                const body = await response.json();
-
-                if (!response.ok) {
-                    setStatus(body.detail || "Не вдалося отримати тестові eIDAS дані.", false);
-                    return;
-                }
-
-                document.getElementById("first_name").value = body.first_name || "";
-                document.getElementById("last_name").value = body.last_name || "";
-                document.getElementById("date_of_birth").value = body.date_of_birth || "";
-                document.getElementById("identifier").value = body.identifier || "";
-                document.getElementById("level_of_assurance").value = body.level_of_assurance || "High";
-
-                setStatus(`Підставлено тестові eIDAS дані: ${body.identifier || "-"}`, true);
-            } catch (error) {
-                setStatus("Не вдалося завантажити тестові eIDAS дані.", false);
-            }
-        });
     }
 
     if (form) {

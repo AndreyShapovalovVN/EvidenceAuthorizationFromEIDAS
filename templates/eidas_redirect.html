@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Перенаправлення на eIDAS…</title>
+</head>
+<body onload="document.forms[0].submit()">
+    <p>Перенаправлення на систему eIDAS для автентифікації…</p>
+    <form method="POST" action="{{ specific_connector_url }}">
+        <input type="hidden" name="SimpleRequest" value="{{ simple_request_json }}">
+        <noscript>
+            <button type="submit">Продовжити</button>
+        </noscript>
+    </form>
+</body>
+</html>
