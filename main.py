@@ -14,19 +14,17 @@ from lxml import etree
 from pydantic import BaseModel
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from Models.eIDAS_SP_Response import SimpleResponseError
+from lib.action_token import issue_action_token, verify_action_token
+from lib.eidas_autofill_service import EidasAutofillService
+from lib.eidas_sp_service import EidasSpService, SIMPLE_RESPONSE_FIELD, SEND_METHOD_FIELD, SEND_METHOD_VALUE
 from lib.ICEI import ICEIError, IdICEI
+from Models.eIDAS_SP_Response import SimpleResponseError
 from lib.MessageChecker import check_message
 from lib.PersonRequestService import (
     ContinuePayload,
     save_identified_person_request,
     save_person_request,
 )
-from lib.RedirectService import filter_returnurl, if_preview, resolve_url
-from lib.UseRedis import close_redis, get_redis_client, initialize_redis
-from lib.action_token import issue_action_token, verify_action_token
-from lib.eidas_autofill_service import EidasAutofillService
-from lib.eidas_sp_service import EidasSpService
 from lib.preview_service import (
     EmptyEvidenceListError,
     EvidenceDataNotFoundError,
@@ -38,6 +36,8 @@ from lib.preview_service import (
     persist_approvals,
     record_view_timeout,
 )
+from lib.RedirectService import filter_returnurl, if_preview, resolve_url
+from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 
 WAIT_EVENT_TIME = int(os.getenv("EVIDENCE_TIMEOUT", "600"))
 WAIT_EVENT_SLEEP = int(os.getenv("REDIS_TIMEOUT", "6")) / 2
@@ -108,7 +108,6 @@ COMMON_ERROR_RESPONSES = {
     503: {"description": "Service unavailable"},
 }
 
-
 async def _get_safe_returnurl(client, request: Request, message_id: str) -> str | None:
     returnurl = request.query_params.get("returnurl")
 
@@ -122,8 +121,8 @@ async def _get_safe_returnurl(client, request: Request, message_id: str) -> str 
 
 
 def _render_invalid_link_or_raise(
-        request: Request,
-        returnurl: str | None,
+    request: Request,
+    returnurl: str | None,
 ):
     if returnurl:
         return templates.TemplateResponse(
@@ -163,7 +162,6 @@ def _raise_if_message_timed_out(status, message_id: str) -> None:
             status_code=408,
             detail=f"Таймаут очікування preview для message_id={message_id}",
         )
-
 
 def _fromstring_filter(xml_payload: str):
     """Parse XML for legacy Jinja template accordion rendering."""
@@ -288,7 +286,6 @@ async def root(request: Request, message_id: UUID):
         },
     )
 
-
 @app.post(
     "/auth/continue",
     responses={
@@ -322,6 +319,28 @@ def _get_eidas_autofill_payload():
     if EIDAS_AUTOFILL_SERVICE is None:
         raise HTTPException(status_code=503, detail="eIDAS test data is not configured")
     return EIDAS_AUTOFILL_SERVICE.get_next_payload()
+
+
+# NOTE: these two endpoints return canned data from a local CSV for manual
+# QA of the "Manual Entry" form; they are no longer linked from login.html
+# now that "Log in via eIDAS" performs the real Simple Protocol flow below
+# (/auth/eidas/start -> Specific Connector -> /auth/eidas/callback).
+@app.get(
+    "/auth/eidas/login",
+    responses={503: {"description": "eIDAS test data is not configured"}},
+)
+async def auth_eidas_login():
+    """Return next eIDAS test record for form autofill (dev/QA only)."""
+    return _get_eidas_autofill_payload()
+
+
+@app.get(
+    "/auth/eidas/next",
+    responses={503: {"description": "eIDAS test data is not configured"}},
+)
+async def auth_eidas_next():
+    """Legacy alias for the eIDAS autofill endpoint (dev/QA only)."""
+    return _get_eidas_autofill_payload()
 
 
 # ---------------------------------------------------------------------------
@@ -485,7 +504,9 @@ async def eidas_start(request: Request, message_id: UUID):
         "eidas_redirect.html",
         {
             "specific_connector_url": EIDAS_SP_SERVICE.specific_connector_url,
-            "simple_request_json": auth_request.to_json(),
+            "simple_request_b64": EidasSpService.encode_request(auth_request),
+            "send_method_field": SEND_METHOD_FIELD,
+            "send_method_value": SEND_METHOD_VALUE,
         },
     )
 
@@ -499,7 +520,7 @@ async def _read_simple_response_body(request: Request) -> str | None:
         return body_bytes.decode("utf-8") if body_bytes else None
 
     form = await request.form()
-    form_value = form.get("SimpleResponse")
+    form_value = form.get(SIMPLE_RESPONSE_FIELD)
     if form_value is not None and not isinstance(form_value, str):
         raise HTTPException(
             status_code=400,
@@ -545,9 +566,9 @@ def _raise_if_eidas_failed(simple_response, message_id: str) -> None:
         status_code=502,
         detail={
             "code": simple_response.status.sub_status_code
-                    or simple_response.status.status_code,
+            or simple_response.status.status_code,
             "message": simple_response.status.status_message
-                       or "eIDAS authentication failed",
+            or "eIDAS authentication failed",
         },
     )
 

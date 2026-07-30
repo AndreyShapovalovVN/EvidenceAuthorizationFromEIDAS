@@ -7,7 +7,8 @@
 <body onload="document.forms[0].submit()">
     <p>Перенаправлення на систему eIDAS для автентифікації…</p>
     <form method="POST" action="{{ specific_connector_url }}">
-        <input type="hidden" name="SimpleRequest" value="{{ simple_request_json }}">
+        <input type="hidden" name="SMSSPRequest" value="{{ simple_request_b64 }}">
+        <input type="hidden" name="{{ send_method_field }}" value="{{ send_method_value }}">
         <noscript>
             <button type="submit">Продовжити</button>
         </noscript>

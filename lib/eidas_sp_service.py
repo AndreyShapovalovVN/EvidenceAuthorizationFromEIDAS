@@ -7,24 +7,29 @@ this codebase, see lib/ICEI.py + main.py icei_start/icei_callback):
    message_id.
 2. main.py stores {request.id -> message_id} in Redis and renders an
    auto-submitting HTML form (templates/eidas_redirect.html) that POSTs
-   the SimpleRequest JSON to the Specific Connector.
+   the base64-encoded SimpleRequest to the Specific Connector.
 3. The citizen authenticates at their national IdP; the Specific
    Connector eventually POSTs a SimpleResponse (§12.4) back to our own
    `serviceUrl` (the /auth/eidas/callback route).
-4. `parse_response()` validates/parses that payload; main.py looks up the
-   original message_id via `inresponse_to`, then persists the person via
-   PersonRequestService.save_identified_person_request.
+4. `parse_response()` decodes/validates/parses that payload; main.py looks
+   up the original message_id via `inresponse_to`, then persists the
+   person via PersonRequestService.save_identified_person_request.
 
-ASSUMPTIONS (please verify against your actual Specific Connector demo
-deployment - the guide's §12 only documents the JSON payload shape, not
-the transport):
-  * The SimpleRequest is delivered via an HTML form POST (field name
-    "SimpleRequest") to EIDAS_SPECIFIC_CONNECTOR_URL, analogous to the
-    SAML POST binding used by the "real" AuthnRequest.
-  * The Specific Connector POSTs the SimpleResponse back the same way
-    (field name "SimpleResponse", or a raw JSON body) to our serviceUrl.
+WIRE FORMAT (confirmed from a captured request/response against a real
+Specific Connector - not just the guide's §12 JSON schema):
+  * POST application/x-www-form-urlencoded to the Specific Connector's
+    `/SpecificConnector/ServiceProvider` path.
+  * The request JSON is base64-encoded and sent in a field named
+    "SMSSPRequest" (not "SimpleRequest").
+  * A second hidden field "sendmethods" = "POST" is sent alongside it.
+  * By symmetry, the SimpleResponse comes back base64-encoded in a field
+    named "SMSSPResponse" - this half is not yet confirmed against a real
+    capture, so `parse_response()` also transparently accepts a plain
+    (non-base64) JSON body for safety.
 """
 
+import base64
+import binascii
 import os
 from dataclasses import dataclass
 
@@ -33,14 +38,15 @@ from Models.eIDAS_SP_Request import (
     AuthenticationRequest,
     RequestedAuthenticationContext,
 )
-from Models.eIDAS_SP_Response import SimpleResponse
+from Models.eIDAS_SP_Response import SimpleResponse, SimpleResponseError
 
 # Destination Specific Connector endpoint that receives the SimpleRequest.
 # Corresponds to `specific.connector.request.url` in specificConnector.xml
-# (guide §6, Table 7). Defaults to the value already present in this repo's
-# eidas_autofill_service.py prototype.
+# (guide §6, Table 7). Set this to your real cluster's connector URL, e.g.
+# "https://connector.eidas.k8s/SpecificConnector/ServiceProvider".
 EIDAS_SPECIFIC_CONNECTOR_URL = os.getenv(
-    "EIDAS_SPECIFIC_CONNECTOR_URL", "https://e-id.gov.ua/eidas/sp/saml2/post"
+    "EIDAS_SPECIFIC_CONNECTOR_URL",
+    "https://connector.eidas.k8s/SpecificConnector/ServiceProvider",
 )
 
 EIDAS_SP_PROVIDER_NAME = os.getenv("EIDAS_SP_PROVIDER_NAME", "eIDAS")
@@ -53,10 +59,12 @@ EIDAS_SP_TYPE = os.getenv("EIDAS_SP_TYPE", "private")
 # Models/eIDAS_SP_Response.py's `_ALIASES`.
 DEFAULT_ATTRIBUTES = ("FirstName", "FamilyName", "DateOfBirth", "PersonIdentifier", "Gender")
 
-# Field names used on the wire for the auto-submit form POST (see module
-# docstring - unconfirmed against the real Specific Connector demo source).
-SIMPLE_REQUEST_FIELD = "SimpleRequest"
-SIMPLE_RESPONSE_FIELD = "SimpleResponse"
+# Field names used on the wire for the auto-submit form POST, confirmed
+# from a real captured request/response (see module docstring).
+SIMPLE_REQUEST_FIELD = "SMSSPRequest"
+SIMPLE_RESPONSE_FIELD = "SMSSPResponse"
+SEND_METHOD_FIELD = "sendmethods"
+SEND_METHOD_VALUE = "POST"
 
 
 class EidasSpConfigError(RuntimeError):
@@ -103,5 +111,20 @@ class EidasSpService:
             sp_type=self.sp_type,
         )
 
+    @staticmethod
+    def encode_request(auth_request: AuthenticationRequest) -> str:
+        """base64-encode the SimpleRequest JSON for the SMSSPRequest form field."""
+        return base64.b64encode(auth_request.to_json().encode("utf-8")).decode("ascii")
+
     def parse_response(self, raw_body: str) -> SimpleResponse:
-        return SimpleResponse.from_json(raw_body)
+        return SimpleResponse.from_json(self._decode_response_body(raw_body))
+
+    @staticmethod
+    def _decode_response_body(raw_body: str) -> str:
+        """Decode a base64 SMSSPResponse field; falls back to treating the
+        value as plain JSON if it isn't valid base64 (e.g. a raw JSON body
+        sent with Content-Type: application/json)."""
+        stripped = raw_body.strip()
+        if stripped.startswith("{"):
+            return raw_body
+        return base64.b64decode(stripped, validate=True).decode("utf-8")

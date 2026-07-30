@@ -1,6 +1,7 @@
 import datetime
 import json
 import uuid
+import base64
 from dataclasses import dataclass, field
 
 from lxml import etree
@@ -116,6 +117,9 @@ class AuthenticationRequest(MainBase):
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), ensure_ascii=False)
+
+    def to_base64(self) -> str:
+        return base64.b64encode(self.to_json().encode("utf-8")).decode("utf-8")
 
     @classmethod
     def loa_to_context_class(cls, level_of_assurance: str) -> str:
