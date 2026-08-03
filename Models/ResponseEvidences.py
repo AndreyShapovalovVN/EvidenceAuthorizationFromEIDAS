@@ -3,7 +3,6 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-
 # Дозволені значення classificationNode.
 # За потреби можна розширити без зміни логіки моделі.
 ALLOWED_CLASSIFICATION_NODES = [
@@ -311,15 +310,15 @@ def _dict_to_evidences(data: dict) -> Evidences:
 
 
 __all__ = [
-    "Evidences",
-    "Description",
+    "ALLOWED_CLASSIFICATION_NODES",
     "Classification",
-    "RepositoryItemRef",
+    "Description",
+    "Evidences",
     "ExtrinsicObjectType",
     "RegistryPackageType",
-    "save_evidences_to_redis",
+    "RepositoryItemRef",
     "get_evidences_from_redis",
-    "to_legacy_evidences_dict",
     "get_legacy_evidences_from_redis",
-    "ALLOWED_CLASSIFICATION_NODES",
+    "save_evidences_to_redis",
+    "to_legacy_evidences_dict",
 ]

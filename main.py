@@ -83,16 +83,12 @@ def _build_eidas_autofill_service() -> EidasAutofillService | None:
     if bundled_default not in candidates:
         candidates.append(bundled_default)
 
-    last_error: ValueError | None = None
     for candidate in candidates:
         try:
             return EidasAutofillService(candidate)
         except ValueError as exc:
-            last_error = exc
+            _logger.warning("eIDAS autofill is disabled: %s", exc)
             continue
-
-    if last_error is not None:
-        _logger.warning("eIDAS autofill is disabled: %s", last_error)
     return None
 
 
@@ -423,14 +419,14 @@ async def icei_callback(code: str, state: str):
     try:
         icei = IdICEI(redirect_uri=ICEI_REDIRECT_URI)
         profile = await icei.fetch_person(code)
-    except ICEIError as exc:
+    except ICEIError:
         _logger.exception(
-            "ICEI identification failed for message_id=%s: %s", message_id, exc
+            "ICEI identification failed for message_id=%s", message_id
         )
         raise HTTPException(
             status_code=502,
-            detail=f"ICEI identification failed: {exc}",
-        ) from exc
+            detail=f"ICEI identification failed for message_id={message_id}",
+        )
 
     # Зберігаємо Person у Redis та ставимо в чергу (кроки 11.5–11.6)
     # Сесію/токени не зберігаємо: беремо тільки персональні атрибути.
@@ -474,7 +470,7 @@ async def icei_callback(code: str, state: str):
     responses={400: {"description": "Invalid message_id"}},
 )
 async def eidas_start(request: Request, message_id: UUID):
-    """Крок 1: побудувати SimpleRequest і повернути авто-сабміт форму,
+    """Крок 1: побудувати SimpleRequest і повернути автосабміт форму,
     що передає запит на Specific Connector (guide §12.2)."""
     message_id_str = str(message_id)
 

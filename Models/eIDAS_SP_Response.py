@@ -50,7 +50,9 @@ class SimpleResponseAttribute:
             values = payload.get("values", [])
             # Prefer the latin-script rendering when both are present,
             # since that's what plain text form fields expect.
-            latin = next((v.get("value") for v in values if v.get("latin_script") is False), None)
+            latin = next(
+                (v.get("value") for v in values if v.get("latin_script") is False), None
+            )
             v = values[0].get("value") if len(values) == 1 else None
             value = latin if latin is not None else v
         else:

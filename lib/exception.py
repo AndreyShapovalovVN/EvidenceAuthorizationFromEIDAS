@@ -2,8 +2,8 @@ import asyncio
 import logging
 import os
 
-from redis_keys import Keys
 from lib.UseRedis import UseRedisAsync
+from redis_keys import Keys
 
 _logger = logging.getLogger(__name__)
 
@@ -60,13 +60,15 @@ class EDMException(Exception):
                 }
             }
             await self.redis.save_to_redis(self.key, exception_data)
-            _logger.info(f"Exception data saved to Redis with key: {self.key}")
-        except Exception as e:
-            _logger.exception(f"Failed to save exception data to Redis: {e}")
+            _logger.info("Exception data saved to Redis with key: %s", self.key)
+        except Exception:
+            _logger.exception(
+                "Failed to save exception data to Redis with key: %s", self.key
+            )
 
     async def _push_to_queue(self):
         try:
             await self.redis.push_to_queue(self.queue, self.message_id)
-            _logger.info(f"Message ID {self.message_id} pushed to queue: {self.queue}")
-        except Exception as e:
-            _logger.exception(f"Failed to push message_id to queue: {e}")
+            _logger.info("Message ID %s pushed to queue: %s", self.message_id, self.queue)
+        except Exception:
+            _logger.exception("Failed to push message_id %s to queue: %s", self.message_id, self.queue)

@@ -69,7 +69,7 @@ class EidasAutofillService:
         value = value.strip()
         for date_format in ("%d.%m.%Y", "%Y-%m-%d"):
             try:
-                parsed = datetime.strptime(value, date_format)
+                parsed = datetime.strptime(value, date_format) # noqa: DTZ007
                 return parsed.strftime("%Y-%m-%d")
             except ValueError:
                 continue

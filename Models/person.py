@@ -7,8 +7,7 @@ from typing import Any
 from lxml import etree
 
 from lib.NS import NS
-from Models.Base import Base, MainBase
-
+from Models.base import Base, MainBase
 
 _logger = logging.getLogger(__name__)
 
@@ -17,9 +16,10 @@ COUNTRY = os.getenv("COUNTRY", "UA")
 __all__ = [
     "Identifier",
     "Person",
-    "save_person_to_redis",
     "get_person_from_redis",
+    "save_person_to_redis",
 ]
+
 
 @dataclass(init=False)
 class Identifier(Base, NS):
@@ -30,7 +30,9 @@ class Identifier(Base, NS):
     identifier: str | None = None
     schemeID: str = "eidas"
 
-    def __init__(self, value: str | None = None, schemeID: str | None = "eidas"):     # NOSONAR
+    def __init__(
+        self, value: str | None = None, schemeID: str | None = "eidas"  # NOSONAR
+    ):  # NOSONAR
         super().__init__()
         self.country_identifier = COUNTRY
         self.country_nationality = COUNTRY
@@ -38,12 +40,13 @@ class Identifier(Base, NS):
         self.schemeID = schemeID or "eidas"
         self.value = value
 
-    def get_element(self, sdg: bool=True) -> etree._Element:
+    def get_element(self, sdg: bool = True) -> etree._Element:
         if sdg:
             element = etree.Element(
                 self._tname("sdg", "Identifier"),
                 attrib={"schemeID": self.schemeID},
-                nsmap={"sdg": self._ns["sdg"]})
+                nsmap={"sdg": self._ns["sdg"]},
+            )
             self._set_text(element, self.value)
         else:
             element = etree.Element("Identifier")
@@ -68,7 +71,9 @@ class Identifier(Base, NS):
 
         parts = value.split("/")
         if len(parts) != 3:
-            raise ValueError("Значення має бути у форматі 'country/country_nationality/identifier'")
+            raise ValueError(
+                "Значення має бути у форматі 'country/country_nationality/identifier'"
+            )
 
         self.country_identifier, self.country_nationality, self.identifier = parts
 
@@ -310,24 +315,37 @@ class Person(MainBase, NS):
             identifier = Identifier(identifier_data)
         else:
             legacy_identifier = data.get("eidas_identifier")
-            identifier = Identifier(value=legacy_identifier) if legacy_identifier is not None else None
+            identifier = (
+                Identifier(value=legacy_identifier)
+                if legacy_identifier is not None
+                else None
+            )
 
         date_of_birth = data.get("DateOfBirth", data.get("date_of_birth"))
 
         return cls(
-            LevelOfAssurance=str(data.get("LevelOfAssurance", data.get("level_of_assurance", "High")) or "High"),
+            LevelOfAssurance=str(
+                data.get("LevelOfAssurance", data.get("level_of_assurance", "High"))
+                or "High"
+            ),
             identifier=identifier,
             FamilyName=data.get("FamilyName", data.get("family_name")),
-            FamilyNameNonLatin=data.get("FamilyNameNonLatin", data.get("family_name_non_latin")),
+            FamilyNameNonLatin=data.get(
+                "FamilyNameNonLatin", data.get("family_name_non_latin")
+            ),
             GivenName=data.get("GivenName", data.get("given_name")),
-            GivenNameNonLatin=data.get("GivenNameNonLatin", data.get("given_name_non_latin")),
+            GivenNameNonLatin=data.get(
+                "GivenNameNonLatin", data.get("given_name_non_latin")
+            ),
             AdditionalName=data.get("AdditionalName", data.get("additional_name")),
             AdditionalNameNonLatin=data.get(
                 "AdditionalNameNonLatin",
                 data.get("additional_name_non_latin"),
             ),
             BirthName=data.get("BirthName", data.get("birth_name")),
-            BirthNameNonLatin=data.get("BirthNameNonLatin", data.get("birth_name_non_latin")),
+            BirthNameNonLatin=data.get(
+                "BirthNameNonLatin", data.get("birth_name_non_latin")
+            ),
             DateOfBirth=cls._parse_date(date_of_birth),
             Gender=data.get("Gender", data.get("gender")),
             Nationality=data.get("Nationality", data.get("nationality")),
@@ -342,7 +360,6 @@ class Person(MainBase, NS):
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Person":
         return cls.set_from_dict(data)
-
 
     @property
     def dict(self) -> dict[str, Any]:
@@ -432,8 +449,9 @@ async def get_person_from_redis(redis_client, key: str) -> Person | None:
         data = data[0]
 
     if not isinstance(data, dict):
-        raise ValueError(f"Некоректний формат Person у Redis: {type(data).__name__}")
-
+        raise TypeError(
+            f"Некоректний тип Person у Redis: {type(data).__name__}; очікується dict"
+        )
     return _dict_to_person(data)
 
 

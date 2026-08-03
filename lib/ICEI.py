@@ -3,12 +3,13 @@
 Spec reference: IDInfoProcessingD_QA.pdf (V15_14012026)
 """
 
-import logging
 import importlib
+import logging
 import os
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx
@@ -63,14 +64,14 @@ class UserProfile:
 
     givenname: str                   # Ім'я
     lastname: str                    # Прізвище
-    middlename: Optional[str]        # По батькові
-    edrpoucode: Optional[str]        # РНОКПП (ІПН)
-    drfocode: Optional[str]          # Код ДРФО (альтернатива РНОКПП)
-    unzr: Optional[str]              # Унікальний номер запису в ЄДР
-    auth_type: Optional[str]         # Тип аутентифікації (dig_sign / bank_id)
-    subjectcn: Optional[str]         # Загальне ім'я (CN) власника сертифіката
-    date_of_birth: Optional[str] = None  # Дата народження (якщо доступна у провайдера)
-    gender: Optional[str] = None         # Стать (якщо доступна у провайдера)
+    middlename: str | None        # По батькові
+    edrpoucode: str | None        # РНОКПП (ІПН)
+    drfocode: str | None          # Код ДРФО (альтернатива РНОКПП)
+    unzr: str | None              # Унікальний номер запису в ЄДР
+    auth_type: str | None         # Тип аутентифікації (dig_sign / bank_id)
+    subjectcn: str | None         # Загальне ім'я (CN) власника сертифіката
+    date_of_birth: str | None = None  # Дата народження (якщо доступна у провайдера)
+    gender: str | None = None         # Стать (якщо доступна у провайдера)
     raw: dict = field(default_factory=dict)  # Повна відповідь сервера
 
     @property
@@ -123,12 +124,12 @@ class IdICEI:
 
     def __init__(
         self,
-        redirect_uri: Optional[str] = None,
+        redirect_uri: str | None = None,
         decryptor: Callable[[str], dict] | None = None,
     ):
         self.response_type: str = "code"
-        self.client_id: Optional[str] = IDGOV_CLIENT_ID
-        self.client_secret: Optional[str] = IDGOV_CLIENT_SECRET
+        self.client_id: str | None = IDGOV_CLIENT_ID
+        self.client_secret: str | None = IDGOV_CLIENT_SECRET
         self.auth_type: str = IDGOV_AUTH_TYPE
         self.state: str = uuid.uuid4().hex
         self.redirect_uri: str = redirect_uri or "http://localhost:8000/auth/icei/callback"
@@ -233,7 +234,7 @@ class IdICEI:
         self,
         access_token: str,
         user_id: str,
-        fields: Optional[str] = None,
+        fields: str | None = None,
     ) -> dict:
         """Отримання інформації про ідентифікованого користувача (кроки 11.3–11.4).
 

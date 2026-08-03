@@ -1,12 +1,12 @@
+import base64
 import datetime
 import json
 import uuid
-import base64
 from dataclasses import dataclass, field
 
 from lxml import etree
 
-from Models.Base import Base, MainBase
+from Models.base import Base, MainBase
 
 # --- Simple Protocol (guide §12) constants ------------------------------
 #
@@ -78,9 +78,11 @@ class AuthenticationRequest(MainBase):
     requester_id: str
     service_url: str
     sp_type: str = "private"
-    version: str = '1'
+    version: str = "1"
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    created_on: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    created_on: str = field(
+        default_factory=lambda: datetime.datetime.now(tz=datetime.UTC).isoformat()
+    )
 
     def __post_init__(self) -> None:
         if self.name_id_policy not in VALID_NAME_ID_POLICIES:

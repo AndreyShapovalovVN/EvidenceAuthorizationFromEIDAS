@@ -4,8 +4,8 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
-from Models.Person import Identifier, Person
 from lib.UseRedis import UseRedisAsync
+from Models.person import Identifier, Person
 from redis_keys import Keys
 
 KEYS = Keys()
@@ -27,7 +27,7 @@ def _parse_birth_date(value: str) -> date:
     value = value.strip()
     for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
         try:
-            return datetime.strptime(value, fmt).date()
+            return datetime.strptime(value, fmt).date()  # noqa: DTZ007
         except ValueError:
             continue
     raise ValueError("date_of_birth має бути у форматі YYYY-MM-DD або DD.MM.YYYY")

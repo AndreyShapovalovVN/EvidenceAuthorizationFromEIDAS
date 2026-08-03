@@ -1,5 +1,6 @@
-import main
 from unittest.mock import AsyncMock
+
+import main
 from lib.action_token import issue_action_token
 from lib.evidence_view_model import build_evidence_view_model
 from lib.MessageChecker import MessageStatus
@@ -243,9 +244,9 @@ def test_view_progress_enqueues_process_queue_once(client, fake_redis_client, mo
 
     def _set_flag(key, value):
         if key != dispatch_key:
-            return None
+            return
         state["dispatched"] = bool(value)
-        return None
+        return
 
     fake_redis_client.get_from_redis.side_effect = _get_from_redis
     fake_redis_client.get_flag.side_effect = _get_flag

@@ -24,7 +24,7 @@ def _b64decode(raw: str) -> bytes:
 
 def _derive_signing_key(message_id: str, action: str) -> bytes:
     # Derive per-message/action key from the master secret.
-    material = f"{_TOKEN_KEY_SALT}:{message_id}:{action}".encode("utf-8")
+    material = f"{_TOKEN_KEY_SALT}:{message_id}:{action}".encode()
     return hmac.new(_TOKEN_SECRET.encode("utf-8"), material, hashlib.sha256).digest()
 
 

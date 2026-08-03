@@ -3,7 +3,7 @@ import inspect
 import json
 import logging
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Self
 
 import redis
 import redis.asyncio as Redis
@@ -38,7 +38,7 @@ def get_redis_client() -> "UseRedisAsync":
     return _redis_instance
 
 
-async def initialize_redis(redis_url: Optional[str] = None) -> "UseRedisAsync":
+async def initialize_redis(redis_url: str | None = None) -> "UseRedisAsync":
     """Ініціалізує глобальне з'єднання Redis на старті додатку.
 
     Args:
@@ -103,7 +103,7 @@ class UseRedisAsync:
             return key
         return f"{self._redis_prefix}{key}"
 
-    async def get_from_redis(self, key: Optional[str]) -> dict | list | None:
+    async def get_from_redis(self, key: str | None) -> dict | list | None:
         """Отримує та десеріалізує JSON дані з Redis за ключем.
 
         Args:
@@ -123,11 +123,11 @@ class UseRedisAsync:
             data = json.loads(data)
             _logger.debug(f"Отримано дані з Redis для ключа {redis_key}: {data}")
             return data
-        except json.JSONDecodeError as e:
-            _logger.exception(f"Не вдалось розшифрувати JSON для ключа {redis_key}: {e}")
+        except json.JSONDecodeError:
+            _logger.exception("Не вдалось розшифрувати JSON для ключа %s", redis_key)
             return None
 
-    async def get_raw_from_redis(self, key: Optional[str]) -> bytes | None:
+    async def get_raw_from_redis(self, key: str | None) -> bytes | None:
         """Отримує сирі bytes дані з Redis.
 
         Args:
@@ -144,7 +144,7 @@ class UseRedisAsync:
         _logger.debug(f"Отримано сирі дані з Redis для ключа {redis_key}: {data}")
         return data if isinstance(data, bytes) else None
 
-    async def save_to_redis(self, key: Optional[str], data: dict[Any, Any] | list | str) -> None:
+    async def save_to_redis(self, key: str | None, data: dict[Any, Any] | list | str) -> None:
         """Зберігає дані як JSON до Redis з TTL.
 
         Args:
@@ -158,7 +158,7 @@ class UseRedisAsync:
         await self._redis_client.set(redis_key, json.dumps(data, default=str), ex=TTL)
         _logger.debug(f"Збережено дані до Redis для ключа {redis_key}: {data}")
 
-    async def save_raw_to_redis(self, key: Optional[str], data: Optional[bytes]) -> None:
+    async def save_raw_to_redis(self, key: str | None, data: bytes | None) -> None:
         """Зберігає сирі bytes дані до Redis з TTL.
 
         Args:
@@ -183,7 +183,7 @@ class UseRedisAsync:
         await self._redis_client.lpush(redis_queue, message)
         _logger.debug(f"Поміщено повідомлення до черги {redis_queue}: {message}")
 
-    async def set_flag(self, key: Optional[str], value: Optional[bool]) -> None:
+    async def set_flag(self, key: str | None, value: bool | None) -> None:
         """Зберігає булевий прапор до Redis з TTL.
 
         Args:
@@ -202,7 +202,7 @@ class UseRedisAsync:
         await self._redis_client.set(redis_key, flag_value, ex=TTL)
         _logger.debug(f"Встановлено прапор {redis_key} = {value}")
 
-    async def get_flag(self, key: Optional[str], default: bool = False) -> bool:
+    async def get_flag(self, key: str | None, default: bool = False) -> bool:
         """Отримує булевий прапор з Redis.
 
         Args:
@@ -232,8 +232,8 @@ class UseRedisAsync:
                 return default
             _logger.debug(f"Отримано прапор {redis_key} = {value}")
             return value
-        except json.JSONDecodeError as e:
-            _logger.exception(f"Не вдалося розшифрувати булевий прапор {redis_key}: {e}")
+        except json.JSONDecodeError:
+            _logger.exception("Не вдалося розшифрувати булевий прапор %s", redis_key)
             return default
 
     @staticmethod
@@ -242,9 +242,9 @@ class UseRedisAsync:
 
     async def pop_from_queue(
             self,
-            queue_name: Optional[str] = None,
+            queue_name: str | None = None,
             return_tuple_as_string: bool = False,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Отримує повідомлення з Redis-черги list.
 
         Args:
@@ -321,10 +321,10 @@ class UseRedisAsync:
             if inspect.isawaitable(close_result):
                 await close_result
             _logger.debug("Redis з'єднання закрито")
-        except Exception as e:
-            _logger.exception(f"Помилка при закритті Redis: {e}")
+        except Exception:
+            _logger.exception("Помилка при закритті Redis")
 
-    async def __aenter__(self) -> "UseRedisAsync":
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:

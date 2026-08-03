@@ -37,7 +37,7 @@ from Models.eIDAS_SP_Request import (
     AuthenticationRequest,
     RequestedAuthenticationContext,
 )
-from Models.eIDAS_SP_Response import SimpleResponse, SimpleResponseError
+from Models.eIDAS_SP_Response import SimpleResponse
 
 # Destination Specific Connector endpoint that receives the SimpleRequest.
 # Corresponds to `specific.connector.request.url` in specificConnector.xml
