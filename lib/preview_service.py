@@ -4,22 +4,15 @@ import asyncio
 import logging
 from typing import Any
 
-from lib.UseRedis import UseRedisAsync
 from lib.evidence_view_model import (
     build_evidence_view_model,
     is_new_evidences_structure,
     normalize_preview_descriptions,
 )
-from redis_keys import Keys
+from lib.preview_keys import PreviewKeys
+from lib.UseRedis import UseRedisAsync
 
 _logger = logging.getLogger(__name__)
-
-
-class PreviewKeys(Keys):
-    PROCESS_QUEUE_DISPATCHED_KEY = "oots:preview:process_queue_dispatched:{conversation_id}"
-
-    def get_process_queue_dispatched_key(self, message_id: str) -> str:
-        return self.PROCESS_QUEUE_DISPATCHED_KEY.format(conversation_id=message_id)
 
 
 class EvidenceDataNotFoundError(Exception):
@@ -31,10 +24,10 @@ class EmptyEvidenceListError(Exception):
 
 
 def _get_approval_key(
-        evidence: object,
-        index: int,
-        *,
-        new_structure: bool,
+    evidence: object,
+    index: int,
+    *,
+    new_structure: bool,
 ) -> str | None:
     if not isinstance(evidence, dict):
         return None
@@ -47,10 +40,10 @@ def _get_approval_key(
 
 
 def _apply_approvals(
-        evidences: list[Any],
-        approvals: dict[str, bool],
-        *,
-        new_structure: bool,
+    evidences: list[Any],
+    approvals: dict[str, bool],
+    *,
+    new_structure: bool,
 ) -> None:
     for index, evidence in enumerate(evidences):
         approval_key = _get_approval_key(
@@ -65,12 +58,16 @@ def _apply_approvals(
         evidence["permit"] = bool(approvals[approval_key])
 
 
-async def check_evidence_ready(client: UseRedisAsync, message_id: str, keys: PreviewKeys) -> bool:
+async def check_evidence_ready(
+    client: UseRedisAsync, message_id: str, keys: PreviewKeys
+) -> bool:
     evidence_key = keys.get_response_evidence(message_id)
     return await client.get_from_redis(evidence_key) is not None
 
 
-async def check_exp_ready(client: UseRedisAsync, message_id: str, keys: PreviewKeys) -> bool:
+async def check_exp_ready(
+    client: UseRedisAsync, message_id: str, keys: PreviewKeys
+) -> bool:
     exp_key = keys.get_response_exp(message_id)
     exp_payload = await client.get_from_redis(exp_key)
     if isinstance(exp_payload, dict):
@@ -79,9 +76,9 @@ async def check_exp_ready(client: UseRedisAsync, message_id: str, keys: PreviewK
 
 
 async def build_evidence_page_context(
-        client: UseRedisAsync,
-        message_id: str,
-        keys: PreviewKeys,
+    client: UseRedisAsync,
+    message_id: str,
+    keys: PreviewKeys,
 ) -> dict[str, Any]:
     redis_key = keys.get_response_evidence(message_id)
     data = await client.get_from_redis(redis_key)
@@ -101,7 +98,9 @@ async def build_evidence_page_context(
     }
 
 
-async def build_preview_progress(client: UseRedisAsync, message_id: str, keys: PreviewKeys) -> dict[str, Any]:
+async def build_preview_progress(
+    client: UseRedisAsync, message_id: str, keys: PreviewKeys
+) -> dict[str, Any]:
     await _enqueue_process_queue(client, message_id, keys)
 
     # Preview flag is no longer a blocking phase for UI progress.
@@ -138,14 +137,20 @@ def _extract_process_queue(edm: Any) -> str | None:
     return queue.strip()
 
 
-async def _enqueue_process_queue(client: UseRedisAsync, message_id: str, keys: PreviewKeys) -> bool:
+async def _enqueue_process_queue(
+    client: UseRedisAsync, message_id: str, keys: PreviewKeys
+) -> bool:
     dispatch_key = keys.get_process_queue_dispatched_key(message_id)
     if await client.get_flag(dispatch_key, default=False):
         return False
 
-    queue = _extract_process_queue(await client.get_from_redis(keys.get_request_edm(message_id)))
+    queue = _extract_process_queue(
+        await client.get_from_redis(keys.get_request_edm(message_id))
+    )
     if queue is None:
-        _logger.debug("Skip queue push: process_queue missing for message_id=%s", message_id)
+        _logger.debug(
+            "Skip queue push: process_queue missing for message_id=%s", message_id
+        )
         return False
 
     await client.set_flag(dispatch_key, True)
@@ -160,11 +165,11 @@ async def _enqueue_process_queue(client: UseRedisAsync, message_id: str, keys: P
 
 
 async def persist_approvals(
-        client: UseRedisAsync,
-        message_id: str,
-        approvals: dict[str, bool],
-        keys: PreviewKeys,
-        queue_outgoing: str,
+    client: UseRedisAsync,
+    message_id: str,
+    approvals: dict[str, bool],
+    keys: PreviewKeys,
+    queue_outgoing: str,
 ) -> dict[str, bool]:
     evidence_key = keys.get_response_evidence(message_id)
     json_data = await client.get_from_redis(evidence_key)
@@ -190,7 +195,9 @@ async def persist_approvals(
     return approvals
 
 
-async def record_view_timeout(client: UseRedisAsync, message_id: str, keys: PreviewKeys, queue_outgoing: str) -> None:
+async def record_view_timeout(
+    client: UseRedisAsync, message_id: str, keys: PreviewKeys, queue_outgoing: str
+) -> None:
     timeout_key = keys.get_response_exp(message_id)
     await client.save_to_redis(
         timeout_key,

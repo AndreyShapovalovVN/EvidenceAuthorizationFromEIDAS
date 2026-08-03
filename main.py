@@ -16,19 +16,23 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from lib.action_token import issue_action_token, verify_action_token
 from lib.eidas_autofill_service import EidasAutofillService
-from lib.eidas_sp_service import EidasSpService, SIMPLE_RESPONSE_FIELD, SEND_METHOD_FIELD, SEND_METHOD_VALUE
+from lib.eidas_sp_service import (
+    SEND_METHOD_FIELD,
+    SEND_METHOD_VALUE,
+    SIMPLE_RESPONSE_FIELD,
+    EidasSpService,
+)
 from lib.ICEI import ICEIError, IdICEI
-from Models.eIDAS_SP_Response import SimpleResponseError
 from lib.MessageChecker import check_message
 from lib.PersonRequestService import (
     ContinuePayload,
     save_identified_person_request,
     save_person_request,
 )
+from lib.preview_keys import PreviewKeys
 from lib.preview_service import (
     EmptyEvidenceListError,
     EvidenceDataNotFoundError,
-    PreviewKeys,
     build_evidence_page_context,
     build_preview_progress,
     check_evidence_ready,
@@ -38,6 +42,7 @@ from lib.preview_service import (
 )
 from lib.RedirectService import filter_returnurl, if_preview, resolve_url
 from lib.UseRedis import close_redis, get_redis_client, initialize_redis
+from Models.eIDAS_SP_Response import SimpleResponseError
 
 WAIT_EVENT_TIME = int(os.getenv("EVIDENCE_TIMEOUT", "600"))
 WAIT_EVENT_SLEEP = int(os.getenv("REDIS_TIMEOUT", "6")) / 2
@@ -52,7 +57,6 @@ ICEI_REDIRECT_URI = os.getenv(
 # eIDAS Simple Protocol (guide §12) налаштування
 EIDAS_SP_PUBLIC_BASE_URL = os.getenv("EIDAS_SP_PUBLIC_BASE_URL")
 EIDAS_SP_CALLBACK_PATH = "/auth/eidas/callback"
-EIDAS_STATE_KEY_PREFIX = "eidas:sp:state:"
 
 KEYS = PreviewKeys()
 EIDAS_SP_SERVICE = EidasSpService()
@@ -489,7 +493,7 @@ async def eidas_start(request: Request, message_id: UUID):
 
     # Зберігаємо request.id -> message_id, щоб зіставити SimpleResponse
     # (поле inresponse_to) з message_id при отриманні callback-у.
-    state_key = f"{EIDAS_STATE_KEY_PREFIX}{auth_request.id}"
+    state_key = KEYS.get_eidas_state_key(auth_request.id)
     await client.save_to_redis(state_key, {"message_id": message_id_str})
 
     _logger.info(
@@ -541,7 +545,7 @@ def _parse_simple_response(raw_body: str | None):
 async def _pop_eidas_message_id(client, request_id: str) -> str:
     """Look up and consume the one-time request_id -> message_id mapping
     saved by eidas_start; raises 400 if it's missing or already used."""
-    state_key = f"{EIDAS_STATE_KEY_PREFIX}{request_id}"
+    state_key = KEYS.get_eidas_state_key(request_id)
     state_data = await client.get_from_redis(state_key)
     await client.delete_from_redis(state_key)
 

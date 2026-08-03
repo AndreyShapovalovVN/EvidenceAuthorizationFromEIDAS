@@ -29,7 +29,6 @@ Specific Connector - not just the guide's §12 JSON schema):
 """
 
 import base64
-import binascii
 import os
 from dataclasses import dataclass
 
