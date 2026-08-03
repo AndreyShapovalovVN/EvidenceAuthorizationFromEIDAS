@@ -18,9 +18,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=9.1.1",
-    "mypy>=2.3.0",
-    "ruff>=0.16.1",
+    "pytest==9.1.1",
+    "mypy==2.3.0",
+    "ruff==0.16.1",
 ]
 
 [tool.setuptools.packages.find]
