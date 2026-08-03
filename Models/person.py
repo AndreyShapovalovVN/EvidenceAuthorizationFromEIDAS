@@ -31,8 +31,10 @@ class Identifier(Base, NS):
     schemeID: str = "eidas"
 
     def __init__(
-        self, value: str | None = None, schemeID: str | None = "eidas"  # NOSONAR
-    ):  # NOSONAR
+        self,
+        value: str | None = None,
+        schemeID: str | None = "eidas", # NOSONAR
+    ):
         super().__init__()
         self.country_identifier = COUNTRY
         self.country_nationality = COUNTRY
