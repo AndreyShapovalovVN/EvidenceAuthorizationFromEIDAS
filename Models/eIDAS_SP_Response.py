@@ -1,13 +1,11 @@
-"""Parser for the Simple Protocol SimpleResponse (guide §12.3 / §12.4).
-
-The Specific Connector posts this JSON back to our own `serviceUrl`
-(see AuthenticationRequest.service_url) once the citizen has been
-authenticated at their national IdP.
-"""
-
+import base64
 import json
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
+from datetime import datetime
+
+from lxml import etree
+
+from Models.base import Base, MainBase
 
 
 class SimpleResponseError(ValueError):
@@ -15,142 +13,106 @@ class SimpleResponseError(ValueError):
 
 
 @dataclass
-class SimpleResponseStatus:
+class ResponseStatus(Base):
     status_code: str
     sub_status_code: str | None = None
     status_message: str | None = None
 
-    @property
-    def is_success(self) -> bool:
-        return self.status_code == "success"
+    def get_element(self) -> etree._Element:
+        status_element = etree.Element("Status")
+        status_code_element = etree.SubElement(status_element, "StatusCode")
+        status_code_element.set("Value", self.status_code)
 
-    @classmethod
-    def from_dict(cls, payload: dict) -> "SimpleResponseStatus":
-        if "status_code" not in payload:
-            raise SimpleResponseError("SimpleResponse.status.status_code is required")
-        return cls(
-            status_code=payload["status_code"],
-            sub_status_code=payload.get("sub_status_code"),
-            status_message=payload.get("status_message"),
-        )
-
-
-@dataclass
-class SimpleResponseAttribute:
-    name: str
-    type: str
-    # scalar value for "string"/"date"/"address"; list for "string_list"
-    value: Any = None
-
-    @classmethod
-    def from_dict(cls, payload: dict) -> "SimpleResponseAttribute":
-        attr_type = payload.get("type", "string")
-        name = payload["name"]
-        if attr_type == "string_list":
-            values = payload.get("values", [])
-            # Prefer the latin-script rendering when both are present,
-            # since that's what plain text form fields expect.
-            latin = next(
-                (v.get("value") for v in values if v.get("latin_script") is False), None
+        if self.sub_status_code:
+            sub_status_code_element = etree.SubElement(
+                status_code_element, "StatusCode"
             )
-            v = values[0].get("value") if len(values) == 1 else None
-            value = latin if latin is not None else v
-        else:
-            value = payload.get("value")
-        return cls(name=name, type=attr_type, value=value)
+            sub_status_code_element.set("Value", self.sub_status_code)
+
+        if self.status_message:
+            status_message_element = etree.SubElement(status_element, "StatusMessage")
+            status_message_element.text = self.status_message
+
+        return status_element
 
 
 @dataclass
-class SimpleResponse:
-    version: str
+class Attribute(Base):
+    value: list[str]
+    type: str
+    name: str
+
+    def get_element(self) -> etree._Element:
+        attribute_element = etree.Element("Attribute")
+        attribute_element.set("Name", self.name)
+        attribute_element.set("Type", self.type)
+
+        for val in self.value:
+            value_element = etree.SubElement(attribute_element, "AttributeValue")
+            value_element.text = val
+
+        return attribute_element
+
+
+@dataclass
+class SimpleResponse(MainBase):
+    attribute_list: list[Attribute]
+    authentication_context_class: str
+    created_on: datetime
     id: str
     inresponse_to: str
-    created_on: str
     issuer: str
-    status: SimpleResponseStatus
-    authentication_context_class: str | None = None
-    client_ip_address: str | None = None
-    subject: str | None = None
-    name_id_format: str | None = None
-    attribute_list: list[SimpleResponseAttribute] = field(default_factory=list)
+    name_id: str
+    status: ResponseStatus
+    subject: str
+    version: str = "1"
 
-    @property
-    def is_success(self) -> bool:
-        return self.status.is_success
-
-    @classmethod
-    def from_dict(cls, payload: dict) -> "SimpleResponse":
-        body = payload.get("response", payload)
-        try:
-            status = SimpleResponseStatus.from_dict(body["status"])
-        except KeyError as exc:
-            raise SimpleResponseError("SimpleResponse.status is required") from exc
-
-        for required in ("version", "id", "inresponse_to", "created_on", "issuer"):
-            if required not in body:
-                raise SimpleResponseError(f"SimpleResponse.{required} is required")
-
-        attributes = [
-            SimpleResponseAttribute.from_dict(item)
-            for item in body.get("attribute_list", [])
-        ]
-
-        return cls(
-            version=body["version"],
-            id=body["id"],
-            inresponse_to=body["inresponse_to"],
-            created_on=body["created_on"],
-            issuer=body["issuer"],
-            status=status,
-            authentication_context_class=body.get("authentication_context_class"),
-            client_ip_address=body.get("client_ip_address"),
-            subject=body.get("subject"),
-            name_id_format=body.get("name_id_format"),
-            attribute_list=attributes,
+    def get_element(self) -> etree._Element:
+        response_element = etree.Element("Response")
+        response_element.set("ID", self.id)
+        response_element.set("InResponseTo", self.inresponse_to)
+        response_element.set("Issuer", self.issuer)
+        response_element.set("Version", self.version)
+        response_element.set("IssueInstant", self.created_on.isoformat())
+        response_element.set("NameID", self.name_id)
+        response_element.set(
+            "AuthenticationContextClass", self.authentication_context_class
         )
-
-    @classmethod
-    def from_json(cls, raw: str) -> "SimpleResponse":
-        try:
-            payload = json.loads(raw)
-        except (TypeError, json.JSONDecodeError) as exc:
-            raise SimpleResponseError("SimpleResponse is not valid JSON") from exc
-        return cls.from_dict(payload)
-
-    # -- Convenience accessors -------------------------------------------------
-
-    # eIDAS core minimum dataset friendly names we requested (see
-    # eidas_sp_service.DEFAULT_ATTRIBUTES) mapped to a few tolerant aliases,
-    # in case the IdP echoes them back in a different casing/style.
-    _ALIASES = {
-        "first_name": ("firstname",),
-        "family_name": ("familyname", "lastname", "last_name"),
-        "date_of_birth": ("dateofbirth",),
-        "gender": ("gender",),
-        "person_identifier": ("personidentifier",),
-    }
-
-    def get_attribute(self, canonical_name: str) -> str | None:
-        aliases = self._ALIASES.get(canonical_name, ())
-        wanted = {canonical_name.replace("_", "").lower(), *aliases}
+        response_element.set("Subject", self.subject)
+        response_element.append(self.status.get_element())
         for attr in self.attribute_list:
-            if attr.name.replace("_", "").lower() in wanted:
-                return attr.value
-        return None
+            response_element.append(attr.get_element())
+        return response_element
 
-    def to_person_payload(self) -> dict:
-        """Map the response onto the fields expected by
-        PersonRequestService.save_identified_person_request (mirrors the
-        shape already used by the id.gov.ua/ICEI integration)."""
-        identifier = self.get_attribute("person_identifier") or self.subject
-        loa_map = {"high": "High", "substantial": "Substantial", "low": "Low"}
-        return {
-            "first_name": self.get_attribute("first_name"),
-            "last_name": self.get_attribute("family_name"),
-            "identifier": identifier,
-            "date_of_birth": self.get_attribute("date_of_birth"),
-            "gender": self.get_attribute("gender"),
-            "level_of_assurance": loa_map.get(
-                (self.authentication_context_class or "").lower(), "High"
-            ),
-        }
+
+def parse_response(row_body):
+    row = row_body.split("\n")
+    if len(row) < 2:
+        raise ValueError("Invalid response format")
+    body = json.loads(base64.b64decode(row[-1].encode("utf-8")).decode("utf-8"))
+    response = body.get("response", {})
+
+    al = [
+        Attribute(
+            value=v.get("value", []), type=v.get("type", ""), name=v.get("name", "")
+        )
+        for v in response.get("attribute_list", [])
+    ]
+    status = ResponseStatus(
+        status_code=response.get("status", {}).get("status_code", ""),
+        sub_status_code=response.get("status", {}).get("sub_status_code", ""),
+        status_message=response.get("status", {}).get("status_message", ""),
+    )
+
+    return SimpleResponse(
+        attribute_list=al,
+        authentication_context_class=response.get("authentication_context_class", ""),
+        created_on=datetime.fromisoformat(response.get("created_on", "")),
+        id=response.get("id", ""),
+        inresponse_to=response.get("inresponse_to", ""),
+        issuer=response.get("issuer", ""),
+        name_id=response.get("name_id", ""),
+        status=status,
+        subject=response.get("subject", ""),
+        version=response.get("version", "1"),
+    )

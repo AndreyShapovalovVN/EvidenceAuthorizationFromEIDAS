@@ -37,7 +37,11 @@ class Attribute(Base):
     required: bool = True
 
     def get_element(self) -> etree._Element:
-        return None
+        atritbute_element = etree.Element("Attribute")
+        atritbute_element.set("Name", self.name)
+        atritbute_element.set("NameFormat", "urn:oasis:names:tc:SAML:2.0:attrname-format:uri")
+
+        return atritbute_element
 
     def to_dict(self) -> dict:
         """Serialize per §12.2 SimpleRequest 'attribute_list' entry."""
@@ -55,7 +59,15 @@ class RequestedAuthenticationContext(Base):
     non_notified_context_class: list[str] = field(default_factory=list)
 
     def get_element(self) -> etree._Element:
-        return None
+        context_element = etree.Element("RequestedAuthenticationContext")
+        context_element.set("Comparison", self.comparison)
+        context_element.set("ContextClassRef", self.context_class)
+        if self.non_notified_context_class:
+            context_element.set("NonNotifiedContextClassRef", self.non_notified_context_class)
+            context_element.set("AllowCreate", "true")
+            context_element.set("RequestType", "true")
+
+        return context_element
 
     def to_dict(self) -> dict:
         payload = {
@@ -93,7 +105,19 @@ class AuthenticationRequest(MainBase):
             )
 
     def get_element(self) -> etree._Element:
-        return None
+        request_element = etree.Element("AuthenticationRequest")
+        request_element.set("ID", self.id)
+        request_element.set("Version", self.version)
+        request_element.set("IssueInstant", self.created_on)
+        request_element.set("ProviderName", self.provider_name)
+        request_element.set("AssertionConsumerServiceURL", self.service_url)
+        request_element.set("ForceAuthn", str(self.force_authentication).lower())
+        request_element.set("IsPassive", "false")
+        request_element.append(self.requested_authentication_context.get_element())
+        for attr in self.attribute_list:
+            request_element.append(attr.get_element())
+
+        return request_element
 
     def to_dict(self) -> dict:
         """Serialize to the SimpleRequest JSON envelope shown in guide §12.2."""

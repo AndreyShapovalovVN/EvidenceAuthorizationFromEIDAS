@@ -17,10 +17,12 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from lib.action_token import issue_action_token, verify_action_token
 from lib.eidas_autofill_service import EidasAutofillService
 from lib.eidas_sp_service import (
+    EIDAS_SPECIFIC_CONNECTOR_URL,
     SEND_METHOD_FIELD,
     SEND_METHOD_VALUE,
     SIMPLE_RESPONSE_FIELD,
-    EidasSpService,
+    create_request,
+    parse_response,
 )
 from lib.ICEI import ICEIError, IdICEI
 from lib.MessageChecker import check_message
@@ -59,7 +61,6 @@ EIDAS_SP_PUBLIC_BASE_URL = os.getenv("EIDAS_SP_PUBLIC_BASE_URL")
 EIDAS_SP_CALLBACK_PATH = "/auth/eidas/callback"
 
 KEYS = PreviewKeys()
-EIDAS_SP_SERVICE = EidasSpService()
 
 logging.basicConfig(level=logging.DEBUG)
 _logger = logging.getLogger("Authorization UI")
@@ -93,7 +94,9 @@ def _build_eidas_autofill_service() -> EidasAutofillService | None:
 
 
 try:
-    EIDAS_AUTOFILL_SERVICE: EidasAutofillService | None = _build_eidas_autofill_service()
+    EIDAS_AUTOFILL_SERVICE: EidasAutofillService | None = (
+        _build_eidas_autofill_service()
+    )
 except Exception as exc:
     _logger.warning("eIDAS autofill is disabled: %s", exc)
     EIDAS_AUTOFILL_SERVICE = None
@@ -107,6 +110,7 @@ COMMON_ERROR_RESPONSES = {
     502: {"description": "Bad gateway"},
     503: {"description": "Service unavailable"},
 }
+
 
 async def _get_safe_returnurl(client, request: Request, message_id: str) -> str | None:
     returnurl = request.query_params.get("returnurl")
@@ -162,6 +166,7 @@ def _raise_if_message_timed_out(status, message_id: str) -> None:
             status_code=408,
             detail=f"Таймаут очікування preview для message_id={message_id}",
         )
+
 
 def _fromstring_filter(xml_payload: str):
     """Parse XML for legacy Jinja template accordion rendering."""
@@ -254,7 +259,9 @@ async def root(request: Request, message_id: UUID):
     if request_edm is None:
         return _render_invalid_link_or_raise(request, returnurl)
 
-    existing_person = await client.get_from_redis(KEYS.get_request_person(message_id_str))
+    existing_person = await client.get_from_redis(
+        KEYS.get_request_person(message_id_str)
+    )
     if existing_person is not None:
         return templates.TemplateResponse(
             request,
@@ -285,6 +292,7 @@ async def root(request: Request, message_id: UUID):
             "auth_continue_token": issue_action_token(message_id_str, "auth-continue"),
         },
     )
+
 
 @app.post(
     "/auth/continue",
@@ -420,9 +428,7 @@ async def icei_callback(code: str, state: str):
         icei = IdICEI(redirect_uri=ICEI_REDIRECT_URI)
         profile = await icei.fetch_person(code)
     except ICEIError:
-        _logger.exception(
-            "ICEI identification failed for message_id=%s", message_id
-        )
+        _logger.exception("ICEI identification failed for message_id=%s", message_id)
         raise HTTPException(
             status_code=502,
             detail=f"ICEI identification failed for message_id={message_id}",
@@ -482,10 +488,7 @@ async def eidas_start(request: Request, message_id: UUID):
             detail=f"Invalid message_id: EDM not found for {message_id_str}",
         )
 
-    base_url = EIDAS_SP_PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
-    callback_url = f"{base_url}{EIDAS_SP_CALLBACK_PATH}"
-
-    auth_request = EIDAS_SP_SERVICE.build_auth_request(service_url=callback_url)
+    auth_request = create_request()
 
     # Зберігаємо request.id -> message_id, щоб зіставити SimpleResponse
     # (поле inresponse_to) з message_id при отриманні callback-у.
@@ -496,15 +499,15 @@ async def eidas_start(request: Request, message_id: UUID):
         "eIDAS SP start: message_id=%s request_id=%s -> %s",
         message_id_str,
         auth_request.id,
-        EIDAS_SP_SERVICE.specific_connector_url,
+        EIDAS_SPECIFIC_CONNECTOR_URL,
     )
 
     return templates.TemplateResponse(
         request,
         "eidas_redirect.html",
         {
-            "specific_connector_url": EIDAS_SP_SERVICE.specific_connector_url,
-            "simple_request_b64": EidasSpService.encode_request(auth_request),
+            "specific_connector_url": EIDAS_SPECIFIC_CONNECTOR_URL,
+            "simple_request_b64": create_request(),
             "send_method_field": SEND_METHOD_FIELD,
             "send_method_value": SEND_METHOD_VALUE,
         },
@@ -533,9 +536,11 @@ def _parse_simple_response(raw_body: str | None):
     if not raw_body:
         raise HTTPException(status_code=400, detail="Missing SimpleResponse payload")
     try:
-        return EIDAS_SP_SERVICE.parse_response(raw_body)
+        return parse_response(raw_body)
     except SimpleResponseError as exc:
-        raise HTTPException(status_code=400, detail=f"Malformed SimpleResponse: {exc}") from exc
+        raise HTTPException(
+            status_code=400, detail=f"Malformed SimpleResponse: {exc}"
+        ) from exc
 
 
 async def _pop_eidas_message_id(client, request_id: str) -> str:
@@ -547,7 +552,9 @@ async def _pop_eidas_message_id(client, request_id: str) -> str:
 
     if not isinstance(state_data, dict) or not state_data.get("message_id"):
         _logger.warning("eIDAS callback: invalid or expired request id")
-        raise HTTPException(status_code=400, detail="Invalid or expired eIDAS request id")
+        raise HTTPException(
+            status_code=400, detail="Invalid or expired eIDAS request id"
+        )
 
     return state_data["message_id"]
 
@@ -598,7 +605,9 @@ async def _save_eidas_person(client, message_id: str, person_payload: dict) -> N
     "/auth/eidas/callback",
     tags=["eIDAS"],
     responses={
-        400: {"description": "Invalid or expired request id / malformed SimpleResponse"},
+        400: {
+            "description": "Invalid or expired request id / malformed SimpleResponse"
+        },
         422: {"description": "Invalid identified person data"},
         502: {"description": "eIDAS authentication failed"},
         503: {"description": "Redis save failed"},
