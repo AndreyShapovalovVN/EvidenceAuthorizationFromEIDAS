@@ -3,7 +3,7 @@ import json
 import re
 from binascii import Error as BinasciiError
 from dataclasses import dataclass, field
-from datetime import datetime
+import datetime
 from urllib.parse import parse_qs
 
 from lxml import etree
@@ -62,7 +62,7 @@ class SimpleResponse(MainBase):
     _name_ = "simple_response"
     attribute_list: list[Attribute] = field(default_factory=list)
     authentication_context_class: str = ""
-    created_on: datetime = field(default_factory=datetime.now)
+    created_on: datetime.datetime = field(default_factory=datetime.datetime.now)
     id: str = ""
     inresponse_to: str = ""
     issuer: str = ""
@@ -144,14 +144,14 @@ class SimpleResponse(MainBase):
         }
 
 
-def _parse_datetime(value: str | None) -> datetime:
+def _parse_datetime(value: str | None) -> datetime.datetime:
     if not value:
-        return datetime.now()
+        return datetime.datetime.now(datetime.UTC)
     clean = value.strip()
     if clean.endswith("Z"):
         clean = f"{clean[:-1]}+00:00"
     try:
-        return datetime.fromisoformat(clean)
+        return datetime.datetime.fromisoformat(clean)
     except ValueError as exc:
         raise SimpleResponseError(f"Invalid response timestamp: {value}") from exc
 
