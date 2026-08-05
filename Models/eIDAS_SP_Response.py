@@ -165,28 +165,22 @@ def _pick(payload: dict, *keys: str, default=None):
 
 def _coerce_attribute_values(raw_attribute: dict) -> list[str]:
     if "value" in raw_attribute:
-        raw_value = raw_attribute["value"]
-        if isinstance(raw_value, list):
-            return [str(item) for item in raw_value if item not in (None, "")]
-        if raw_value in (None, ""):
-            return []
-        return [str(raw_value)]
+        raw_values = raw_attribute["value"]
+    elif "values" in raw_attribute:
+        raw_values = raw_attribute["values"]
+    else:
+        return []
 
-    if "values" in raw_attribute:
-        values = raw_attribute["values"]
-        if not isinstance(values, list):
-            return [str(values)]
-        result: list[str] = []
-        for item in values:
-            if isinstance(item, dict):
-                value = _pick(item, "value", "Value")
-                if value not in (None, ""):
-                    result.append(str(value))
-            elif item not in (None, ""):
-                result.append(str(item))
-        return result
+    values = raw_values if isinstance(raw_values, list) else [raw_values]
 
-    return []
+    result: list[str] = []
+    for item in values:
+        value = _pick(item, "value", "Value") if isinstance(item, dict) else item
+
+        if value not in (None, ""):
+            result.append(str(value))
+
+    return result
 
 
 def _load_json_from_raw(raw_body: str) -> dict:
@@ -194,46 +188,45 @@ def _load_json_from_raw(raw_body: str) -> dict:
     if not trimmed:
         raise SimpleResponseError("Empty SimpleResponse payload")
 
-    if trimmed.startswith("{"):
-        try:
-            payload = json.loads(trimmed)
-        except json.JSONDecodeError as exc:
-            raise SimpleResponseError("SimpleResponse payload is not valid JSON") from exc
-        if not isinstance(payload, dict):
-            raise SimpleResponseError("SimpleResponse JSON must be an object")
-        return payload
+    if not trimmed.startswith("{"):
+        qs = parse_qs(trimmed, keep_blank_values=True)
+        smssp_values = qs.get("SMSSPResponse")
 
-    qs = parse_qs(trimmed, keep_blank_values=True)
-    smssp_values = qs.get("SMSSPResponse") if qs else None
-    if smssp_values:
-        trimmed = smssp_values[-1].strip()
+        if smssp_values:
+            trimmed = smssp_values[-1].strip()
 
     if trimmed.startswith("{"):
-        try:
-            payload = json.loads(trimmed)
-        except json.JSONDecodeError as exc:
-            raise SimpleResponseError("SimpleResponse payload is not valid JSON") from exc
-        if not isinstance(payload, dict):
-            raise SimpleResponseError("SimpleResponse JSON must be an object")
-        return payload
+        json_body = trimmed
+        error_prefix = "SimpleResponse"
+    else:
+        compact = re.sub(r"\s+", "", trimmed)
 
-    compact = re.sub(r"\s+", "", trimmed)
+        try:
+            json_body = base64.b64decode(
+                compact,
+                validate=True,
+            ).decode("utf-8")
+        except (BinasciiError, UnicodeDecodeError) as exc:
+            raise SimpleResponseError(
+                "SimpleResponse is neither JSON nor a valid "
+                "base64-encoded JSON payload"
+            ) from exc
+
+        error_prefix = "Decoded SimpleResponse"
+
     try:
-        decoded = base64.b64decode(compact, validate=True).decode("utf-8")
-    except (BinasciiError, UnicodeDecodeError) as exc:
+        payload = json.loads(json_body)
+    except json.JSONDecodeError as exc:
         raise SimpleResponseError(
-            "SimpleResponse is neither JSON nor a valid base64-encoded JSON payload"
+            f"{error_prefix} payload is not valid JSON"
         ) from exc
 
-    try:
-        payload = json.loads(decoded)
-    except json.JSONDecodeError as exc:
-        raise SimpleResponseError("Decoded SimpleResponse is not valid JSON") from exc
-
     if not isinstance(payload, dict):
-        raise SimpleResponseError("Decoded SimpleResponse JSON must be an object")
-    return payload
+        raise SimpleResponseError(
+            f"{error_prefix} JSON must be an object"
+        )
 
+    return payload
 
 def parse_response(raw_body: str) -> SimpleResponse:
     payload = _load_json_from_raw(raw_body)
