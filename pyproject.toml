@@ -14,6 +14,7 @@ dependencies = [
     "xmltodict==0.13.0",
     "multipart==2.0.0",
     "httpx==0.28.1",
+    "python-multipart==0.0.32",
 ]
 
 [project.optional-dependencies]
