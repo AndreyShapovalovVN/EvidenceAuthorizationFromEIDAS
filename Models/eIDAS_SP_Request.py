@@ -56,7 +56,6 @@ class AuthenticationRequest(MainBase):
         )
     )
     citizen_country: str = ""
-    citizen_city: str = ""
     force_authentication: bool = False
     provider_name: str = ""
     requester_id: str = ""

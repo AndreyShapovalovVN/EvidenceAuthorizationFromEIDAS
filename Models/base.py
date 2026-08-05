@@ -59,11 +59,11 @@ class MainBase(Base):
         return xml_bytes.decode("utf-8")
 
     def get_dict(self) -> dict:
-        r = asdict(self)
-        r.pop("_name_", None)
+        return_dict = asdict(self)
+        return_dict.pop("_name_", None)
         if self._name_:
-            return {self._name_: r}
-        return r
+            return {self._name_: return_dict}
+        return return_dict
 
     def get_json(self) -> str:
         return json.dumps(self.get_dict(), default=str, ensure_ascii=False)
