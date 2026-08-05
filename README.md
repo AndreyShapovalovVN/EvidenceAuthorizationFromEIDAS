@@ -5,7 +5,7 @@
 ## Основні можливості
 
 - темна сторінка авторизації з шаблону `templates/login.html`;
-- кнопка `Log in via eIDAS`, яка заповнює демо-дані у форму;
+- кнопка `Log in via eIDAS`, яка запускає реальний eIDAS Simple Protocol flow через Specific Connector;
 - перевірка Redis перед рендерингом сторінки авторизації;
 - збереження `Person` у Redis за ключем `oots:message:request:person:{message_id}`;
 - постановка `message_id` у Redis-чергу `process_queue` з EDM payload;
@@ -108,9 +108,12 @@
 
 ### `GET /auth/eidas/login`
 
-Тимчасовий eIDAS login endpoint для демо: повертає тестові дані для автозаповнення форми.
+Dev/QA endpoint: повертає тестові дані для автозаповнення форми.
 
-Кнопка `Log in via eIDAS` викликає саме цей маршрут.
+Маршрут лишено для ручного тестування; основний login flow використовує:
+
+- `GET /auth/eidas/start/{message_id}`
+- `POST /auth/eidas/callback`
 
 ---
 
@@ -222,6 +225,15 @@ JSON API для поллінгу прогресу.
 | `ACTION_TOKEN_SECRET` | `dev-action-secret` | Master secret для HMAC; використовується для derivation dynamic signing key |
 | `ACTION_TOKEN_KEY_SALT` | `action-token-v2` | Salt для derivation ключа підпису, прив'язаного до `message_id` + `action` |
 | `ACTION_TOKEN_TTL` | `900` | TTL action-токена у секундах |
+| `EIDAS_SPECIFIC_CONNECTOR_URL` | `https://connector.eidas.k8s/SpecificConnector/ServiceProvider` | URL Specific Connector для відправки `SMSSPRequest` |
+| `EIDAS_SP_PUBLIC_BASE_URL` | _(не задано)_ | Публічний base URL цього сервісу для формування callback `.../auth/eidas/callback` |
+| `EIDAS_SP_CALLBACK_URL` | _(не задано)_ | Явний callback URL; має пріоритет над `EIDAS_SP_PUBLIC_BASE_URL` |
+| `EIDAS_SP_PROVIDER_NAME` | `DEMO-SP-CA` | Provider name у `authentication_request` |
+| `EIDAS_SP_REQUESTER_ID` | `https://eidas.example.org/RequesterId_CA` | Requester ID у `authentication_request` |
+| `EIDAS_SP_CITIZEN_COUNTRY` | `CA` | Країна громадянства для eIDAS запиту |
+| `EIDAS_SP_LEVEL_OF_ASSURANCE` / `EIDAS_SP_LOA` | `A` | Requested LoA |
+| `EIDAS_SP_TYPE` | `public` | Тип SP (`public` або `private`) |
+| `EIDAS_SP_ID_POLICY` | `unspecified` | NameID policy |
 
 ### Security-конфігурація (dev/test/prod)
 

@@ -33,9 +33,12 @@ class RequestedAuthenticationContext(Base):
     def get_element(self) -> etree._Element:
         context_element = etree.Element("RequestedAuthenticationContext")
         context_element.set("Comparison", self.comparison)
-        context_element.set("ContextClassRef", self.context_class)
+        context_element.set("ContextClassRef", ",".join(self.context_class))
         if self.non_notified_context_class:
-            context_element.set("NonNotifiedContextClassRef", self.non_notified_context_class)
+            context_element.set(
+                "NonNotifiedContextClassRef",
+                ",".join(self.non_notified_context_class),
+            )
             context_element.set("AllowCreate", "true")
             context_element.set("RequestType", "true")
 
@@ -46,17 +49,25 @@ class RequestedAuthenticationContext(Base):
 class AuthenticationRequest(MainBase):
     _name_ = "authentication_request"
     attribute_list: list[Attribute] = field(default_factory=list)
-    requested_authentication_context: RequestedAuthenticationContext = field(default_factory=RequestedAuthenticationContext)
+    requested_authentication_context: RequestedAuthenticationContext = field(
+        default_factory=lambda: RequestedAuthenticationContext(
+            comparison="minimum",
+            context_class=[],
+        )
+    )
     citizen_country: str = ""
     citizen_city: str = ""
     force_authentication: bool = False
     provider_name: str = ""
     requester_id: str = ""
     serviceUrl: str = ""
+    name_id_policy: str = "unspecified"
     sp_type: str = "private"
     version: str = "1"
-    id: str = str(uuid.uuid4())
-    created_on: str = datetime.datetime.now(tz=datetime.UTC).isoformat()
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    created_on: str = field(
+        default_factory=lambda: datetime.datetime.now(tz=datetime.UTC).isoformat()
+    )
 
     def get_element(self) -> etree._Element:
         request_element = etree.Element("AuthenticationRequest")

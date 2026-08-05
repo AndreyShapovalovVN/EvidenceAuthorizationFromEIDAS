@@ -2,12 +2,12 @@ from lxml import etree
 
 
 class NS:
-    _xml: etree._Element
+    _xml: etree._Element | None
     _ns: dict[str, str] = {
         "xsi": "http://www.w3.org/2001/XMLSchema-instance",
         "rs": "urn:oasis:names:tc:ebxml-regrep:xsd:rs:4.0",
         "rim": "urn:oasis:names:tc:ebxml-regrep:xsd:rim:4.0",
-        "sdg": "http://data.europa.eu/p4s",
+        "sdg": "http://data.europa.eu/p4s",  # NOSONAR
         "query": "urn:oasis:names:tc:ebxml-regrep:xsd:query:4.0",
         "xlink": "http://www.w3.org/1999/xlink",
         "xml": "http://www.w3.org/XML/1998/namespace",
