@@ -18,9 +18,9 @@ EIDAS_SP_CITIZEN_COUNTRY = os.getenv("EIDAS_SP_CITIZEN_COUNTRY", "CA")
 EIDAS_SP_LOA = os.getenv("EIDAS_SP_LEVEL_OF_ASSURANCE") or os.getenv("EIDAS_SP_LOA", "A")
 EIDAS_SP_TYPE = os.getenv("EIDAS_SP_TYPE", "public")
 EIDAS_SP_ID_POLICY = os.getenv("EIDAS_SP_ID_POLICY", "unspecified")
-_public_base_url = os.getenv("EIDAS_SP_PUBLIC_BASE_URL")
+_public_base_url = os.getenv("AUTH_URL")
 EIDAS_SP_CALLBACK_URL = os.getenv("EIDAS_SP_CALLBACK_URL") or (
-    f"{_public_base_url.rstrip('/')}/auth/eidas/callback"
+    f"{_public_base_url.rstrip('/')}/eidas/callback"
     if _public_base_url
     else "http://localhost:8000/auth/eidas/callback"
 )
