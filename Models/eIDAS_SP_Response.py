@@ -1,6 +1,6 @@
 import base64
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from lxml import etree
@@ -56,15 +56,16 @@ class Attribute(Base):
 
 @dataclass
 class SimpleResponse(MainBase):
-    attribute_list: list[Attribute]
-    authentication_context_class: str
-    created_on: datetime
-    id: str
-    inresponse_to: str
-    issuer: str
-    name_id: str
-    status: ResponseStatus
-    subject: str
+    _name_ = "simple_response"
+    attribute_list: list[Attribute] = field(default_factory=list)
+    authentication_context_class: str = ""
+    created_on: datetime = field(default_factory=datetime.now)
+    id: str = ""
+    inresponse_to: str = ""
+    issuer: str = ""
+    name_id: str = ""
+    status: ResponseStatus = field(default_factory=ResponseStatus)
+    subject: str = ""
     version: str = "1"
 
     def get_element(self) -> etree._Element:

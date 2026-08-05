@@ -507,7 +507,7 @@ async def eidas_start(request: Request, message_id: UUID):
         "eidas_redirect.html",
         {
             "specific_connector_url": EIDAS_SPECIFIC_CONNECTOR_URL,
-            "simple_request_b64": create_request(),
+            "simple_request_b64": auth_request.get_base64(),
             "send_method_field": SEND_METHOD_FIELD,
             "send_method_value": SEND_METHOD_VALUE,
         },

@@ -42,6 +42,8 @@ class Base(ABC):
 
 @dataclass
 class MainBase(Base):
+    _name_: str | None = None
+
     @classmethod
     def set_from_dict(cls, data: dict):
         raise NotImplementedError(
@@ -57,7 +59,11 @@ class MainBase(Base):
         return xml_bytes.decode("utf-8")
 
     def get_dict(self) -> dict:
-        return asdict(self)
+        r = asdict(self)
+        r.pop("_name_", None)
+        if self._name_:
+            return {self._name_: r}
+        return r
 
     def get_json(self) -> str:
         return json.dumps(self.get_dict(), default=str, ensure_ascii=False)
