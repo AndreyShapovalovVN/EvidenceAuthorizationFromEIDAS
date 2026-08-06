@@ -632,7 +632,8 @@ async def eidas_callback(request: Request):
         person_payload["last_name"],
         person_payload["first_name"],
     )
-    return RedirectResponse(url=f"/preview/{message_id}", status_code=307)
+    # Callback is POST-based; 303 ensures the browser follows with GET /preview/{id}.
+    return RedirectResponse(url=f"/preview/{message_id}", status_code=303)
 
 
 async def _render_evidence_page(request: Request, message_id: str) -> HTMLResponse:

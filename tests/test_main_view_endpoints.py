@@ -193,6 +193,43 @@ def test_eidas_autofill_uses_bundled_fallback(monkeypatch):
     assert service.csv_path == main.BASE_DIR / "tests" / "eIDAS-id-data-test.csv"
 
 
+def test_eidas_callback_redirects_to_preview_with_get(client, fake_redis_client, monkeypatch):
+    class StubSimpleResponse:
+        inresponse_to = "req-1"
+        is_success = True
+
+        class status:
+            status_code = "Success"
+            status_message = "OK"
+            sub_status_code = None
+
+        @staticmethod
+        def to_person_payload():
+            return {
+                "first_name": "Andrii",
+                "last_name": "Kovalenko",
+                "identifier": "UA/UA/3124509876",
+                "date_of_birth": "1992-04-18",
+                "gender": "M",
+                "level_of_assurance": "High",
+            }
+
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+    monkeypatch.setattr(main, "_read_simple_response_body", AsyncMock(return_value="raw"))
+    monkeypatch.setattr(main, "_parse_simple_response", lambda raw: StubSimpleResponse())
+    monkeypatch.setattr(
+        main,
+        "_pop_eidas_message_id",
+        AsyncMock(return_value="00000000-0000-0000-0000-000000000015"),
+    )
+    monkeypatch.setattr(main, "_save_eidas_person", AsyncMock(return_value=None))
+
+    response = client.post("/auth/eidas/callback", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/preview/00000000-0000-0000-0000-000000000015"
+
+
 def test_view_returns_404_when_data_missing(client, fake_redis_client, monkeypatch):
     fake_redis_client.get_flag.return_value = True
     fake_redis_client.get_from_redis.return_value = None
