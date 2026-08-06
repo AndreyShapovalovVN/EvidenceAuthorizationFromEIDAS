@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/base.css">
 </head>
 <body>
+{% autoescape true %}
 <div class="wrapper">
     <h2 class="page-title">📄 XML Documents Viewer</h2>
     <p class="page-subtitle">Click to expand each element:</p>
@@ -21,7 +22,7 @@
           <details class="accordion">
             <summary>{{ child.tag }}</summary>
             <div class="accordion-body">
-              {{ render_tree(child, child_id ~ '-')|safe }}
+              {{ render_tree(child, child_id ~ '-') }}
             </div>
           </details>
         {% elif has_text %}
@@ -47,7 +48,7 @@
 
             {% set root = xml_doc.xml | fromstring %}
             {% if root is not none %}
-                {{ render_tree(root, loop.index ~ '-0-')|safe }}
+                {{ render_tree(root, loop.index ~ '-0-') }}
             {% else %}
                 <div class="notice">⚠ XML parsing error</div>
             {% endif %}
@@ -105,5 +106,6 @@
         });
     });
 </script>
+{% endautoescape %}
 </body>
 </html>
