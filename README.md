@@ -106,17 +106,6 @@
 
 ---
 
-### `GET /auth/eidas/login`
-
-Dev/QA endpoint: повертає тестові дані для автозаповнення форми.
-
-Маршрут лишено для ручного тестування; основний login flow використовує:
-
-- `GET /auth/eidas/start/{message_id}`
-- `POST /auth/eidas/callback`
-
----
-
 ### `GET /preview/{message_id}`
 
 Сторінка очікування та перегляду evidence.

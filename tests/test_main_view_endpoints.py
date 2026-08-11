@@ -174,23 +174,12 @@ def test_auth_builds_continue_url_to_preview_without_returnurl(client, fake_redi
     assert 'const continueUrl = "/preview/00000000-0000-0000-0000-000000000007";' in response.text
 
 
-def test_eidas_autofill_uses_bundled_fallback(monkeypatch):
-    class StubAutofillService:
-        def __init__(self, csv_path):
-            self.csv_path = csv_path
-            if csv_path.name == "broken.csv":
-                raise ValueError("missing")
+def test_eidas_autofill_routes_are_removed(client):
+    response = client.get("/auth/eidas/login")
+    assert response.status_code == 404
 
-        def get_next_payload(self):
-            return {"identifier": "UA/UA/1"}
-
-    monkeypatch.setattr(main, "EIDAS_TEST_DATA_PATH", main.BASE_DIR / "broken.csv")
-    monkeypatch.setattr(main, "EidasAutofillService", StubAutofillService)
-
-    service = main._build_eidas_autofill_service()
-
-    assert service is not None
-    assert service.csv_path == main.BASE_DIR / "tests" / "eIDAS-id-data-test.csv"
+    response = client.get("/auth/eidas/next")
+    assert response.status_code == 404
 
 
 def test_eidas_callback_redirects_to_preview_with_get(client, fake_redis_client, monkeypatch):
