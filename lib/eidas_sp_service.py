@@ -39,7 +39,7 @@ def _build_callback_url(public_base_url: str | None = None) -> str:
 
     auth_url = os.getenv("AUTH_URL")
     if auth_url:
-        return f"{auth_url.rstrip('/')}{EIDAS_SP_CALLBACK_PATH}"
+        return f"{auth_url.rstrip('/').removesuffix('/auth')}{EIDAS_SP_CALLBACK_PATH}"
 
     return f"http://localhost:8000{EIDAS_SP_CALLBACK_PATH}"
 
