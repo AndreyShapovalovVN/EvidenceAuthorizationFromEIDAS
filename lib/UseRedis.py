@@ -3,10 +3,11 @@ import inspect
 import json
 import logging
 import os
-from typing import Any, Optional, Self
+from typing import Any, Optional
 
 import redis
 import redis.asyncio as Redis
+from redis.maint_notifications import MaintNotificationsConfig
 
 _logger = logging.getLogger(__name__)
 
@@ -39,10 +40,10 @@ def get_redis_client() -> "UseRedisAsync":
 
 
 async def initialize_redis(redis_url: str | None = None) -> "UseRedisAsync":
-    """Ініціалізує глобальне з'єднання Redis на старті додатку.
+    """Ініціалізує глобальне з'єднання Redis на старті додатка.
 
     Args:
-        redis_url: URL для підключення. Якщо None - використовує REDIS_URL з оточення
+        redis_url: URL для підключення. Якщо None використовує REDIS_URL з оточення
 
     Returns:
         Ініціалізований екземпляр UseRedisAsync
@@ -74,11 +75,12 @@ class UseRedisAsync:
     """
 
     def __init__(
-            self,
-            redis_url: str | Redis.Redis | None = None,
-            redis_prefix: str | None = None,
+        self,
+        redis_url: str | Redis.Redis | None = None,
+        redis_prefix: str | None = None,
     ):
         self._redis_prefix = self._normalize_prefix(
+            # pyrefly: ignore [bad-argument-type]
             redis_prefix if redis_prefix is not None else REDIS_PREFIX
         )
         try:
@@ -87,11 +89,17 @@ class UseRedisAsync:
             else:
                 url = redis_url if isinstance(redis_url, str) else REDIS_URL
                 _logger.debug(f"URL підключення Redis: {url}")
-                self._redis_client = Redis.from_url(url)
+                self._redis_client = Redis.from_url(
+                    url,
+                    protocol=3,
+                    socket_timeout=REDIS_TIMEOUT + 5,
+                    socket_connect_timeout=5,
+                    maint_notifications_config=MaintNotificationsConfig(enabled=False),
+                )
         except Exception as e:
             raise redis.exceptions.ConnectionError(
-                f"Не вдалось підключитись до Redis: {e}"
-            )
+                f"Не вдалося під'єднатись до Redis: {e}"
+            )  # noqa: B904
 
     @staticmethod
     def _normalize_prefix(prefix: str) -> str:
@@ -123,8 +131,8 @@ class UseRedisAsync:
             data = json.loads(data)
             _logger.debug(f"Отримано дані з Redis для ключа {redis_key}: {data}")
             return data
-        except json.JSONDecodeError:
-            _logger.exception("Не вдалось розшифрувати JSON для ключа %s", redis_key)
+        except json.JSONDecodeError as e:
+            _logger.debug(f"Не вдалося розшифрувати JSON для ключа {redis_key}: {e}")
             return None
 
     async def get_raw_from_redis(self, key: str | None) -> bytes | None:
@@ -144,7 +152,9 @@ class UseRedisAsync:
         _logger.debug(f"Отримано сирі дані з Redis для ключа {redis_key}: {data}")
         return data if isinstance(data, bytes) else None
 
-    async def save_to_redis(self, key: str | None, data: dict[Any, Any] | list | str) -> None:
+    async def save_to_redis(
+        self, key: str | None, data: dict[Any, Any] | list | str
+    ) -> None:
         """Зберігає дані як JSON до Redis з TTL.
 
         Args:
@@ -167,8 +177,13 @@ class UseRedisAsync:
         """
         if key is None:
             raise KeyIsNone()
+        if data is None:
+            raise ValueError("Сирі дані не можуть бути None")
+        if not isinstance(data, bytes):
+            raise ValueError("Сирі дані повинні бути типу bytes")
 
         redis_key = self._prefixed_key(key)
+
         await self._redis_client.set(redis_key, data, ex=TTL)
         _logger.debug(f"Збережено сирі дані до Redis для ключа {redis_key}: {data}")
 
@@ -222,18 +237,22 @@ class UseRedisAsync:
         data = await self._redis_client.get(redis_key)
 
         if data is None:
-            _logger.debug(f"Прапор {redis_key} не знайдено, повертаємо default: {default}")
+            _logger.debug(
+                f"Прапор {redis_key} не знайдено, повертаємо default: {default}"
+            )
             return default
 
         try:
             value = json.loads(data)
             if not isinstance(value, bool):
-                _logger.warning(f"Значення прапора {redis_key} не є boolean: {value}, повертаємо default")
+                _logger.warning(
+                    f"Значення прапора {redis_key} не є boolean: {value}, повертаємо default"
+                )
                 return default
             _logger.debug(f"Отримано прапор {redis_key} = {value}")
             return value
-        except json.JSONDecodeError:
-            _logger.exception("Не вдалося розшифрувати булевий прапор %s", redis_key)
+        except json.JSONDecodeError as e:
+            _logger.debug(f"Не вдалося розшифрувати булевий прапор {redis_key}: {e}")
             return default
 
     @staticmethod
@@ -241,27 +260,22 @@ class UseRedisAsync:
         return value.decode("utf-8") if isinstance(value, bytes) else str(value)
 
     async def pop_from_queue(
-            self,
-            queue_name: str | None = None,
-            return_tuple_as_string: bool = False,
+        self,
+        queue_name: str | None = None,
+        return_tuple_as_string: bool = False,
     ) -> str | None:
-        """Отримує повідомлення з Redis-черги list.
-
-        Args:
-            queue_name: Назва черги Redis list
-            return_tuple_as_string: Якщо True, повертає рядок-кортеж
-                у форматі "(<queue>, <payload>)". За замовчуванням
-                повертається лише payload як str.
-
-        Returns:
-            Повідомлення з черги або None якщо черга порожня
-        """
         if queue_name is None:
             raise KeyIsNone()
 
         redis_queue = self._prefixed_key(queue_name)
 
-        result = await self._redis_client.brpop([redis_queue], timeout=REDIS_TIMEOUT)
+        try:
+            result = await self._redis_client.brpop(
+                [redis_queue], timeout=REDIS_TIMEOUT
+            )
+        except redis.exceptions.TimeoutError:
+            _logger.debug(f"BRPOP таймаут по черзі {redis_queue}, черга порожня")
+            return None
 
         if result is None:
             return None
@@ -317,14 +331,14 @@ class UseRedisAsync:
                 _logger.debug("Redis клієнт не має close/aclose")
                 return
 
-            close_result = close_fn()
+            close_result = close_fn
             if inspect.isawaitable(close_result):
                 await close_result
             _logger.debug("Redis з'єднання закрито")
-        except Exception:
-            _logger.exception("Помилка при закритті Redis")
+        except Exception as e:
+            _logger.debug(f"Помилка при закритті Redis: {e}")
 
-    async def __aenter__(self) -> Self:
+    async def __aenter__(self) -> "UseRedisAsync":
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
