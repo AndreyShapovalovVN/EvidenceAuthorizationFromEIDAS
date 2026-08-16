@@ -12,10 +12,10 @@ from oots_lib.import_env import import_env
 _logger = logging.getLogger(__name__)
 
 IDGOV_BASE_URL = import_env("IDGOV_BASE_URL", "https://test.id.gov.ua")
-IDGOV_CLIENT_ID = import_env("ICEI_CLIENT_ID")
-IDGOV_CLIENT_SECRET = import_env("ICEI_CLIENT_SECRET")
+IDGOV_CLIENT_ID = import_env("ICEI_CLIENT_ID", "")
+IDGOV_CLIENT_SECRET = import_env("ICEI_CLIENT_SECRET", "")
 IDGOV_AUTH_TYPE = import_env("ICEI_AUTH_TYPE", "dig_sign")
-IIT_DECRYPTOR_FUNC = import_env("IIT_DECRYPTOR_FUNC")
+IIT_DECRYPTOR_FUNC = import_env("IIT_DECRYPTOR_FUNC", "")
 
 # Поля сертифіката, що запитуються (Таблиця 2.2.6 специфікації)
 DEFAULT_FIELDS = (
