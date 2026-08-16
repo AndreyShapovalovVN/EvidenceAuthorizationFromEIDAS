@@ -1,5 +1,4 @@
 import logging
-import os
 
 from fastapi import HTTPException, Request
 
@@ -16,35 +15,37 @@ from Models.eIDAS_SP_Response import (
     parse_response as parse_eidas_response,
 )
 
+from oots_lib.import_env import import_env
+
 _logger = logging.getLogger(__name__)
 
-EIDAS_SPECIFIC_CONNECTOR_URL = os.getenv(
+EIDAS_SPECIFIC_CONNECTOR_URL = import_env(
     "EIDAS_SPECIFIC_CONNECTOR_URL",
     "https://connector.eidas.k8s/SpecificConnector/ServiceProvider",
 )
 
-EIDAS_SP_PROVIDER_NAME = os.getenv("EIDAS_SP_PROVIDER_NAME", "DEMO-SP-CA")
-EIDAS_SP_REQUESTER_ID = os.getenv("EIDAS_SP_REQUESTER_ID", "https://eidas.example.org/RequesterId_CA")
-EIDAS_SP_CITIZEN_COUNTRY = os.getenv("EIDAS_SP_CITIZEN_COUNTRY", "CA")
-EIDAS_SP_LOA = os.getenv("EIDAS_SP_LEVEL_OF_ASSURANCE") or os.getenv("EIDAS_SP_LOA", "A")
-EIDAS_SP_TYPE = os.getenv("EIDAS_SP_TYPE", "public")
-EIDAS_SP_ID_POLICY = os.getenv("EIDAS_SP_ID_POLICY", "unspecified")
-EIDAS_SP_PUBLIC_BASE_URL = os.getenv("EIDAS_SP_PUBLIC_BASE_URL")
-EIDAS_SP_CALLBACK_PATH = os.getenv("EIDAS_SP_CALLBACK_PATH", "/auth/eidas/callback")
+EIDAS_SP_PROVIDER_NAME = import_env("EIDAS_SP_PROVIDER_NAME", "DEMO-SP-CA")
+EIDAS_SP_REQUESTER_ID = import_env("EIDAS_SP_REQUESTER_ID", "https://eidas.example.org/RequesterId_CA")
+EIDAS_SP_CITIZEN_COUNTRY = import_env("EIDAS_SP_CITIZEN_COUNTRY", "CA")
+EIDAS_SP_LOA = import_env("EIDAS_SP_LEVEL_OF_ASSURANCE") or import_env("EIDAS_SP_LOA", "A")
+EIDAS_SP_TYPE = import_env("EIDAS_SP_TYPE", "public")
+EIDAS_SP_ID_POLICY = import_env("EIDAS_SP_ID_POLICY", "unspecified")
+EIDAS_SP_PUBLIC_BASE_URL = import_env("EIDAS_SP_PUBLIC_BASE_URL")
+EIDAS_SP_CALLBACK_PATH = import_env("EIDAS_SP_CALLBACK_PATH", "/auth/eidas/callback")
 
 
 def _build_callback_url(public_base_url: str | None = None) -> str:
     if public_base_url:
         return f"{public_base_url.rstrip('/')}{EIDAS_SP_CALLBACK_PATH}"
 
-    auth_url = os.getenv("AUTH_URL")
+    auth_url = import_env("AUTH_URL")
     if auth_url:
         return f"{auth_url.rstrip('/').removesuffix('/auth')}{EIDAS_SP_CALLBACK_PATH}"
 
     return f"http://localhost:8000{EIDAS_SP_CALLBACK_PATH}"
 
 
-EIDAS_SP_CALLBACK_URL = os.getenv("EIDAS_SP_CALLBACK_URL") or _build_callback_url(
+EIDAS_SP_CALLBACK_URL = import_env("EIDAS_SP_CALLBACK_URL") or _build_callback_url(
     EIDAS_SP_PUBLIC_BASE_URL
 )
 

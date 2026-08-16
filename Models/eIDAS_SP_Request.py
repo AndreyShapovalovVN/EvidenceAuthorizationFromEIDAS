@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from lxml import etree
 
-from Models.base import Base, MainBase
+from oots_lib.models.Base import Base, MainBase
 
 VALID_NAME_ID_POLICIES = {"persistent", "transient", "unspecified"}
 

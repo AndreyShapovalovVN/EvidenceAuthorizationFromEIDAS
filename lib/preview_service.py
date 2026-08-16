@@ -4,13 +4,14 @@ import asyncio
 import logging
 from typing import Any
 
+from oots_lib.lib.UseRedis import UseRedisAsync
+
 from lib.evidence_view_model import (
     build_evidence_view_model,
     is_new_evidences_structure,
     normalize_preview_descriptions,
 )
 from lib.preview_keys import PreviewKeys
-from lib.UseRedis import UseRedisAsync
 
 _logger = logging.getLogger(__name__)
 

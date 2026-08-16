@@ -1,11 +1,5 @@
-"""ICEI (ІСЕІ) OAuth2 client for id.gov.ua identification.
-
-Spec reference: IDInfoProcessingD_QA.pdf (V15_14012026)
-"""
-
 import importlib
 import logging
-import os
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -13,14 +7,15 @@ from typing import Any
 from urllib.parse import urlencode
 
 import httpx
+from oots_lib.import_env import import_env
 
 _logger = logging.getLogger(__name__)
 
-IDGOV_BASE_URL = os.getenv("IDGOV_BASE_URL", "https://test.id.gov.ua")
-IDGOV_CLIENT_ID = os.getenv("ICEI_CLIENT_ID")
-IDGOV_CLIENT_SECRET = os.getenv("ICEI_CLIENT_SECRET")
-IDGOV_AUTH_TYPE = os.getenv("ICEI_AUTH_TYPE", "dig_sign")
-IIT_DECRYPTOR_FUNC = os.getenv("IIT_DECRYPTOR_FUNC")
+IDGOV_BASE_URL = import_env("IDGOV_BASE_URL", "https://test.id.gov.ua")
+IDGOV_CLIENT_ID = import_env("ICEI_CLIENT_ID")
+IDGOV_CLIENT_SECRET = import_env("ICEI_CLIENT_SECRET")
+IDGOV_AUTH_TYPE = import_env("ICEI_AUTH_TYPE", "dig_sign")
+IIT_DECRYPTOR_FUNC = import_env("IIT_DECRYPTOR_FUNC")
 
 # Поля сертифіката, що запитуються (Таблиця 2.2.6 специфікації)
 DEFAULT_FIELDS = (
@@ -47,10 +42,14 @@ def _load_iit_decryptor() -> Callable[[str], dict] | None:
         module = importlib.import_module(module_name)
         decryptor = getattr(module, function_name)
     except Exception as exc:
-        raise ICEIError(f"Failed to load IIT decryptor '{IIT_DECRYPTOR_FUNC}': {exc}") from exc
+        raise ICEIError(
+            f"Failed to load IIT decryptor '{IIT_DECRYPTOR_FUNC}': {exc}"
+        ) from exc
 
     if not callable(decryptor):
-        raise ICEIError(f"Configured IIT decryptor '{IIT_DECRYPTOR_FUNC}' is not callable")
+        raise ICEIError(
+            f"Configured IIT decryptor '{IIT_DECRYPTOR_FUNC}' is not callable"
+        )
 
     return decryptor
 
@@ -62,16 +61,16 @@ class UserProfile:
     Атрибути відповідають полям JSON-відповіді get-user-info.
     """
 
-    givenname: str                   # Ім'я
-    lastname: str                    # Прізвище
-    middlename: str | None        # По батькові
-    edrpoucode: str | None        # РНОКПП (ІПН)
-    drfocode: str | None          # Код ДРФО (альтернатива РНОКПП)
-    unzr: str | None              # Унікальний номер запису в ЄДР
-    auth_type: str | None         # Тип аутентифікації (dig_sign / bank_id)
-    subjectcn: str | None         # Загальне ім'я (CN) власника сертифіката
+    givenname: str  # Ім'я
+    lastname: str  # Прізвище
+    middlename: str | None  # По батькові
+    edrpoucode: str | None  # РНОКПП (ІПН)
+    drfocode: str | None  # Код ДРФО (альтернатива РНОКПП)
+    unzr: str | None  # Унікальний номер запису в ЄДР
+    auth_type: str | None  # Тип аутентифікації (dig_sign / bank_id)
+    subjectcn: str | None  # Загальне ім'я (CN) власника сертифіката
     date_of_birth: str | None = None  # Дата народження (якщо доступна у провайдера)
-    gender: str | None = None         # Стать (якщо доступна у провайдера)
+    gender: str | None = None  # Стать (якщо доступна у провайдера)
     raw: dict = field(default_factory=dict)  # Повна відповідь сервера
 
     @property
@@ -132,9 +131,13 @@ class IdICEI:
         self.client_secret: str | None = IDGOV_CLIENT_SECRET
         self.auth_type: str = IDGOV_AUTH_TYPE
         self.state: str = uuid.uuid4().hex
-        self.redirect_uri: str = redirect_uri or "http://localhost:8000/auth/icei/callback"
+        self.redirect_uri: str = (
+            redirect_uri or "http://localhost:8000/auth/icei/callback"
+        )
         self.base_url: str = IDGOV_BASE_URL.rstrip("/")
-        self.decryptor: Callable[[str], dict] | None = decryptor or _load_iit_decryptor()
+        self.decryptor: Callable[[str], dict] | None = (
+            decryptor or _load_iit_decryptor()
+        )
 
     def _decrypt_encrypted_user_info(self, encrypted_payload: str) -> dict:
         """Decrypt encryptedUserInfo with external IIT integration."""
@@ -166,13 +169,15 @@ class IdICEI:
             GET https://test.id.gov.ua/?response_type=code
                 &client_id=...&auth_type=...&state=...&redirect_uri=...
         """
-        params = urlencode({
-            "response_type": self.response_type,
-            "client_id": self.client_id or "",
-            "auth_type": self.auth_type,
-            "state": self.state,
-            "redirect_uri": self.redirect_uri,
-        })
+        params = urlencode(
+            {
+                "response_type": self.response_type,
+                "client_id": self.client_id or "",
+                "auth_type": self.auth_type,
+                "state": self.state,
+                "redirect_uri": self.redirect_uri,
+            }
+        )
         return f"{self.base_url}/?{params}"
 
     # ------------------------------------------------------------------
@@ -291,7 +296,9 @@ class IdICEI:
         if "encryptedUserInfo" in data:
             encrypted_payload: Any = data.get("encryptedUserInfo")
             if not isinstance(encrypted_payload, str) or not encrypted_payload.strip():
-                raise ICEIError("get-user-info returned invalid encryptedUserInfo payload")
+                raise ICEIError(
+                    "get-user-info returned invalid encryptedUserInfo payload"
+                )
             return self._decrypt_encrypted_user_info(encrypted_payload)
 
         return data

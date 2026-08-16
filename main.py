@@ -1,7 +1,6 @@
 """HTTP entrypoint for the authorization UI service."""
 
 import logging
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import UUID
@@ -11,19 +10,20 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from lxml import etree
+from oots_lib.import_env import import_env
+from oots_lib.lib.UseRedis import close_redis, get_redis_client, initialize_redis
 from pydantic import BaseModel
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from lib.action_token import issue_action_token, verify_action_token
 from lib.eidas_sp_service import (
     EIDAS_SPECIFIC_CONNECTOR_URL,
+    parse_simple_response,
     pop_eidas_message_id,
     prepare_eidas_redirect,
-    process_eidas_callback,
     raise_if_eidas_failed,
     read_simple_response_body,
     save_eidas_person,
-    parse_simple_response,
 )
 from lib.ICEI import ICEIError, IdICEI
 from lib.MessageChecker import check_message
@@ -44,15 +44,14 @@ from lib.preview_service import (
     record_view_timeout,
 )
 from lib.RedirectService import filter_returnurl, if_preview, resolve_url
-from lib.UseRedis import close_redis, get_redis_client, initialize_redis
 
-WAIT_EVENT_TIME = int(os.getenv("EVIDENCE_TIMEOUT", "600"))
-WAIT_EVENT_SLEEP = int(os.getenv("REDIS_TIMEOUT", "6")) / 2
+WAIT_EVENT_TIME = int(import_env("EVIDENCE_TIMEOUT", "600"))
+WAIT_EVENT_SLEEP = int(import_env("REDIS_TIMEOUT", "6")) / 2
 
-QUEUE_OUTGOING = os.getenv("QUEUE_OUTGOING", "oots:queue:outgoing")
+QUEUE_OUTGOING = import_env("QUEUE_OUTCOMING")
 
 # id.gov.ua (ICEI) налаштування
-ICEI_REDIRECT_URI = os.getenv(
+ICEI_REDIRECT_URI = import_env(
     "ICEI_REDIRECT_URI", "http://localhost:8000/auth/icei/callback"
 )
 

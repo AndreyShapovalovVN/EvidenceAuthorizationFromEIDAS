@@ -2,11 +2,11 @@
 
 from datetime import date, datetime
 
+from oots_lib.lib.UseRedis import UseRedisAsync
+from oots_lib.models.Person import Identifier, Person
 from pydantic import BaseModel
 
-from lib.UseRedis import UseRedisAsync
-from Models.person import Identifier, Person
-from redis_keys import Keys
+from lib.preview_keys import PreviewKeys as Keys
 
 KEYS = Keys()
 

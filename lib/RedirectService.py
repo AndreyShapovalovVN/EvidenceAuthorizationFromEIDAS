@@ -1,20 +1,20 @@
 """Resolve the next URL after authentication based on EDM preview flags."""
 
 import logging
-import os
 import re
 
 from fastapi import HTTPException
+from oots_lib.import_env import import_env
+from oots_lib.lib.UseRedis import UseRedisAsync
 from pyRegRep4.RIMParsing import Parsing  # type: ignore
 from pyRegRep4.utils import deep_get
 
-from lib.UseRedis import UseRedisAsync
-from redis_keys import Keys
+from lib.preview_keys import PreviewKeys as Keys
 
 _logger = logging.getLogger(__name__)
 
 KEYS = Keys()
-PREVIEW_URL = os.getenv("PREVIEW_URL")
+PREVIEW_URL = import_env("PREVIEW_URL")
 
 
 def filter_returnurl(returnurl: str | None) -> str | None:
@@ -26,7 +26,7 @@ def filter_returnurl(returnurl: str | None) -> str | None:
     if not returnurl:
         return None
 
-    pattern = os.getenv("RETURNURL_REGEX", ".*")
+    pattern = import_env("RETURNURL_REGEX", ".*")
     try:
         matcher = re.compile(pattern)
     except re.error:
@@ -46,7 +46,11 @@ def _get_content(edm_payload: dict) -> dict:
             status_code=422,
             detail="EDM content not found in Redis for key",
         )
-    content = edm_payload.get("content2") if edm_payload.get("content2") else edm_payload.get("content")
+    content = (
+        edm_payload.get("content2")
+        if edm_payload.get("content2")
+        else edm_payload.get("content")
+    )
     if content is None:
         raise HTTPException(
             status_code=408,
@@ -56,8 +60,8 @@ def _get_content(edm_payload: dict) -> dict:
 
 
 async def resolve_url(
-        client: UseRedisAsync,
-        message_id: str,
+    client: UseRedisAsync,
+    message_id: str,
 ) -> str | None:
 
     key = KEYS.REQUEST_EDM.format(conversation_id=message_id)
@@ -66,10 +70,11 @@ async def resolve_url(
         return None
     edm = _get_content(edm_payload[0])
 
-    version_protokol = deep_get(edm, 'doc', 'SpecificationIdentifier', default='')
-    if 'oots-edm:v2' in version_protokol:
-        return deep_get(edm, 'doc', 'ReturnLocation', default='')
+    version_protokol = deep_get(edm, "doc", "SpecificationIdentifier", default="")
+    if "oots-edm:v2" in version_protokol:
+        return deep_get(edm, "doc", "ReturnLocation", default="")
     return None
+
 
 async def if_preview(client: UseRedisAsync, message_id: str) -> bool:
     key = KEYS.REQUEST_EDM.format(conversation_id=message_id)
@@ -77,5 +82,5 @@ async def if_preview(client: UseRedisAsync, message_id: str) -> bool:
     if not isinstance(edm_payload, list) or not edm_payload:
         return False
     edm = _get_content(edm_payload[0])
-    preview = deep_get(edm, 'doc', 'PossibilityForPreview', default=False)
+    preview = deep_get(edm, "doc", "PossibilityForPreview", default=False)
     return preview

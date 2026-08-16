@@ -8,7 +8,7 @@ from urllib.parse import parse_qs
 
 from lxml import etree
 
-from Models.base import Base, MainBase
+from oots_lib.models.Base import Base, MainBase
 
 
 class SimpleResponseError(ValueError):

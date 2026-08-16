@@ -11,8 +11,10 @@ import logging
 import os
 from dataclasses import dataclass
 
-from lib.UseRedis import UseRedisAsync
-from redis_keys import Keys
+from oots_lib.import_env import import_env
+from oots_lib.lib.UseRedis import UseRedisAsync
+
+from lib.preview_keys import PreviewKeys as Keys
 
 _logger = logging.getLogger(__name__)
 
@@ -21,15 +23,19 @@ _logger = logging.getLogger(__name__)
 KEYS = Keys
 EDM_ERR_CODE = "EDM:ERR:0002"
 
-DEFAULT_TIMEOUT: float = float(os.getenv("EVIDENCE_TIMEOUT", "600"))   # секунд — максимальний час очікування прапора
-DEFAULT_INTERVAL: float = 5.0   # секунд між спробами поллінгу
+DEFAULT_TIMEOUT: float = float(
+    import_env("EVIDENCE_TIMEOUT", "600")
+)  # секунд — максимальний час очікування прапора
+DEFAULT_INTERVAL: float = 5.0  # секунд між спробами поллінгу
 
 
 # ─── результат ───────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ExceptionInfo:
     """Розібраний об'єкт exception з ключа evidence."""
+
     code: str
     message: str
     detail: str | None = None
@@ -39,6 +45,7 @@ class ExceptionInfo:
 @dataclass
 class MessageStatus:
     """Підсумковий стан перевірки повідомлення."""
+
     # Технічні деталі exception з evidence (для EDM:ERR:0002 це успішний маркер)
     evidence_error: ExceptionInfo | None = None
     # True — прапор preview з'явився в Redis
@@ -55,6 +62,7 @@ class MessageStatus:
 
 
 # ─── внутрішні функції ───────────────────────────────────────────────────────
+
 
 async def _get_evidence_exception(
     client: UseRedisAsync,
@@ -83,7 +91,9 @@ async def _get_evidence_exception(
 
     code = exception.get("code", "")
     if code == EDM_ERR_CODE:
-        _logger.info("EDM:ERR:0002 detected as success marker for message_id=%s", message_id)
+        _logger.info(
+            "EDM:ERR:0002 detected as success marker for message_id=%s", message_id
+        )
     return ExceptionInfo(
         code=code,
         message=exception.get("message", ""),
@@ -130,6 +140,7 @@ async def _wait_for_preview_flag(
 
 
 # ─── публічний API ────────────────────────────────────────────────────────────
+
 
 async def check_message(
     client: UseRedisAsync,
@@ -178,5 +189,3 @@ async def check_message(
         preview_ready=preview_ready,
         timed_out=not preview_ready,
     )
-
-

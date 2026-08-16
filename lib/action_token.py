@@ -4,13 +4,14 @@ import base64
 import hashlib
 import hmac
 import json
-import os
 import time
 from typing import Any
 
-_TOKEN_SECRET = os.getenv("ACTION_TOKEN_SECRET", "dev-action-secret")
-_TOKEN_TTL_SECONDS = int(os.getenv("ACTION_TOKEN_TTL", "900"))
-_TOKEN_KEY_SALT = os.getenv("ACTION_TOKEN_KEY_SALT", "action-token-v2")
+from oots_lib import import_module
+
+_TOKEN_SECRET = import_module("ACTION_TOKEN_SECRET", "dev-action-secret")
+_TOKEN_TTL_SECONDS = int(import_module("ACTION_TOKEN_TTL", "900"))
+_TOKEN_KEY_SALT = import_module("ACTION_TOKEN_KEY_SALT", "action-token-v2")
 
 
 def _b64encode(raw: bytes) -> str:
@@ -29,11 +30,15 @@ def _derive_signing_key(message_id: str, action: str) -> bytes:
 
 
 def _sign(payload_raw: bytes, message_id: str, action: str) -> str:
-    signature = hmac.new(_derive_signing_key(message_id, action), payload_raw, hashlib.sha256).digest()
+    signature = hmac.new(
+        _derive_signing_key(message_id, action), payload_raw, hashlib.sha256
+    ).digest()
     return _b64encode(signature)
 
 
-def issue_action_token(message_id: str, action: str, ttl_seconds: int | None = None) -> str:
+def issue_action_token(
+    message_id: str, action: str, ttl_seconds: int | None = None
+) -> str:
     ttl = _TOKEN_TTL_SECONDS if ttl_seconds is None else ttl_seconds
     payload: dict[str, Any] = {
         "mid": message_id,
@@ -41,7 +46,9 @@ def issue_action_token(message_id: str, action: str, ttl_seconds: int | None = N
         "exp": int(time.time()) + int(ttl),
         "v": 2,
     }
-    payload_raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    payload_raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode(
+        "utf-8"
+    )
     return f"{_b64encode(payload_raw)}.{_sign(payload_raw, message_id, action)}"
 
 
@@ -74,4 +81,3 @@ def verify_action_token(token: str | None, message_id: str, action: str) -> bool
         return False
 
     return time.time() <= exp
-
