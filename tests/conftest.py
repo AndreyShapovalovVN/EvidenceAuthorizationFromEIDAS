@@ -1,7 +1,20 @@
+import os
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
+
+TEST_ENV_DEFAULTS = {
+    "COUNTRY": "UA",
+    "PREVIEW_URL": "https://preview.example.org",
+    "QUEUE_OUTCOMING": "test-queue",
+    "ICEI_CLIENT_ID": "test-client-id",
+    "ICEI_CLIENT_SECRET": "test-client-secret",
+    "IIT_DECRYPTOR_FUNC": "json:loads",
+}
+
+for key, value in TEST_ENV_DEFAULTS.items():
+    os.environ.setdefault(key, value)
 
 import main
 
