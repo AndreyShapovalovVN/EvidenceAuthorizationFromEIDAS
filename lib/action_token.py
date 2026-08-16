@@ -7,11 +7,11 @@ import json
 import time
 from typing import Any
 
-from oots_lib import import_module
+from oots_lib.import_env import import_env
 
-_TOKEN_SECRET = import_module("ACTION_TOKEN_SECRET", "dev-action-secret")
-_TOKEN_TTL_SECONDS = int(import_module("ACTION_TOKEN_TTL", "900"))
-_TOKEN_KEY_SALT = import_module("ACTION_TOKEN_KEY_SALT", "action-token-v2")
+_TOKEN_SECRET = import_env("ACTION_TOKEN_SECRET", "dev-action-secret")
+_TOKEN_TTL_SECONDS = int(import_env("ACTION_TOKEN_TTL", "900"))
+_TOKEN_KEY_SALT = import_env("ACTION_TOKEN_KEY_SALT", "action-token-v2")
 
 
 def _b64encode(raw: bytes) -> str:
