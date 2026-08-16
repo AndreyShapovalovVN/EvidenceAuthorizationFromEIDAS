@@ -18,7 +18,7 @@ RUN apt-get update && \
     useradd --system --uid 10001 --gid app --home-dir /nonexistent --shell /usr/sbin/nologin app
 
 COPY pyproject.toml uv.lock README.md ./
-COPY main.py redis_keys.py ./
+COPY main.py ./
 COPY lib ./lib
 COPY Models ./Models
 COPY static ./static
