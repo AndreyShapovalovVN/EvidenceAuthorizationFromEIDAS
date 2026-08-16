@@ -4,7 +4,7 @@ import main
 from lib.action_token import issue_action_token
 from lib.evidence_view_model import build_evidence_view_model
 from lib.MessageChecker import MessageStatus
-from redis_keys import Keys
+from lib.preview_keys import PreviewKeys as Keys
 
 
 def _token_headers(message_id: str, action: str) -> dict[str, str]:
