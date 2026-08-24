@@ -658,7 +658,7 @@ wheels = [
 
 [[package]]
 name = "oots-lib"
-version = "0.1.2"
+version = "0.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -667,9 +667,9 @@ dependencies = [
     { name = "pyxroad" },
     { name = "redis" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0e/db/edec841e5404c8c2e1892f3c819eecfea9a2a9e85c06fe9957df7a68186d/oots_lib-0.1.2.tar.gz", hash = "sha256:97f9e0048979c31500a0fffcd946100d48b821208eecdf55406a2403483deb56", size = 54758, upload-time = "2026-08-15T12:46:16.666Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/aa/6b/8b5ca0d257746ed8e187b2748da479a017c6a1507e822c551a70b0f55a85/oots_lib-0.1.3.tar.gz", hash = "sha256:fcb9b2efda6c941fae4a938f71c5f2f82dfb7206cbe428e62c454332252a8a9b", size = 54829, upload-time = "2026-08-16T08:42:52.63Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7f/68/5c054c4d2b4c3f8bf537075e6a2b4309b6566cab5701badd9021f660776e/oots_lib-0.1.2-py3-none-any.whl", hash = "sha256:56379b2bda46a1b2da90d8ae48900d397e53fd25ad91c29b9844cdd61b8a6bbb", size = 43182, upload-time = "2026-08-15T12:46:15.505Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/7c/9acdcd2282fcc1e4dfd1be5ecc8a23380bf63c06f4cfbeffe5f962e8f1b7/oots_lib-0.1.3-py3-none-any.whl", hash = "sha256:7a3ffed3d13d8661c6100eea14cb210ec2cb95fb29f417d7b5017fc9a0460d3b", size = 43252, upload-time = "2026-08-16T08:42:51.175Z" },
 ]
 
 [[package]]
