@@ -4,7 +4,6 @@ import uuid
 from dataclasses import dataclass, field
 
 from lxml import etree
-
 from oots_lib.models.Base import Base, MainBase
 
 VALID_NAME_ID_POLICIES = {"persistent", "transient", "unspecified"}
