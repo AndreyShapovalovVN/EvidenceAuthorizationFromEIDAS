@@ -303,7 +303,7 @@ requires-dist = [
     { name = "lxml", specifier = ">=6.1.3" },
     { name = "multipart", specifier = "==2.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==2.3.1" },
-    { name = "oots-lib", specifier = ">=0.1.6" },
+    { name = "oots-lib", specifier = ">=0.1.7" },
     { name = "pyrefly", specifier = ">=1.2.0" },
     { name = "pyregrep", specifier = ">=15" },
     { name = "pytest", specifier = ">=9.1.1" },
@@ -756,7 +756,7 @@ wheels = [
 
 [[package]]
 name = "oots-lib"
-version = "0.1.6"
+version = "0.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -765,9 +765,9 @@ dependencies = [
     { name = "pyxroad" },
     { name = "redis" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/86/66/c2642f136d46f195c25aeb8a9fe0ed624cc2639e627069b87927fc032975/oots_lib-0.1.6.tar.gz", hash = "sha256:c64c0aa0b4d92c6f8c1bb50bb8a937487e0d5ef7da922ab99f7441e5ea0fceb7", size = 55267, upload-time = "2026-09-08T09:00:09.863Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cd/9c/e891834a09dc5d69f3c342954ffc549d75034dd752e75ba97baf8a216dbd/oots_lib-0.1.7.tar.gz", hash = "sha256:837ad6ff6f8b58d14e1928d775373c1f87cbc2a2fda8a6e06e4ca8e114dccf9b", size = 55666, upload-time = "2026-09-08T12:28:15.154Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/93/f0e9389e69db5f454163146c0c09bd76d03d9d6d17ebe0455620b78aae65/oots_lib-0.1.6-py3-none-any.whl", hash = "sha256:39eeaaa6d8f3ecb5949bb72532eb737ebe4a1d238f52c25459f22043318484b2", size = 43673, upload-time = "2026-09-08T09:00:08.4Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/1d/a1e4a7384da53889de0e3a4325668caaef91e5e5e3ca47d8d34cd5f6a99d/oots_lib-0.1.7-py3-none-any.whl", hash = "sha256:9dd560e97fae5ab39585536f2c132beabfc240e28e724573f053e452b6f23425", size = 43745, upload-time = "2026-09-08T12:28:14Z" },
 ]
 
 [[package]]

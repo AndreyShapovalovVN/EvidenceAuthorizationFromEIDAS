@@ -17,7 +17,7 @@ dependencies = [
     "python-multipart==0.0.32",
     "pyrefly>=1.2.0",
     "pytest>=9.1.1",
-    "oots-lib>=0.1.6",
+    "oots-lib>=0.1.7",
 ]
 
 [project.optional-dependencies]

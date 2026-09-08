@@ -77,7 +77,6 @@ def create_request() -> AuthenticationRequest:
     attribute_names = [getattr(attr, "name", str(attr)) for attr in attribute_list]
     _logger.debug("eIDAS requested attributes: %s", ", ".join(attribute_names))
     attr_request = AuthenticationRequest(
-        _name_="authentication_request",
         attribute_list=attribute_list,
         requested_authentication_context=context,
         citizen_country=EIDAS_SP_CITIZEN_COUNTRY,

@@ -27,8 +27,10 @@ def test_eidas_start_builds_request_and_saves_callback_state(
     assert form.get("method") == "POST"
     assert form.get("action") == eidas_sp_service.EIDAS_SPECIFIC_CONNECTOR_URL
     encoded_request = form.xpath(".//input[@name='SMSSPRequest']/@value")[0]
-    payload = json.loads(base64.b64decode(encoded_request, validate=True))
-    assert payload["_name_"] == "authentication_request"
+    envelope = json.loads(base64.b64decode(encoded_request, validate=True))
+    assert set(envelope) == {"authentication_request"}
+    payload = envelope["authentication_request"]
+    assert "_name_" not in payload
     assert payload["citizen_country"] == "UA"
     assert payload["serviceUrl"] == "https://preview.example.org/auth/eidas/callback"
     assert payload["force_authentication"] is True

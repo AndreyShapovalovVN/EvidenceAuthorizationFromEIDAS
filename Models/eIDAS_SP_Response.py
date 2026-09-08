@@ -116,7 +116,7 @@ class SimpleResponse(MainBase):
         first_name = pick("FirstName", "GivenName", "CurrentGivenName")
         last_name = pick("FamilyName", "CurrentFamilyName")
         identifier = pick("PersonIdentifier")
-        date_of_birth = pick("DateOfBirth")
+        date_of_birth = pick("DateOfBirth", "date_of_birth")
         gender = pick("Gender")
 
         missing = [
