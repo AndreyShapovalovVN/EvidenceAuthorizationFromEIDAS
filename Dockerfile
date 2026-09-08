@@ -26,7 +26,7 @@ COPY templates ./templates
 
 ENV PYTHONPATH=/app
 
-COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.10 /uv /uvx /usr/local/bin/
 
 RUN uv sync \
     --frozen \

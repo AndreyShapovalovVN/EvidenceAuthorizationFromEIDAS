@@ -58,7 +58,7 @@ SEND_METHOD_FIELD = "sendmethods"
 SEND_METHOD_VALUE = "POST"
 
 
-def create_request():
+def create_request() -> AuthenticationRequest:
     _logger.debug(
         "Creating eIDAS SimpleRequest with provider=%s requester_id=%s citizen_country=%s loa=%s callback_url=%s",
         EIDAS_SP_PROVIDER_NAME,
