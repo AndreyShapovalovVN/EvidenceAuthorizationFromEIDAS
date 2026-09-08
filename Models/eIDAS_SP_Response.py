@@ -1,12 +1,13 @@
 import base64
-import datetime
 import json
 import re
 from binascii import Error as BinasciiError
 from dataclasses import dataclass, field
+import datetime
 from urllib.parse import parse_qs
 
 from lxml import etree
+
 from oots_lib.models.Base import Base, MainBase
 
 
@@ -116,7 +117,7 @@ class SimpleResponse(MainBase):
         first_name = pick("FirstName", "GivenName", "CurrentGivenName")
         last_name = pick("FamilyName", "CurrentFamilyName")
         identifier = pick("PersonIdentifier")
-        date_of_birth = pick("DateOfBirth", "date_of_birth")
+        date_of_birth = pick("DateOfBirth")
         gender = pick("Gender")
 
         missing = [

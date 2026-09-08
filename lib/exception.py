@@ -2,8 +2,8 @@ import asyncio
 import logging
 import os
 
-from oots_lib.lib.UseRedis import UseRedisAsync
-from oots_lib.redis_keys import Keys
+from lib.UseRedis import UseRedisAsync
+from redis_keys import Keys
 
 _logger = logging.getLogger(__name__)
 
@@ -69,10 +69,6 @@ class EDMException(Exception):
     async def _push_to_queue(self):
         try:
             await self.redis.push_to_queue(self.queue, self.message_id)
-            _logger.info(
-                "Message ID %s pushed to queue: %s", self.message_id, self.queue
-            )
+            _logger.info("Message ID %s pushed to queue: %s", self.message_id, self.queue)
         except Exception:
-            _logger.exception(
-                "Failed to push message_id %s to queue: %s", self.message_id, self.queue
-            )
+            _logger.exception("Failed to push message_id %s to queue: %s", self.message_id, self.queue)

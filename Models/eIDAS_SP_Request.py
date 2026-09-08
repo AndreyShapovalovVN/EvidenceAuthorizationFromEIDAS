@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from lxml import etree
+
 from oots_lib.models.Base import Base, MainBase
 
 VALID_NAME_ID_POLICIES = {"persistent", "transient", "unspecified"}
@@ -46,7 +47,7 @@ class RequestedAuthenticationContext(Base):
 
 @dataclass
 class AuthenticationRequest(MainBase):
-    _name_: str | None = field(default="authentication_request", kw_only=True)
+    _name_ = "authentication_request"
     attribute_list: list[Attribute] = field(default_factory=list)
     requested_authentication_context: RequestedAuthenticationContext = field(
         default_factory=lambda: RequestedAuthenticationContext(

@@ -58,7 +58,7 @@ SEND_METHOD_FIELD = "sendmethods"
 SEND_METHOD_VALUE = "POST"
 
 
-def create_request() -> AuthenticationRequest:
+def create_request():
     _logger.debug(
         "Creating eIDAS SimpleRequest with provider=%s requester_id=%s citizen_country=%s loa=%s callback_url=%s",
         EIDAS_SP_PROVIDER_NAME,
@@ -77,6 +77,7 @@ def create_request() -> AuthenticationRequest:
     attribute_names = [getattr(attr, "name", str(attr)) for attr in attribute_list]
     _logger.debug("eIDAS requested attributes: %s", ", ".join(attribute_names))
     attr_request = AuthenticationRequest(
+        _name_="authentication_request",
         attribute_list=attribute_list,
         requested_authentication_context=context,
         citizen_country=EIDAS_SP_CITIZEN_COUNTRY,
