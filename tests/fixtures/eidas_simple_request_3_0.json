@@ -1,0 +1,25 @@
+{
+  "authentication_request": {
+    "attribute_list": [
+      {"type": "requested_attribute", "name": "D-2012-17-EUIdentifier", "required": false},
+      {"type": "requested_attribute", "name": "EORI", "required": false},
+      {"type": "requested_attribute", "name": "LEI", "required": false},
+      {"type": "requested_attribute", "name": "LegalName", "required": true}
+    ],
+    "requested_authentication_context": {
+      "comparison": "minimum",
+      "context_class": ["A"],
+      "non_notified_context_class": ["http://non.eidas.eu/NotNotified/LoA/1"]
+    },
+    "citizen_country": "CA",
+    "created_on": "2020-06-12T18:11:25.107+02:00",
+    "force_authentication": true,
+    "id": "835a09f7-0179-4198-9c19-36680d0fe531",
+    "name_id_policy": "unspecified",
+    "provider_name": "DEMO-SP-CA",
+    "requester_id": "http://eidas.eu/EidasNode/RequesterId",
+    "serviceUrl": "http://localhost:8080/SP/ReturnPage",
+    "sp_type": "public",
+    "version": "1"
+  }
+}
