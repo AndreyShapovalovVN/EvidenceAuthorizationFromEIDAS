@@ -1,5 +1,7 @@
 # Authorization Service
 
+Версія **1.10.0**. Python **3.12+**; CI використовує Python **3.12**.
+
 Сервіс відображає захищену сторінку авторизації, перевіряє службові дані в Redis і зберігає профіль користувача у форматі `Person`. Після авторизації перенаправляє на сторінку перегляду evidence (`/preview`).
 
 ## Основні можливості
@@ -17,11 +19,11 @@
 ## Структура сервісу
 
 - `main.py` — FastAPI-застосунок, HTTP-маршрути, lifecycle і security headers;
-- `redis_keys.py` — клас `Keys` з усіма шаблонами Redis-ключів (спільний для всіх компонентів);
+- `oots_lib.redis_keys` — спільний клас `Keys`; `lib/preview_keys.py` розширює його ключами preview, eIDAS та ICEI;
 - `lib/MessageChecker.py` — перевірка evidence-помилки та очікування preview-прапора;
 - `lib/RedirectService.py` — визначення URL, куди йти після авторизації (EDM `PossibilityForPreview`);
 - `lib/PersonRequestService.py` — валідація payload і збереження `Person` у Redis;
-- `lib/UseRedis.py` — асинхронний Redis-клієнт, утиліти доступу та префіксація ключів;
+- `oots_lib.lib.UseRedis` — асинхронний Redis-клієнт, утиліти доступу та префіксація ключів;
 - `templates/login.html` — UI сторінки авторизації;
 - `templates/redirect_to_preview.html` — авто-перехід на preview, якщо авторизація вже виконана;
 - `templates/invalid_link.html` — повідомлення про невалідне посилання з поверненням на `returnurl`;
@@ -32,6 +34,18 @@
 - `docs/kubernetes-install.md` — інструкція для DevOps з деплою в Kubernetes;
 - `docs/service-overview.md` — короткий технічний огляд сервісу;
 - `docs/flask-migration-notes.md` — нотатки про міграцію з Flask.
+
+## Ідентифікація eIDAS та ICEI
+
+- `GET /auth/eidas/start/{message_id}` запускає eIDAS Simple Protocol flow.
+- `POST /auth/eidas/callback` обробляє відповідь Specific Connector.
+- `GET /auth/icei/start/{message_id}` перенаправляє до id.gov.ua; `message_id` має бути UUID.
+- `GET /auth/icei/callback` обмінює код авторизації на профіль користувача.
+
+Для ICEI задайте `ICEI_CLIENT_ID`, `ICEI_CLIENT_SECRET` і `ICEI_REDIRECT_URI`
+(типово `http://localhost:8000/auth/icei/callback`). `IDGOV_BASE_URL` визначає
+сервер провайдера. Для зашифрованих відповідей потрібен зовнішній дешифратор,
+налаштований через `IIT_DECRYPTOR_FUNC=module:function`.
 
 ## HTTP API
 
@@ -162,7 +176,7 @@ JSON API для поллінгу прогресу.
 
 ### `POST /preview/timeout/{message_id}`
 
-Фіксує таймаут очікування в Redis (викликається браузером при спливанні часу) і ставить `message_id` в чергу `QUEUE_OUTGOING`.
+Фіксує таймаут очікування в Redis (викликається браузером при спливанні часу) і ставить `message_id` в чергу `QUEUE_OUTCOMING`.
 
 Потребує заголовок `X-Action-Token` (action=`preview-timeout`).
 
@@ -182,7 +196,7 @@ JSON API для поллінгу прогресу.
 
 ## Redis-ключі
 
-Усі ключі визначені в `redis_keys.py` (клас `Keys`):
+Спільні ключі визначені в `oots_lib.redis_keys.Keys`, додаткові — у `lib/preview_keys.py` (`PreviewKeys`):
 
 | Ключ | Призначення |
 |------|-------------|
@@ -203,12 +217,12 @@ JSON API для поллінгу прогресу.
 
 | Змінна | Типове значення | Опис |
 |--------|-----------------|------|
-| `REDIS_URL` | `redis://localhost:6379` | URL підключення до Redis |
-| `REDIS_TTL` | `86400` | TTL для JSON-даних у Redis (секунди) |
+| `REDIS_URL` | `redis://localhost:6379/0` | URL підключення до Redis |
+| `REDIS_TTL` | `3600` | TTL для JSON-даних у Redis (секунди) |
 | `REDIS_PREFIX` | _(порожній)_ | Необов'язковий префікс для всіх Redis-ключів |
 | `EVIDENCE_TIMEOUT` | `600` | Максимальний час очікування evidence/preview (секунди) |
-| `WAIT_EVENT_SLEEP` | `5` | Інтервал поллінгу прогресу (секунди) |
-| `QUEUE_OUTGOING` | `oots:queue:outgoing` | Назва Redis-черги для таймаут-записів |
+| `REDIS_TIMEOUT` | `6` | Половина цього значення задає інтервал поллінгу прогресу (секунди) |
+| `QUEUE_OUTCOMING` | _(обов’язково задати)_ | Назва Redis-черги для таймаут-записів |
 | `PREVIEW_URL` | _(не задано)_ | Базовий URL preview-сервісу (для `RedirectService`) |
 | `RETURNURL_REGEX` | `.*` | Regex-фільтр для `returnurl` перед збереженням/використанням |
 | `ACTION_TOKEN_SECRET` | `dev-action-secret` | Master secret для HMAC; використовується для derivation dynamic signing key |
@@ -250,13 +264,16 @@ REDIS_URL=redis://localhost:6379/0
 REDIS_TTL=86400
 REDIS_PREFIX=
 EVIDENCE_TIMEOUT=600
-WAIT_EVENT_SLEEP=5
-QUEUE_OUTGOING=oots:queue:outgoing
+REDIS_TIMEOUT=6
+QUEUE_OUTCOMING=oots:queue:outgoing
 PREVIEW_URL=http://localhost:8081/preview
 RETURNURL_REGEX=.*
 ACTION_TOKEN_SECRET=dev-action-secret
 ACTION_TOKEN_TTL=900
-STATIC_VERSION=dev-1
+STATIC_VERSION=1.10.0
+COUNTRY=UA
+ICEI_CLIENT_ID=replace-with-client-id
+ICEI_CLIENT_SECRET=replace-with-client-secret
 ```
 
 `STATIC_VERSION` додається до URL статичних ресурсів (`/static/...?...v=...`) і дозволяє швидко скидати кеш браузера після змін у JS/CSS. Після UI-змін достатньо оновити значення в `.env` і перезапустити сервіс.
@@ -264,7 +281,7 @@ STATIC_VERSION=dev-1
 ## Локальний запуск
 
 ```bash
-uv sync --group dev
+uv sync --frozen --no-build --no-install-project --extra dev
 set -a
 source .env
 set +a
@@ -285,28 +302,27 @@ docker run --rm -p 8000:8000 --env-file .env authorization-app:local
 
 > На Linux `host.docker.internal` може бути недоступним без додаткової конфігурації Docker. Якщо Redis працює локально, вкажіть фактичну IP-адресу хоста або використайте окрему docker network.
 
-## Перевірка якості
+## Залежності та перевірки CI
 
-Запуск усіх тестів:
+`pyproject.toml` містить прямі залежності сервісу: FastAPI, Uvicorn, Jinja2,
+Redis, lxml, pyregrep, HTTPX, python-multipart, Pydantic та oots-lib.
+`pytest`, `mypy` та `ruff` встановлюються через extra `dev`.
+Точні версії прямих і транзитивних залежностей зафіксовані в `uv.lock`.
+Після зміни залежностей виконайте `uv lock` і збережіть обидва файли.
 
-```bash
-uv run pytest -q
-```
-
-Точковий запуск:
-
-```bash
-uv run pytest tests/test_main_view_endpoints.py -q
-uv run pytest tests/test_message_checker.py -q
-uv run pytest tests/test_redirect_service.py -q
-uv run pytest tests/test_person_request_service.py -q
-```
-
-Перевірка типів:
+Локальне відтворення Python Code Quality з `.github/workflows/ci-security-quality.yml`:
 
 ```bash
-uv run mypy --config-file pyproject.toml
+uv sync --python 3.12 --frozen --no-build --no-install-project --extra dev
+uv run --no-sync ruff check . --extend-exclude 'tests/~*.py'
+uv run --no-sync mypy . --ignore-missing-imports --pretty --show-error-codes
+uv run --no-sync pytest --maxfail=2 --disable-warnings --ignore-glob='tests/~*.py'
 ```
+
+Тести використовують підмінений Redis; зовнішні Redis/eIDAS/ICEI сервіси для них не потрібні.
+CI також запускає Gitleaks для пошуку секретів в історії Git і Trivy для сканування
+файлової системи на виправлювані вразливості рівнів HIGH та CRITICAL.
+Docker build/push виконується окремим workflow для `main` і опублікованих релізів.
 
 ## Документація для DevOps
 
