@@ -17,7 +17,11 @@ RUN apt-get update && \
     groupadd --system --gid 10001 app && \
     useradd --system --uid 10001 --gid app --home-dir /nonexistent --shell /usr/sbin/nologin app
 
-COPY pyproject.toml uv.lock README.md ./
+COPY pyproject.toml uv.lock README.md LICENSE licenses.md LICENSE_COMPLIANCE.md THIRD_PARTY_NOTICES.md Dockerfile ./
+COPY third_party_licenses ./third_party_licenses
+
+LABEL org.opencontainers.image.licenses="EUPL-1.2" \
+    org.opencontainers.image.source="https://github.com/AndreyShapovalovVN/EvidenceAuthorizationFromEIDAS"
 COPY main.py ./
 COPY lib ./lib
 COPY Models ./Models

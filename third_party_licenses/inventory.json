@@ -1,0 +1,950 @@
+{
+  "lock_sha256": "e955c8ea0fee411d32d35e2248da1781c0e692ff85cb04d345045d66c78c3c01",
+  "scope": "Locked Python packages; native binaries, OS packages and hosted source access require separate verification.",
+  "packages": [
+    {
+      "name": "annotated-doc",
+      "version": "0.0.5",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/5a/8e/38aa427ed5402449e226975b649c5dc73ccadfefeb95e6aecb8f8ea4b6b6/annotated_doc-0.0.5.tar.gz",
+        "hash": "sha256:c7e58ce09192557605d8bbd92836d7e1d520ac9580096042c0bfd197efacf1bb",
+        "size": 10758,
+        "upload-time": "2026-07-28T13:50:58.129Z"
+      },
+      "files": [
+        {
+          "path": "annotated-doc-0.0.5/annotated_doc-0.0.5.dist-info/licenses/LICENSE",
+          "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "annotated-types",
+      "version": "0.8.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/5f/56/a8120250d128bed162cd73c76d45f6ef9991f3e068f62a8ee060afa3104a/annotated_types-0.8.0.tar.gz",
+        "hash": "sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7",
+        "size": 15893,
+        "upload-time": "2026-07-23T20:16:13.995Z"
+      },
+      "files": [
+        {
+          "path": "annotated-types-0.8.0/annotated_types-0.8.0.dist-info/licenses/LICENSE",
+          "sha256": "fe1049884b1a0d9342901e88e07f32925d24b3121d9972b6a6805fb9824b095d"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "anyio",
+      "version": "4.15.1",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/a9/d2/f4d173e22df740bc37b1db102b386ba719b66e95b0f0d751f556b387e6d2/anyio-4.15.1.tar.gz",
+        "hash": "sha256:9f28306018cbd6d329e64a36d58256edff76dd996fe423bc957326e578b82a94",
+        "size": 276966,
+        "upload-time": "2026-09-05T10:42:39.44Z"
+      },
+      "files": [
+        {
+          "path": "anyio-4.15.1/anyio-4.15.1.dist-info/licenses/LICENSE",
+          "sha256": "5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "ast-serialize",
+      "version": "0.11.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/7a/c2/feb42ca5bf2335aa16868bc53ec83f114923564763658d6a63e4c4c6ccde/ast_serialize-0.11.0.tar.gz",
+        "hash": "sha256:8b4b9862436eaf1442d6a16b7e138d4ff6ae558bdb6fde1c4cd87735093d5744",
+        "size": 953724,
+        "upload-time": "2026-09-08T14:58:39.804Z"
+      },
+      "files": [
+        {
+          "path": "ast-serialize-0.11.0/ast_serialize-0.11.0.dist-info/licenses/LICENSE",
+          "sha256": "db90b8fd0ae1748117ab467680a5193bfd057a3119846cb53ee3b64f16577b3b"
+        },
+        {
+          "path": "ast-serialize-0.11.0/ast_serialize-0.11.0.dist-info/licenses/crates/LICENSE",
+          "sha256": "2597d854122b77ddc71971564ca2350a37608575ce324adc5650a2b2051c8f18"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "attrs",
+      "version": "26.1.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/9a/8e/82a0fe20a541c03148528be8cac2408564a6c9a0cc7e9171802bc1d26985/attrs-26.1.0.tar.gz",
+        "hash": "sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32",
+        "size": 952055,
+        "upload-time": "2026-03-19T14:22:25.026Z"
+      },
+      "files": [
+        {
+          "path": "attrs-26.1.0/attrs-26.1.0.dist-info/licenses/LICENSE",
+          "sha256": "882115c95dfc2af1eeb6714f8ec6d5cbcabf667caff8729f42420da63f714e9f"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "certifi",
+      "version": "2026.7.22",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/a3/c2/24167ea9858356b47a87a50d39908bfdb72ceeefe0041586e704e5376b3a/certifi-2026.7.22.tar.gz",
+        "hash": "sha256:741e2c3b351ddf169a738da9f2c048608ff7f2c5cc02f1ebc6b118bb090d5d55",
+        "size": 138112,
+        "upload-time": "2026-07-22T03:35:12.644Z"
+      },
+      "files": [
+        {
+          "path": "certifi-2026.7.22/certifi-2026.7.22.dist-info/licenses/LICENSE",
+          "sha256": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7"
+        }
+      ],
+      "declared_license": "MPL-2.0",
+      "status": "notices-collected"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.1",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/e5/3f/143b048436775b0f76ac3eec145c019e8173ccc2885c8f20319b996d5e83/charset_normalizer-3.5.1.tar.gz",
+        "hash": "sha256:6117b84ea48435e5356dc737f5121485c30920ba43375fa7b434fd753df0eac3",
+        "size": 171764,
+        "upload-time": "2026-08-15T08:20:44.807Z"
+      },
+      "files": [
+        {
+          "path": "charset-normalizer-3.5.1/charset_normalizer-3.5.1.dist-info/licenses/LICENSE",
+          "sha256": "6d0d41bfe170ac6c7dc248c9a63e254d0fb45a60d50a8257d0af92c6e249b887"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "click",
+      "version": "8.5.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/c7/0e/7fa0ef50764b67090eca4114772a2abf8b6148198475e54c660b97caeee6/click-8.5.0.tar.gz",
+        "hash": "sha256:ba0d2089de75ea0310e2dde03160e6ca10009947fb95a182f9b54021bb272e34",
+        "size": 382235,
+        "upload-time": "2026-08-26T13:33:14.56Z"
+      },
+      "files": [
+        {
+          "path": "click-8.5.0/click-8.5.0.dist-info/licenses/LICENSE.txt",
+          "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d"
+        }
+      ],
+      "declared_license": "BSD-3-Clause",
+      "status": "notices-collected"
+    },
+    {
+      "name": "colorama",
+      "version": "0.4.6",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz",
+        "hash": "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44",
+        "size": 27697,
+        "upload-time": "2022-10-25T02:36:22.414Z"
+      },
+      "files": [
+        {
+          "path": "colorama-0.4.6/LICENSE.txt",
+          "sha256": "cac35c02686e5d04a5a7140bfb3b36e73aed496656e891102e428886d7930318"
+        }
+      ],
+      "status": "notices-collected-from-verified-sdist",
+      "declared_license": "BSD-3-Clause"
+    },
+    {
+      "name": "fastapi",
+      "version": "0.141.1",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/8a/02/91e3416a8fdd715abb903a952a6bec7cdd8d14eed55d415fc8595524c319/fastapi-0.141.1.tar.gz",
+        "hash": "sha256:e8822fc40db1e1858054d7a949a888695bc9bdce70139178e33bd2871a453ca1",
+        "size": 425799,
+        "upload-time": "2026-07-29T17:18:05.568Z"
+      },
+      "files": [
+        {
+          "path": "fastapi-0.141.1/fastapi-0.141.1.dist-info/licenses/LICENSE",
+          "sha256": "4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/01/ee/02a2c011bdab74c6fb3c75474d40b3052059d95df7e73351460c8588d963/h11-0.16.0.tar.gz",
+        "hash": "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1",
+        "size": 101250,
+        "upload-time": "2025-04-24T03:35:25.427Z"
+      },
+      "files": [
+        {
+          "path": "h11-0.16.0/h11-0.16.0.dist-info/licenses/LICENSE.txt",
+          "sha256": "37db5bb85926db28a427a25867f10b1232003aea1be69ccb851138adb8e6f361"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "httpcore",
+      "version": "1.0.9",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/06/94/82699a10bca87a5556c9c59b5963f2d039dbd239f25bc2a63907a05a14cb/httpcore-1.0.9.tar.gz",
+        "hash": "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8",
+        "size": 85484,
+        "upload-time": "2025-04-24T22:06:22.219Z"
+      },
+      "files": [
+        {
+          "path": "httpcore-1.0.9/httpcore-1.0.9.dist-info/licenses/LICENSE.md",
+          "sha256": "fdcb59154c74cbaba16a11242f7740bea9f23d6feb5547917d8c5f94a80392a5"
+        }
+      ],
+      "declared_license": "BSD-3-Clause",
+      "status": "notices-collected"
+    },
+    {
+      "name": "httpx",
+      "version": "0.28.1",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz",
+        "hash": "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc",
+        "size": 141406,
+        "upload-time": "2024-12-06T15:37:23.222Z"
+      },
+      "files": [
+        {
+          "path": "httpx-0.28.1/httpx-0.28.1.dist-info/licenses/LICENSE.md",
+          "sha256": "4ec59d544f12b5f539a3a716fd321ac58ccd8030b465221f2c880200cdf28d8d"
+        }
+      ],
+      "declared_license": "BSD-3-Clause",
+      "status": "notices-collected"
+    },
+    {
+      "name": "idna",
+      "version": "3.19",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/5f/f7/abb373e5757eaec4b922b92f97ec8d6d7e057cf06778247604fbc4e7c3f3/idna-3.19.tar.gz",
+        "hash": "sha256:5e0811a4383b21dc5838069f801c4fb62113b7447663d2530d2bd6e77b49bf15",
+        "size": 215237,
+        "upload-time": "2026-08-18T05:14:24.27Z"
+      },
+      "files": [
+        {
+          "path": "idna-3.19/idna-3.19.dist-info/licenses/LICENSE.md",
+          "sha256": "1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04"
+        }
+      ],
+      "declared_license": "BSD-3-Clause",
+      "status": "notices-collected"
+    },
+    {
+      "name": "iniconfig",
+      "version": "2.3.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc35312d08ba8bf51fdd999c576889fc2c24cb97f4f10/iniconfig-2.3.0.tar.gz",
+        "hash": "sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730",
+        "size": 20503,
+        "upload-time": "2025-10-18T21:55:43.219Z"
+      },
+      "files": [
+        {
+          "path": "iniconfig-2.3.0/iniconfig-2.3.0.dist-info/licenses/LICENSE",
+          "sha256": "3409fa91f7ace557894632676656e32264fe5ef7581535725dc9a23774551bd4"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "isodate",
+      "version": "0.7.2",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/54/4d/e940025e2ce31a8ce1202635910747e5a87cc3a6a6bb2d00973375014749/isodate-0.7.2.tar.gz",
+        "hash": "sha256:4cd1aa0f43ca76f4a6c6c0292a85f40b35ec2e43e315b59f06e6d32171a953e6",
+        "size": 29705,
+        "upload-time": "2024-10-08T23:04:11.5Z"
+      },
+      "files": [
+        {
+          "path": "isodate-0.7.2/isodate-0.7.2.dist-info/LICENSE",
+          "sha256": "ce5fe4893fb6ab843de77b367bfa9db974d7b00ab9033fcca8d7760a97fe1b43"
+        }
+      ],
+      "declared_license": "Copyright (c) 2021, Hugo van Kemenade and contributors\nCopyright (c) 2009-2018, Gerhard Weis and contributors\nCopyright (c) 2009, Gerhard Weis\nAll rights reserved.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions are met:\n    * Redistributions of source code must retain the above copyright\n      notice, this list of conditions and the following disclaimer.\n    * Redistributions in binary form must reproduce the above copyright\n      notice, this list of conditions and the following disclaimer in the\n      documentation and/or other materials provided with the distribution.\n    * Neither the name of the <organization> nor the\n      names of its contributors may be used to endorse or promote products\n      derived from this software without specific prior written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND\nANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\nWARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\nDISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY\nDIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES\n(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;\nLOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND\nON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\nSOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n",
+      "status": "notices-collected"
+    },
+    {
+      "name": "jinja2",
+      "version": "3.1.6",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz",
+        "hash": "sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d",
+        "size": 245115,
+        "upload-time": "2025-03-05T20:05:02.478Z"
+      },
+      "files": [
+        {
+          "path": "jinja2-3.1.6/jinja2-3.1.6.dist-info/licenses/LICENSE.txt",
+          "sha256": "3b49dcee4105eb37bac10faf1be260408fe85d252b8e9df2e0979fc1e094437b"
+        }
+      ],
+      "declared_license": null,
+      "status": "notices-collected"
+    },
+    {
+      "name": "librt",
+      "version": "0.15.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/36/9b/356320fbae2ac8467e21c5e73e1389c80468e4998c62cc7d3536cc51b614/librt-0.15.0.tar.gz",
+        "hash": "sha256:4e66cbe84437497d951b799d3e1551291b6fb3d643820a7014b3655d57a59162",
+        "size": 214338,
+        "upload-time": "2026-08-07T10:49:42.663Z"
+      },
+      "files": [
+        {
+          "path": "librt-0.15.0/librt-0.15.0.dist-info/licenses/LICENSE",
+          "sha256": "88f9e379c684580053c58e75e296ca2eb243b6edcc6e5357f247310e96eeef8a"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "lxml",
+      "version": "6.1.3",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/23/ad/28ecd7cb894d172f3c9c80a075eeeb2017ac62e3632cee05a5f9493547eb/lxml-6.1.3.tar.gz",
+        "hash": "sha256:45222d94ddd511536f3b2f7d9deae3b2339b4ce0f075f1ca25703b07cad9dd21",
+        "size": 4211198,
+        "upload-time": "2026-09-02T14:48:02.287Z"
+      },
+      "files": [
+        {
+          "path": "lxml-6.1.3/lxml-6.1.3.dist-info/licenses/LICENSE.txt",
+          "sha256": "8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855"
+        },
+        {
+          "path": "lxml-6.1.3/lxml-6.1.3.dist-info/licenses/LICENSES.txt",
+          "sha256": "388fa99f3bde4447cd5a4cbb114037be026854db6cfe89e112691c1d8abdcf3c"
+        }
+      ],
+      "declared_license": "BSD-3-Clause",
+      "status": "notices-collected"
+    },
+    {
+      "name": "markupsafe",
+      "version": "3.0.3",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/7e/99/7690b6d4034fffd95959cbe0c02de8deb3098cc577c67bb6a24fe5d7caa7/markupsafe-3.0.3.tar.gz",
+        "hash": "sha256:722695808f4b6457b320fdc131280796bdceb04ab50fe1795cd540799ebe1698",
+        "size": 80313,
+        "upload-time": "2025-09-27T18:37:40.426Z"
+      },
+      "files": [
+        {
+          "path": "markupsafe-3.0.3/markupsafe-3.0.3.dist-info/licenses/LICENSE.txt",
+          "sha256": "489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea"
+        }
+      ],
+      "declared_license": "BSD-3-Clause",
+      "status": "notices-collected"
+    },
+    {
+      "name": "mypy",
+      "version": "2.3.1",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/82/6a/878cc1097d4035f82bd516658d0c528d2a9955bc7b363afcbd0b07fea11b/mypy-2.3.1.tar.gz",
+        "hash": "sha256:47c1b1207258513a9d93495f69c8be9de73916186f0e52703e8c461b7a623419",
+        "size": 3992554,
+        "upload-time": "2026-08-15T03:03:38.549Z"
+      },
+      "files": [
+        {
+          "path": "mypy-2.3.1/mypy-2.3.1.dist-info/licenses/LICENSE",
+          "sha256": "fdf1cd17f50e1305ed8cfd37467312d27a984648dba622cef70573b5512e4e1b"
+        },
+        {
+          "path": "mypy-2.3.1/mypy-2.3.1.dist-info/licenses/mypy/typeshed/LICENSE",
+          "sha256": "295f8538c94ae5c3043301cf7cff1c852dab6a786a8ddee471e061b40d5ecabe"
+        },
+        {
+          "path": "mypy-2.3.1/mypy/typeshed/LICENSE",
+          "sha256": "295f8538c94ae5c3043301cf7cff1c852dab6a786a8ddee471e061b40d5ecabe"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "mypy-extensions",
+      "version": "1.1.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8dac321cda606860fa4548858c0cc45d9d1d4ca2628b/mypy_extensions-1.1.0.tar.gz",
+        "hash": "sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558",
+        "size": 6343,
+        "upload-time": "2025-04-22T14:54:24.164Z"
+      },
+      "files": [
+        {
+          "path": "mypy-extensions-1.1.0/mypy_extensions-1.1.0.dist-info/licenses/LICENSE",
+          "sha256": "a50450da1d53cd777b80ced77c58ff96abe0ccd879706bd142c3ec20e245f0b4"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "oots-lib",
+      "version": "0.1.7",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/cd/9c/e891834a09dc5d69f3c342954ffc549d75034dd752e75ba97baf8a216dbd/oots_lib-0.1.7.tar.gz",
+        "hash": "sha256:837ad6ff6f8b58d14e1928d775373c1f87cbc2a2fda8a6e06e4ca8e114dccf9b",
+        "size": 55666,
+        "upload-time": "2026-09-08T12:28:15.154Z"
+      },
+      "files": [
+        {
+          "path": "oots-lib-0.1.7/oots_lib-0.1.7.dist-info/licenses/LICENSE",
+          "sha256": "922e7e3be8edf564af4ef8fc36b16d07cdacbf8b8263d970bcf6fe0ee0592887"
+        }
+      ],
+      "declared_license": null,
+      "status": "notices-collected",
+      "verified_license": "EUPL-1.2",
+      "verification": "Bundled LICENSE text; metadata omits license identifier."
+    },
+    {
+      "name": "packaging",
+      "version": "26.3",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz",
+        "hash": "sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79",
+        "size": 313412,
+        "upload-time": "2026-08-04T18:15:28.737Z"
+      },
+      "files": [
+        {
+          "path": "packaging-26.3/packaging-26.3.dist-info/licenses/LICENSE",
+          "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48"
+        },
+        {
+          "path": "packaging-26.3/packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+        },
+        {
+          "path": "packaging-26.3/packaging-26.3.dist-info/licenses/LICENSE.BSD",
+          "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5"
+        }
+      ],
+      "declared_license": "Apache-2.0 OR BSD-2-Clause",
+      "status": "notices-collected"
+    },
+    {
+      "name": "pathspec",
+      "version": "1.1.1",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/5a/82/42f767fc1c1143d6fd36efb827202a2d997a375e160a71eb2888a925aac1/pathspec-1.1.1.tar.gz",
+        "hash": "sha256:17db5ecd524104a120e173814c90367a96a98d07c45b2e10c2f3919fff91bf5a",
+        "size": 135180,
+        "upload-time": "2026-04-27T01:46:08.907Z"
+      },
+      "files": [
+        {
+          "path": "pathspec-1.1.1/pathspec-1.1.1.dist-info/licenses/LICENSE",
+          "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85"
+        }
+      ],
+      "declared_license": null,
+      "status": "notices-collected"
+    },
+    {
+      "name": "platformdirs",
+      "version": "4.11.7",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/69/b7/802a56eca9f2fac455b8bab5375a2647b0f0e14a2cd63ef077de3c4a7658/platformdirs-4.11.7.tar.gz",
+        "hash": "sha256:4f41487eeeeeb07f3a6625e61d9bc0ae6809f92d3386dbd74392fbb76108104d",
+        "size": 35127,
+        "upload-time": "2026-09-01T13:35:10.502Z"
+      },
+      "files": [
+        {
+          "path": "platformdirs-4.11.7/platformdirs-4.11.7.dist-info/licenses/LICENSE",
+          "sha256": "29e0fd62e929850e86eb28c3fdccf0cefdf4fa94879011cffb3d0d4bed6d4db6"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "pluggy",
+      "version": "1.6.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz",
+        "hash": "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3",
+        "size": 69412,
+        "upload-time": "2025-05-15T12:30:07.975Z"
+      },
+      "files": [
+        {
+          "path": "pluggy-1.6.0/pluggy-1.6.0.dist-info/licenses/LICENSE",
+          "sha256": "d6b65e6c213a5d0b577911d34d6e5949b9f59d76c238c5071a2f3fc16cfb2606"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "pydantic",
+      "version": "2.13.5",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/53/ef/fc4f868f4e2cee79f863883abffceff107875f569b848507319842d2a681/pydantic-2.13.5.tar.gz",
+        "hash": "sha256:51a9c5f7b2f8e636f04c6cada605d9b6a3bf1348fdf945a3d8869b19bba0ee08",
+        "size": 845750,
+        "upload-time": "2026-08-28T14:04:00.916Z"
+      },
+      "files": [
+        {
+          "path": "pydantic-2.13.5/pydantic-2.13.5.dist-info/licenses/LICENSE",
+          "sha256": "a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "pydantic-core",
+      "version": "2.46.5",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/af/f9/8a06bea35ef8daf588f707784c973a7046e0034c8d8cfb08828eeffb8b75/pydantic_core-2.46.5.tar.gz",
+        "hash": "sha256:10416c15b8839ecc4ef4d0885da76da6fd0f67333a0eb8aff6d93c4b8f2910fc",
+        "size": 472262,
+        "upload-time": "2026-08-28T10:01:31.677Z"
+      },
+      "files": [
+        {
+          "path": "pydantic-core-2.46.5/pydantic_core-2.46.5.dist-info/licenses/LICENSE",
+          "sha256": "2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "pygments",
+      "version": "2.21.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/49/2e/ced460408999b33da6b31b0021b0f37d329e202d4169aeb164493778f25b/pygments-2.21.0.tar.gz",
+        "hash": "sha256:610ca751c9bc2492b38eb9a38a7fbc93edbbb2d7182edaf34e66ae493dee5c8c",
+        "size": 5005329,
+        "upload-time": "2026-08-17T08:02:48.824Z"
+      },
+      "files": [
+        {
+          "path": "pygments-2.21.0/pygments-2.21.0.dist-info/licenses/AUTHORS",
+          "sha256": "71a83872ad82f57be692cf827e048e2cd51d45169cfa1ea3f28706d97a872c0f"
+        },
+        {
+          "path": "pygments-2.21.0/pygments-2.21.0.dist-info/licenses/LICENSE",
+          "sha256": "a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17"
+        }
+      ],
+      "declared_license": "BSD-2-Clause",
+      "status": "notices-collected"
+    },
+    {
+      "name": "pyregrep",
+      "version": "15",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/92/b4/703f03cd15c91606a0cc2a87facf106e64d7490e0ffc61241a4356869509/pyregrep-15.tar.gz",
+        "hash": "sha256:316bfda4ce123c57d45e33da724cef5f6fb555dafcb9f4e24501cccd3d29e0e7",
+        "size": 22391,
+        "upload-time": "2026-09-07T09:32:23.092Z"
+      },
+      "files": [
+        {
+          "path": "pyregrep-15/pyregrep-15.dist-info/licenses/LICENSE",
+          "sha256": "72f96af8281d6e3ec984a0c013a747a974386d45713c6babba2e12c3b279bc92"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "pytest",
+      "version": "9.1.1",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa3c9d3fe98a76a1d14c74a9e266d397cf6eb64be5e01/pytest-9.1.1.tar.gz",
+        "hash": "sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313",
+        "size": 1636369,
+        "upload-time": "2026-06-19T10:58:32.857Z"
+      },
+      "files": [
+        {
+          "path": "pytest-9.1.1/pytest-9.1.1.dist-info/licenses/LICENSE",
+          "sha256": "ca836a5f9ecca3b2f350230faa20a48fb8b145653b5568d784862df864706b9b"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "python-multipart",
+      "version": "0.0.32",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/5b/42/55c32bb9b12693c092ad250a0e82edb5b31ddeda6eb772de5f308b3804ad/python_multipart-0.0.32.tar.gz",
+        "hash": "sha256:be54b7f3fa167bb83e4fcd936b887b708f4e57fe75911c02aebf53efaf8d938e",
+        "size": 46881,
+        "upload-time": "2026-06-04T16:18:58.647Z"
+      },
+      "files": [
+        {
+          "path": "python-multipart-0.0.32/python_multipart-0.0.32.dist-info/licenses/LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ],
+      "declared_license": "Apache-2.0",
+      "status": "notices-collected"
+    },
+    {
+      "name": "pyxroad",
+      "version": "1.5.10",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/9b/21/4389580fadc206ec9f2948db28be1ef11609391daf1fb16a31c0836ba22b/pyxroad-1.5.10.tar.gz",
+        "hash": "sha256:8bf3f785a9c377f9060b04da38bd23bdfafef3d928393696e1c1607d4186f687",
+        "size": 11509,
+        "upload-time": "2026-06-14T10:52:18.605Z"
+      },
+      "files": [],
+      "declared_license": "MIT",
+      "status": "missing-license-text",
+      "verification": "MIT declaration only. No LICENSE in wheel, hash-verified sdist, or upstream tag v1.5.10 (aed1635f858f3a13006aff629631e77d97379636)."
+    },
+    {
+      "name": "redis",
+      "version": "8.1.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/a8/99/604f0b666d4c616d891cf77ebb9db6bb21601344c051aebf1b72b9ff915f/redis-8.1.0.tar.gz",
+        "hash": "sha256:6e1a19beef9225c83efd689c7e6b7da2d5215b1f42cd13b7fc3714d0a09c7b25",
+        "size": 5254356,
+        "upload-time": "2026-07-30T08:51:00.269Z"
+      },
+      "files": [
+        {
+          "path": "redis-8.1.0/redis-8.1.0.dist-info/licenses/LICENSE",
+          "sha256": "a57b250a5bf03d7afe55b74063313f2adb7b00d546c0ab149a89398333fe3cc8"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz",
+        "hash": "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed",
+        "size": 142856,
+        "upload-time": "2026-05-14T19:25:27.735Z"
+      },
+      "files": [
+        {
+          "path": "requests-2.34.2/requests-2.34.2.dist-info/licenses/LICENSE",
+          "sha256": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b"
+        },
+        {
+          "path": "requests-2.34.2/requests-2.34.2.dist-info/licenses/NOTICE",
+          "sha256": "f5110972dedad2b4e9d314518daf3b7d72d6e02e499acd802181de6f74571dcc"
+        }
+      ],
+      "declared_license": "Apache-2.0",
+      "status": "notices-collected"
+    },
+    {
+      "name": "requests-file",
+      "version": "3.0.1",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/3c/f8/5dc70102e4d337063452c82e1f0d95e39abfe67aa222ed8a5ddeb9df8de8/requests_file-3.0.1.tar.gz",
+        "hash": "sha256:f14243d7796c588f3521bd423c5dea2ee4cc730e54a3cac9574d78aca1272576",
+        "size": 6967,
+        "upload-time": "2025-10-20T18:56:42.279Z"
+      },
+      "files": [
+        {
+          "path": "requests-file-3.0.1/requests_file-3.0.1.dist-info/licenses/LICENSE",
+          "sha256": "39ff1bc4e15ffced0047d99689d06f54bb29ce47844927a03eaa29ebb9ac0f17"
+        }
+      ],
+      "declared_license": "Apache 2.0",
+      "status": "notices-collected"
+    },
+    {
+      "name": "requests-toolbelt",
+      "version": "1.0.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/f3/61/d7545dafb7ac2230c70d38d31cbfe4cc64f7144dc41f6e4e4b78ecd9f5bb/requests-toolbelt-1.0.0.tar.gz",
+        "hash": "sha256:7681a0a3d047012b5bdc0ee37d7f8f07ebe76ab08caeccfc3921ce23c88d5bc6",
+        "size": 206888,
+        "upload-time": "2023-05-01T04:11:33.229Z"
+      },
+      "files": [
+        {
+          "path": "requests-toolbelt-1.0.0/requests_toolbelt-1.0.0.dist-info/AUTHORS.rst",
+          "sha256": "57df198f62c9098aac95c9b8ec1f0b8efc024080f61d5a0ed89ef4c5da3cf031"
+        },
+        {
+          "path": "requests-toolbelt-1.0.0/requests_toolbelt-1.0.0.dist-info/LICENSE",
+          "sha256": "1f8cf8bdacd98ed6d36d0fec0c07f7765acebd6e81205962ab5146023b3c858d"
+        }
+      ],
+      "declared_license": "Apache 2.0",
+      "status": "notices-collected"
+    },
+    {
+      "name": "ruff",
+      "version": "0.16.7",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/82/bb/5a449b9162e49b139d72f61672bd3ac1d790221f796d3304e2241fff4c58/ruff-0.16.7.tar.gz",
+        "hash": "sha256:5f71d004ac1263b22fa39462ac5ae618a4b77d58981af2cc79bf79a29c12b1a6",
+        "size": 4924184,
+        "upload-time": "2026-09-10T18:04:06.336Z"
+      },
+      "files": [
+        {
+          "path": "ruff-0.16.7/ruff-0.16.7.dist-info/licenses/LICENSE",
+          "sha256": "2597d854122b77ddc71971564ca2350a37608575ce324adc5650a2b2051c8f18"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "setuptools",
+      "version": "84.0.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/6d/44/f5da03a8ef95d369145c5bb53050e7877c9f3d312e128605fd9504829143/setuptools-84.0.0.tar.gz",
+        "hash": "sha256:f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73",
+        "size": 1168449,
+        "upload-time": "2026-08-08T18:27:58.365Z"
+      },
+      "files": [
+        {
+          "path": "setuptools-84.0.0/setuptools-84.0.0.dist-info/licenses/LICENSE",
+          "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/autocommand-2.2.2.dist-info/LICENSE",
+          "sha256": "ade78d04982d69972d444a8e14a94f87a2334dd3855cc80348ea8e240aa0df2d"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/backports.tarfile-1.2.0.dist-info/LICENSE",
+          "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/importlib_metadata-8.7.1.dist-info/licenses/LICENSE",
+          "sha256": "458502e12d97bbf64438606a20044aa85eb05fb0a8a807bb35dbec253fd1fc04"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/jaraco.text-4.0.0.dist-info/LICENSE",
+          "sha256": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/jaraco_context-6.1.0.dist-info/licenses/LICENSE",
+          "sha256": "9755a18519666e5f0f4cae3daad3d7012bcae48a600b31237d75e9fe134e6683"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/jaraco_functools-4.4.0.dist-info/licenses/LICENSE",
+          "sha256": "5a57cb4db85e2a2dd88c290628908add57e3451449e0a9a71fdfb38776fd759d"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/more_itertools-10.8.0.dist-info/licenses/LICENSE",
+          "sha256": "09f1c8c9e941af3e584d59641ea9b87d83c0cb0fd007eb5ef391a7e2643c1a46"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/packaging-26.0.dist-info/licenses/LICENSE",
+          "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/packaging-26.0.dist-info/licenses/LICENSE.APACHE",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/packaging-26.0.dist-info/licenses/LICENSE.BSD",
+          "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/platformdirs-4.4.0.dist-info/licenses/LICENSE",
+          "sha256": "29e0fd62e929850e86eb28c3fdccf0cefdf4fa94879011cffb3d0d4bed6d4db6"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/tomli-2.4.0.dist-info/licenses/LICENSE",
+          "sha256": "b80816b0d530b8accb4c2211783790984a6e3b61922c2b5ee92f3372ab2742fe"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/wheel-0.46.3.dist-info/licenses/LICENSE.txt",
+          "sha256": "30c23618679108f3e8ea1d2a658c7ca417bdfc891c98ef1a89fa4ff0c9828654"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/_vendor/zipp-3.23.0.dist-info/licenses/LICENSE",
+          "sha256": "5a57cb4db85e2a2dd88c290628908add57e3451449e0a9a71fdfb38776fd759d"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/config/NOTICE",
+          "sha256": "2dddf08818297a3b89d43d95ff659d8da85741108c9136dfa3a4d856c0623bd8"
+        },
+        {
+          "path": "setuptools-84.0.0/setuptools/config/_validate_pyproject/NOTICE",
+          "sha256": "09c9bcea95ca086f8bc5bed174e40bc835b297d40fb5f86bbbb570fe0a5581a7"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "starlette",
+      "version": "1.6.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/b5/b4/205b0d5241d934e8add0c38aa924c4f9fb7330834ff11e5444db964ec3f9/starlette-1.6.0.tar.gz",
+        "hash": "sha256:d4e3ac5e546444960c710297a3c9fc3f7ebae1b7e963f3d36173b49da535be9b",
+        "size": 2716969,
+        "upload-time": "2026-08-08T18:27:57.512Z"
+      },
+      "files": [
+        {
+          "path": "starlette-1.6.0/starlette-1.6.0.dist-info/licenses/LICENSE.md",
+          "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+        }
+      ],
+      "declared_license": "BSD-3-Clause",
+      "status": "notices-collected"
+    },
+    {
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/f6/cc/6253133b5bb138fc3306cebfbda2c520f545d36b5be2c7255cc528bb45d6/typing_extensions-4.16.0.tar.gz",
+        "hash": "sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5",
+        "size": 113555,
+        "upload-time": "2026-07-02T08:40:05.92Z"
+      },
+      "files": [
+        {
+          "path": "typing-extensions-4.16.0/typing_extensions-4.16.0.dist-info/licenses/LICENSE",
+          "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf"
+        }
+      ],
+      "declared_license": "PSF-2.0",
+      "status": "notices-collected"
+    },
+    {
+      "name": "typing-inspection",
+      "version": "0.4.4",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/a3/26/b09b8010994eccc3c09092e6b34058f36a460eea2d4c3e8b910c695975a0/typing_inspection-0.4.4.tar.gz",
+        "hash": "sha256:547274fa6b0a561ccf549cc9524b999a578e737d015d8709d021f9d0d13bea47",
+        "size": 76928,
+        "upload-time": "2026-08-12T12:37:25.997Z"
+      },
+      "files": [
+        {
+          "path": "typing-inspection-0.4.4/typing_inspection-0.4.4.dist-info/licenses/LICENSE",
+          "sha256": "804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "urllib3",
+      "version": "2.7.0",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz",
+        "hash": "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c",
+        "size": 433602,
+        "upload-time": "2026-05-07T16:13:18.596Z"
+      },
+      "files": [
+        {
+          "path": "urllib3-2.7.0/urllib3-2.7.0.dist-info/licenses/LICENSE.txt",
+          "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "uvicorn",
+      "version": "0.52.4",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/f2/0f/3f86e61397dd33bf2ccf28188c40db6a740658aeebbbf6e7dbc101a1f487/uvicorn-0.52.4.tar.gz",
+        "hash": "sha256:73acfee47a0b133c5de13d219492d62d8a31e935f4fe6e41a232451a15379f86",
+        "size": 100627,
+        "upload-time": "2026-08-19T06:27:41.821Z"
+      },
+      "files": [
+        {
+          "path": "uvicorn-0.52.4/uvicorn-0.52.4.dist-info/licenses/LICENSE.md",
+          "sha256": "efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371"
+        }
+      ],
+      "declared_license": "BSD-3-Clause",
+      "status": "notices-collected"
+    },
+    {
+      "name": "xmltodict",
+      "version": "1.0.4",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/19/70/80f3b7c10d2630aa66414bf23d210386700aa390547278c789afa994fd7e/xmltodict-1.0.4.tar.gz",
+        "hash": "sha256:6d94c9f834dd9e44514162799d344d815a3a4faec913717a9ecbfa5be1bb8e61",
+        "size": 26124,
+        "upload-time": "2026-02-22T02:21:22.074Z"
+      },
+      "files": [
+        {
+          "path": "xmltodict-1.0.4/xmltodict-1.0.4.dist-info/licenses/LICENSE",
+          "sha256": "d66d5eb8f83a0ba21d3dd04318b8817588e8764daabea852d1035e3f07ffda55"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    },
+    {
+      "name": "zeep",
+      "version": "4.3.3",
+      "sdist": {
+        "url": "https://files.pythonhosted.org/packages/7e/c2/e06e5f177d818d0fc34fcbe2f98c175af2cba63b7d90f4bfcb6fe360d343/zeep-4.3.3.tar.gz",
+        "hash": "sha256:99d5059f92f721020998695fd9c85289ccb03ec5a2398ad49c6dbe43f19cfb94",
+        "size": 167372,
+        "upload-time": "2026-06-18T17:17:58.994Z"
+      },
+      "files": [
+        {
+          "path": "zeep-4.3.3/zeep-4.3.3.dist-info/licenses/LICENSE",
+          "sha256": "0c382b057f478f84d2a13e0f2d281e2dbfc541eb83d55cb785c0265af99c53f5"
+        }
+      ],
+      "declared_license": "MIT",
+      "status": "notices-collected"
+    }
+  ]
+}

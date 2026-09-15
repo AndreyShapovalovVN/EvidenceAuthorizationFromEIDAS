@@ -3,6 +3,7 @@ name = "evidence-authorization-from-eidas"
 version = "1.10.0"
 description = "FastAPI service for OOTS authorization and evidence preview"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
 dependencies = [
     "fastapi==0.141.1",
