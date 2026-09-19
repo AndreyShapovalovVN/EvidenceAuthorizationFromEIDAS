@@ -31,13 +31,21 @@ def collect_notice(dist, file, package_directory, output):
     source = dist.locate_file(file)
     if not source.is_file():
         return None
-    safe_parts = [part for part in file.parts if part not in ("..", ".", "/")]
-    relative = Path(package_directory, *safe_parts)
-    target = output / relative
+
+    output_root = output.resolve()
+    relative = Path(package_directory, *file.parts)
+    target = (output_root / relative).resolve()
+
+    if not target.is_relative_to(output_root):
+        raise ValueError(f"Notice path escapes output directory: {file}")
+
     target.parent.mkdir(parents=True, exist_ok=True)
     data = source.read_bytes()
     target.write_bytes(data)
-    return {"path": str(relative), "sha256": hashlib.sha256(data).hexdigest()}
+    return {
+        "path": target.relative_to(output_root).as_posix(),
+        "sha256": hashlib.sha256(data).hexdigest(),
+    }
 
 
 def collect_package(package, installed, output):
