@@ -1,5 +1,5 @@
 {
-  "lock_sha256": "e955c8ea0fee411d32d35e2248da1781c0e692ff85cb04d345045d66c78c3c01",
+  "lock_sha256": "b1e624ff1490e7a7ba8e220b2a8437f02fa96321a0bf05c2eff3fb81efd69a9b",
   "scope": "Locked Python packages; native binaries, OS packages and hosted source access require separate verification.",
   "packages": [
     {
@@ -98,16 +98,16 @@
     },
     {
       "name": "certifi",
-      "version": "2026.7.22",
+      "version": "2026.10.19",
       "sdist": {
-        "url": "https://files.pythonhosted.org/packages/a3/c2/24167ea9858356b47a87a50d39908bfdb72ceeefe0041586e704e5376b3a/certifi-2026.7.22.tar.gz",
-        "hash": "sha256:741e2c3b351ddf169a738da9f2c048608ff7f2c5cc02f1ebc6b118bb090d5d55",
-        "size": 138112,
-        "upload-time": "2026-07-22T03:35:12.644Z"
+        "url": "https://files.pythonhosted.org/packages/a6/bd/1436c50cc46699de0230fbaacc1d1de7bfec413176099949e9d5112e88f2/certifi-2026.10.19.tar.gz",
+        "hash": "sha256:035c1e85572b141bf1c3a3eff0e33a8eb74917522f2559075ff8d2fea780a1ae",
+        "size": 137598,
+        "upload-time": "2026-10-20T02:24:16.604Z"
       },
       "files": [
         {
-          "path": "certifi-2026.7.22/certifi-2026.7.22.dist-info/licenses/LICENSE",
+          "path": "certifi-2026.10.19/certifi-2026.10.19.dist-info/licenses/LICENSE",
           "sha256": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7"
         }
       ],
@@ -876,16 +876,16 @@
     },
     {
       "name": "urllib3",
-      "version": "2.7.0",
+      "version": "2.8.0",
       "sdist": {
-        "url": "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz",
-        "hash": "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c",
-        "size": 433602,
-        "upload-time": "2026-05-07T16:13:18.596Z"
+        "url": "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz",
+        "hash": "sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63",
+        "size": 458972,
+        "upload-time": "2026-09-15T19:29:36.253Z"
       },
       "files": [
         {
-          "path": "urllib3-2.7.0/urllib3-2.7.0.dist-info/licenses/LICENSE.txt",
+          "path": "urllib3-2.8.0/urllib3-2.8.0.dist-info/licenses/LICENSE.txt",
           "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686"
         }
       ],

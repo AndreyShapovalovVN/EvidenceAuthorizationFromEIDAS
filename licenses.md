@@ -14,7 +14,7 @@
 | anyio              | 4.15.1    | MIT                                  |
 | ast_serialize      | 0.11.0    | MIT                                  |
 | attrs              | 26.1.0    | MIT                                  |
-| certifi            | 2026.7.22 | Mozilla Public License 2.0 (MPL 2.0) |
+| certifi            | 2026.10.19 | Mozilla Public License 2.0 (MPL 2.0) |
 | charset-normalizer | 3.5.1     | MIT                                  |
 | click              | 8.5.0     | BSD-3-Clause                         |
 | fastapi            | 0.141.1   | MIT                                  |
@@ -47,7 +47,7 @@
 | starlette          | 1.6.0     | BSD-3-Clause                         |
 | typing-inspection  | 0.4.4     | MIT                                  |
 | typing_extensions  | 4.16.0    | PSF-2.0                              |
-| urllib3            | 2.7.0     | MIT                                  |
+| urllib3            | 2.8.0     | MIT                                  |
 | uvicorn            | 0.52.4    | BSD-3-Clause                         |
 | xmltodict          | 1.0.4     | MIT                                  |
 | zeep               | 4.3.3     | MIT License                          |

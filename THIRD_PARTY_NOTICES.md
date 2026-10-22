@@ -24,7 +24,7 @@ the installed package in .venv/lib/python3.12/site-packages/oots_lib. The exact
 source archive URL and SHA-256 are recorded in inventory.json. Retain the source
 and license; offer recipients access when communicating its functionality.
 
-**certifi 2026.7.22 and pathspec 1.1.1:** these components are covered by MPL-2.0.
+**certifi 2026.10.19 and pathspec 1.1.1:** these components are covered by MPL-2.0.
 Their editable Python sources (and certifi's certificate bundle) accompany their
 installed packages; obtain complete release source archives through the exact
 sdist URLs recorded in inventory.json. Modifications to their covered files must
