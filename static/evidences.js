@@ -7,8 +7,6 @@
     const pageConfig = window.evidencePageConfig || {};
     const evidenceItems = Array.from(document.querySelectorAll(".js-evidence-item"));
     const evidenceButtons = Array.from(document.querySelectorAll(".js-evidence-select"));
-    const contentButtons = Array.from(document.querySelectorAll(".js-content-select"));
-    const viewAllButtons = Array.from(document.querySelectorAll(".js-view-all"));
     const pdfViewer = document.getElementById("pdfViewer");
     const textViewer = document.getElementById("textViewer");
     const emptyViewer = document.getElementById("emptyViewer");
@@ -16,7 +14,6 @@
     const submitBtn = document.getElementById("submitBtn");
     const resultMessage = document.getElementById("resultMessage");
     let activeEvidenceIndex = 0;
-    let activeContentId = "";
     function findEvidence(index) {
         const value = evidences[index];
         if (!value || !Array.isArray(value.contents)) {
@@ -81,18 +78,6 @@
         evidenceItems.forEach((item, idx) => {
             item.classList.toggle("active", idx === activeEvidenceIndex);
         });
-        contentButtons.forEach((button) => {
-            const selected =
-                Number(button.dataset.evidenceIndex) === activeEvidenceIndex &&
-                button.dataset.contentId === activeContentId;
-            button.classList.toggle("active", selected);
-        });
-        viewAllButtons.forEach((button) => {
-            const selected =
-                Number(button.dataset.evidenceIndex) === activeEvidenceIndex &&
-                activeContentId === "all-contents";
-            button.classList.toggle("active", selected);
-        });
     }
     function selectContent(evidenceIndex, contentId) {
         const evidence = findEvidence(evidenceIndex);
@@ -104,7 +89,6 @@
             return;
         }
         activeEvidenceIndex = evidenceIndex;
-        activeContentId = content.id;
         refreshActiveButtons();
         setViewerState(content);
     }
@@ -113,36 +97,6 @@
             const evidenceIndex = Number(button.dataset.evidenceIndex || "0");
             const defaultContentId = button.dataset.defaultContentId || "";
             selectContent(evidenceIndex, defaultContentId);
-        });
-    });
-    contentButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-            const evidenceIndex = Number(button.dataset.evidenceIndex || "0");
-            const contentId = button.dataset.contentId || "";
-            selectContent(evidenceIndex, contentId);
-        });
-    });
-    viewAllButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-            const evidenceIndex = Number(button.dataset.evidenceIndex || "0");
-            const evidence = findEvidence(evidenceIndex);
-            if (!evidence) {
-                return;
-            }
-            // Show consolidated view of all contents
-            // Create a combined text view
-            const allContent = evidence.contents
-                .filter(c => c.content !== null && c.content !== undefined)
-                .map(c => `\n=== ${c.label} ===\nType: ${c.content_type}\nCID: ${c.cid}\n\n${formatContent(c.content, c.content_type)}`)
-                .join("\n\n");
-            activeEvidenceIndex = evidenceIndex;
-            activeContentId = "all-contents";
-            refreshActiveButtons();
-            textViewer.textContent = allContent || "No content available for any items.";
-            textViewer.style.display = "block";
-            pdfViewer.style.display = "none";
-            emptyViewer.style.display = "none";
-            viewerMeta.textContent = `All Contents | ${evidence.contents.length} items`;
         });
     });
     submitBtn.addEventListener("click", async function () {

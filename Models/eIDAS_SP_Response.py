@@ -139,7 +139,7 @@ class SimpleResponse(MainBase):
             "identifier": identifier,
             "date_of_birth": date_of_birth,
             "gender": gender,
-            "level_of_assurance": self.authentication_context_class or "High",
+            "level_of_assurance": self.authentication_context_class,
         }
 
 

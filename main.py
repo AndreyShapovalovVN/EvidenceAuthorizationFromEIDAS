@@ -18,6 +18,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from lib.action_token import issue_action_token, verify_action_token
 from lib.eidas_sp_service import (
     EIDAS_SPECIFIC_CONNECTOR_URL,
+    accept_eidas_assurance,
     parse_simple_response,
     pop_eidas_message_id,
     prepare_eidas_redirect,
@@ -486,13 +487,22 @@ async def _save_eidas_person(client, message_id: str, person_payload: dict) -> N
 )
 async def eidas_callback(request: Request):
     """Крок 2: прийняти SimpleResponse від Specific Connector (guide §12.4),
-    зберегти Person у Redis та повернути користувача на /preview/{message_id}."""
+    зберегти Person лише для High (інакше EDM:ERR:0001) та перейти на preview."""
     raw_body = await _read_simple_response_body(request)
     simple_response = _parse_simple_response(raw_body)
 
     client = get_redis_client()
     message_id = await _pop_eidas_message_id(client, simple_response.inresponse_to)
     _raise_if_eidas_failed(simple_response, message_id)
+
+    if not await accept_eidas_assurance(
+        client,
+        message_id,
+        simple_response.authentication_context_class,
+        queue_outgoing=QUEUE_OUTGOING,
+        keys=KEYS,
+    ):
+        return RedirectResponse(url=f"/preview/{message_id}", status_code=303)
 
     person_payload = simple_response.to_person_payload()
     await _save_eidas_person(client, message_id, person_payload)

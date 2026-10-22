@@ -28,44 +28,6 @@
                             📄 {{ evidence.title }}
                         </button>
 
-                        <div class="evidence-item-content">
-                            <button type="button"
-                                    class="view-all-btn js-view-all"
-                                    data-evidence-index="{{ evidence_index }}"
-                                    title="View all contents ({{ evidence.contents|length }} items)">
-                                👁️ View All ({{ evidence.contents|length }})
-                            </button>
-                            {% if evidence.contents|length <= 5 %}
-                                {% for content in evidence.contents %}
-                                    <button type="button"
-                                            class="content-btn js-content-select"
-                                            data-evidence-index="{{ evidence_index }}"
-                                            data-content-id="{{ content.id }}"
-                                            title="{{ content.label }}">
-                                        {{ content.classification_node }}: {{ content.label|truncate(20, True) }}
-                                    </button>
-                                {% endfor %}
-                            {% else %}
-                                <div class="content-preview">
-                                    <span class="preview-hint">{{ evidence.contents|length }} items available</span>
-                                </div>
-                                {% for content in evidence.contents[:3] %}
-                                    <button type="button"
-                                            class="content-btn js-content-select"
-                                            data-evidence-index="{{ evidence_index }}"
-                                            data-content-id="{{ content.id }}"
-                                            title="{{ content.label }}">
-                                        {{ content.classification_node }}: {{ content.label|truncate(20, True) }}
-                                    </button>
-                                {% endfor %}
-                                <button type="button"
-                                        class="content-btn-more"
-                                        disabled>
-                                    ... and {{ evidence.contents|length - 3 }} more
-                                </button>
-                            {% endif %}
-                        </div>
-
                         <label class="permit-row">
                             <input type="checkbox"
                                    class="js-permit-checkbox"

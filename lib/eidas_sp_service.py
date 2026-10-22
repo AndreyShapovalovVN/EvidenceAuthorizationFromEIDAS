@@ -2,6 +2,7 @@ import logging
 
 from fastapi import HTTPException, Request
 from oots_lib.import_env import import_env
+from oots_lib.lib.exceptions import AuthenticationException
 
 from lib.PersonRequestService import save_identified_person_request
 from lib.preview_keys import PreviewKeys
@@ -250,6 +251,41 @@ def raise_if_eidas_failed(simple_response, message_id: str, *, logger=None) -> N
     )
 
 
+async def accept_eidas_assurance(
+    client,
+    message_id: str,
+    level_of_assurance: str,
+    *,
+    queue_outgoing: str,
+    keys: PreviewKeys | None = None,
+) -> bool:
+    """Reject non-High responses and send an EDM error to the caller."""
+    if level_of_assurance == "High":
+        return True
+
+    error = AuthenticationException(
+        detail=(
+            f"Expected level_of_assurance=High, received {level_of_assurance!r} "
+            f"for message_id={message_id}"
+        ),
+    )
+    keys = keys or PreviewKeys()
+    await client.save_to_redis(
+        keys.get_response_exp(message_id),
+        {
+            "exception": {
+                "code": error.code,
+                "message": error.message,
+                "detail": error.detail,
+                "preview_link": None,
+            }
+        },
+    )
+    await client.push_to_queue(queue_outgoing, message_id)
+    _logger.warning("eIDAS assurance rejected for message_id=%s", message_id)
+    return False
+
+
 async def save_eidas_person(client, message_id: str, person_payload: dict) -> None:
     _logger.debug(
         "Saving eIDAS person for message_id=%s first_name=%s last_name=%s identifier=%s",
@@ -299,6 +335,15 @@ async def process_eidas_callback(
 
     message_id = await pop_eidas_message_id(client, simple_response.inresponse_to, keys=keys)
     raise_if_eidas_failed(simple_response, message_id, logger=log)
+
+    if not await accept_eidas_assurance(
+        client,
+        message_id,
+        simple_response.authentication_context_class,
+        queue_outgoing=import_env("QUEUE_OUTCOMING"),
+        keys=keys,
+    ):
+        return message_id
 
     person_payload = simple_response.to_person_payload()
     log.debug(

@@ -99,7 +99,7 @@ def test_preview_redirects_to_returnurl_when_exp_ready(client, fake_redis_client
     assert response.headers["location"] == return_url
 
 
-def test_auth_builds_continue_url_to_preview_with_returnurl(client, fake_redis_client, monkeypatch):
+def test_auth_shows_eidas_login_with_returnurl(client, fake_redis_client, monkeypatch):
     # Мокуємо REQUEST_EDM як наявний, REQUEST_PERSON як відсутній
     def side_effect_fn(key):
         if "request:edm" in key:
@@ -121,7 +121,7 @@ def test_auth_builds_continue_url_to_preview_with_returnurl(client, fake_redis_c
     response = client.get("/auth/00000000-0000-0000-0000-000000000001?returnurl=https://example.com/callback")
 
     assert response.status_code == 200
-    assert 'const continueUrl = "/preview/00000000-0000-0000-0000-000000000001";' in response.text
+    assert 'href="/auth/eidas/start/00000000-0000-0000-0000-000000000001"' in response.text
 
 
 def test_auth_saves_returnurl_to_redis(client, fake_redis_client, monkeypatch):
@@ -149,7 +149,7 @@ def test_auth_saves_returnurl_to_redis(client, fake_redis_client, monkeypatch):
     assert any(c[0] == returnurl_key for c in save_calls)
 
 
-def test_auth_builds_continue_url_to_preview_without_returnurl(client, fake_redis_client, monkeypatch):
+def test_auth_shows_eidas_login_without_returnurl(client, fake_redis_client, monkeypatch):
     # Мокуємо REQUEST_EDM як наявний, REQUEST_PERSON як відсутній
     def side_effect_fn(key):
         if "request:edm" in key:
@@ -171,7 +171,7 @@ def test_auth_builds_continue_url_to_preview_without_returnurl(client, fake_redi
     response = client.get("/auth/00000000-0000-0000-0000-000000000007")
 
     assert response.status_code == 200
-    assert 'const continueUrl = "/preview/00000000-0000-0000-0000-000000000007";' in response.text
+    assert 'href="/auth/eidas/start/00000000-0000-0000-0000-000000000007"' in response.text
 
 
 def test_eidas_autofill_routes_are_removed(client):
@@ -185,6 +185,7 @@ def test_eidas_autofill_routes_are_removed(client):
 def test_eidas_callback_redirects_to_preview_with_get(client, fake_redis_client, monkeypatch):
     class StubSimpleResponse:
         inresponse_to = "req-1"
+        authentication_context_class = "High"
         is_success = True
 
         class status:

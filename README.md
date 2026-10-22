@@ -7,7 +7,7 @@
 ## Основні можливості
 
 - темна сторінка авторизації з шаблону `templates/login.html`;
-- кнопка `Log in via eIDAS`, яка запускає реальний eIDAS Simple Protocol flow через Specific Connector;
+- єдина кнопка входу `Увійти через eIDAS`, яка запускає реальний eIDAS Simple Protocol flow через Specific Connector;
 - перевірка Redis перед рендерингом сторінки авторизації;
 - збереження `Person` у Redis за ключем `oots:message:request:person:{message_id}`;
 - постановка `message_id` у Redis-чергу `process_queue` з EDM payload;
@@ -38,7 +38,7 @@
 ## Ідентифікація eIDAS та ICEI
 
 - `GET /auth/eidas/start/{message_id}` запускає eIDAS Simple Protocol flow.
-- `POST /auth/eidas/callback` обробляє відповідь Specific Connector.
+- `POST /auth/eidas/callback` обробляє відповідь Specific Connector. Лише `level_of_assurance=High` дозволяє збереження `Person`; будь-який інший або відсутній рівень формує `EDM:ERR:0001` у Redis та ставить `message_id` у чергу відповіді.
 - `GET /auth/icei/start/{message_id}` перенаправляє до id.gov.ua; `message_id` має бути UUID.
 - `GET /auth/icei/callback` обмінює код авторизації на профіль користувача.
 
@@ -84,7 +84,7 @@
    - можливі `422` (EDM business error) або `408` (таймаут preview),
    - інакше рендериться `login.html`.
 
-Після успішного заповнення форми браузер переходить на URL із `continue_url` (зазвичай `/preview/{message_id}`).
+Сторінка пропонує лише вхід через eIDAS. Кнопка відкриває `/auth/eidas/start/{message_id}`; після успішної ідентифікації callback перенаправляє користувача далі.
 
 ---
 
