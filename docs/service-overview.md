@@ -1,111 +1,38 @@
 # Огляд сервісу авторизації
 
-## Призначення
+Сервіс підтверджує особу через eIDAS Simple Protocol, зберігає `Person` у Redis і показує документи для погодження.
 
-Сервіс надає захищену веб-сторінку авторизації, перевіряє службові дані в Redis і зберігає профіль користувача у форматі `Person` для подальшої обробки іншими компонентами системи. Після авторизації перенаправляє користувача на сторінку перегляду evidence (`/preview`).
+## Авторизація
 
-## Сценарії авторизації
+1. `GET /auth/{message_id}` перевіряє EDM у Redis та зберігає дозволений `returnurl`.
+2. Якщо `Person` вже є, браузер переходить на `/preview/{message_id}`. Інакше після `check_message(...)` показується кнопка входу через eIDAS.
+3. `GET /auth/eidas/start/{message_id}` зберігає одноразовий стан запиту та надсилає `SMSSPRequest` до Specific Connector.
+4. `POST /auth/eidas/callback` обробляє JSON або поле форми `SMSSPResponse`. Обробка зосереджена в `lib/eidas_sp_service.py`.
+5. `EIDAS_SP_ALLOWED_LOA` задає дозволені рівні відповіді через кому. Без значення дозволені всі рівні. Недозволений рівень формує `AuthenticationException` (`EDM:ERR:0001`), зберігається в `response:exp` і надсилається до `QUEUE_OUTCOMING`; `Person` не зберігається.
+6. Після успішної ідентифікації зберігається `Person`, а браузер отримує `303` до `/preview/{message_id}`. При відхиленні рівня браузер також переходить на preview, де за наявності помилки виконується повернення до порталу.
 
-### Базовий сценарій (`GET /auth/{message_id}`)
+Якщо EDM відсутній, сторінка повертає користувача на дозволений `returnurl` або відповідає `400`. Бізнес-помилка в `check_message(...)` повертає `422`, таймаут — `408`.
 
-1. Клієнт відкриває `GET /auth/{message_id}`.
-2. Сервіс перевіряє наявність `oots:message:request:edm:{message_id}`.
-3. Якщо EDM відсутній:
-   - при наявному `returnurl` рендериться `invalid_link.html` і виконується автоповернення на `returnurl`;
-   - без `returnurl` повертається `400` (`Invalid link: EDM not found and no returnurl provided`).
-4. Якщо EDM наявний, сервіс перевіряє `oots:message:request:person:{message_id}`.
-5. Якщо `Person` вже є, рендериться `redirect_to_preview.html` і користувач автоматично переходить на `/preview/{message_id}`.
-6. Якщо `Person` відсутній, рендериться `login.html` (після `check_message(...)`), а форма відправляється на `POST /auth/continue`.
+## Перегляд документів
 
-### Одноразова авторизація в межах `message_id`
+- `GET /preview/{message_id}` показує `evidences.html`, якщо документи готові, або `view_waiting.html`.
+- `GET /preview/progress/{message_id}` повертає прогрес та одноразово ставить `message_id` у `process_queue` з EDM.
+- `POST /preview/continue` зберігає погодження документів і ставить `message_id` у `QUEUE_OUTCOMING`.
+- `POST /preview/timeout/{message_id}` зберігає `EDM:ERR:0005` і ставить `message_id` у `QUEUE_OUTCOMING`.
 
-- Перша авторизація зберігає `Person` у `oots:message:request:person:{message_id}`.
-- Повторне відкриття `/auth/{message_id}` для того самого `message_id` не показує форму повторно і одразу переводить на `/preview/{message_id}`.
+Маршрути прогресу, погодження і таймауту потребують action-токенів. PDF та XML відображаються в одному переглядачі; вибір документа виконується натисканням на його назву. Підтримується поточний і попередній формат evidence payload.
 
-### Бізнес-помилки/таймаут у `check_message(...)`
+## Основні модулі
 
-- Якщо знайдено business error від evidence — повертається `422`.
-- Якщо спрацьовує таймаут очікування preview — повертається `408`.
+- `main.py` — маршрути, lifecycle Redis, шаблони та HTTP security headers.
+- `lib/eidas_sp_service.py` — запити й відповіді eIDAS, одноразовий стан, перевірка LoA.
+- `lib/PersonRequestService.py` — валідація та збереження ідентифікованої особи.
+- `lib/MessageChecker.py` — перевірка бізнес-помилок і очікування preview-прапора.
+- `lib/RedirectService.py` — читання EDM `ReturnLocation` і фільтрація `returnurl`.
+- `lib/preview_service.py` — прогрес, черги, погодження та таймаути.
+- `lib/evidence_view_model.py` — спільна модель перегляду evidence.
+- `lib/preview_keys.py` — додаткові ключі preview та eIDAS поверх `oots_lib.redis_keys.Keys`.
 
-## Сторінка перегляду evidence (/preview)
+Сервіс використовує Redis-клієнт із `oots_lib`. Підключення відкривається під час startup і закривається під час shutdown. `/health` повертає `503`, якщо Redis недоступний. Тести підміняють Redis і lifecycle та не потребують зовнішніх сервісів.
 
-1. `GET /preview/{message_id}` — якщо evidence вже готовий у Redis, рендерить його; інакше повертає `view_waiting.html`.
-2. `view_waiting.html` поллінгує `GET /preview/progress/{message_id}` кожні `WAIT_EVENT_SLEEP` секунд (із `X-Action-Token`, action=`preview-progress`).
-3. При `stage=2` браузер оновлює сторінку — отримуємо рендер evidence (PDF або XML).
-4. При таймауті браузер викликає `POST /preview/timeout/{message_id}` з `X-Action-Token` (action=`preview-timeout`), який фіксує `EDM:ERR:0005` у Redis і ставить `message_id` у чергу `QUEUE_OUTGOING`, після чого перенаправляє по `returnurl`.
-5. Після перегляду користувач підтверджує документи через `POST /preview/continue` з `X-Action-Token` (action=`preview-continue`).
-
-Поточний flow `view_evidence` / `continue_view` / `view_timeout` лишається без змін у бізнес-частині.
-
-`GET /preview/progress/{message_id}` також одноразово дістає `process_queue` з EDM payload і ставить `message_id` у цю чергу.
-
-## Маршрути
-
-| Метод | Шлях | Призначення |
-|-------|------|-------------|
-| `GET` | `/health` | Перевірка Redis та застосунку |
-| `GET` | `/auth/{message_id}` | Сторінка авторизації |
-| `POST` | `/auth/continue` | Збереження Person |
-| `GET` | `/preview/{message_id}` | Сторінка перегляду/очікування evidence |
-| `GET` | `/preview/progress/{message_id}` | API поллінгу прогресу |
-| `POST` | `/preview/continue` | Збереження підтверджень evidence |
-| `POST` | `/preview/timeout/{message_id}` | Фіксація таймауту в Redis |
-
-## Залежності
-
-- FastAPI — HTTP API і шаблони;
-- Jinja2 — рендеринг HTML;
-- Redis — зберігання службових даних і стану сценарію;
-- `pyRegRep4` — парсинг EDM payload;
-- `lxml` — XML-модель для `Person`.
-
-## Redis-ключі
-
-Усі ключі визначені в `redis_keys.py` (клас `Keys`), спільному для всіх компонентів:
-
-| Ключ | Опис |
-|------|------|
-| `oots:message:response:evidence:{id}` | Відповідь сервісу з можливою помилкою |
-| `oots:message:request:preview:{id}` | Прапор готовності preview |
-| `oots:message:request:edm:{id}` | EDM payload (content, process_queue) |
-| `oots:message:request:person:{id}` | Збережений Person.dict |
-| `oots:preview:process_queue_dispatched:{id}` | Маркер одноразової постановки в process_queue |
-| `oots:message:request:permit:{id}` | Прапор дозволу після підтвердження |
-| `oots:message:request:as4:{id}` | AS4 payload |
-| `oots:message:response:edm:{id}` | EDM response |
-| `oots:message:response:exp:{id}` | Запис таймауту/помилки перегляду (EDM:ERR:0005) |
-| `oots:evidencetype:{evidence_type_id}` | Тип evidence |
-
-## Змінні середовища
-
-| Змінна | Типове значення | Опис |
-|--------|-----------------|------|
-| `REDIS_URL` | `redis://localhost:6379` | URL підключення до Redis |
-| `REDIS_TTL` | `86400` | TTL для даних у Redis (секунди) |
-| `REDIS_PREFIX` | _(порожній)_ | Префікс для всіх Redis-ключів |
-| `EVIDENCE_TIMEOUT` | `600` | Час очікування evidence на сторінці (секунди) |
-| `WAIT_EVENT_SLEEP` | `5` | Інтервал поллінгу прогресу (секунди) |
-| `QUEUE_OUTGOING` | `oots:queue:outgoing` | Redis-черга для таймаут-записів |
-| `PREVIEW_URL` | _(не задано)_ | Базовий URL preview-сервісу (RedirectService) |
-| `RETURNURL_REGEX` | `.*` | Regex-фільтр для `returnurl` перед використанням |
-| `ACTION_TOKEN_SECRET` | `dev-action-secret` | Master secret для derivation ключа підпису action-токенів |
-| `ACTION_TOKEN_KEY_SALT` | `action-token-v2` | Salt для derivation dynamic signing key (`message_id` + `action`) |
-| `ACTION_TOKEN_TTL` | `900` | TTL action-токена (секунди) |
-
-Action token-и використовують dynamic signing key, прив'язаний до `message_id` та `action`; legacy signatures не підтримуються.
-
-## Внутрішні модулі
-
-- `redis_keys.py` — централізоване визначення всіх Redis-ключів;
-- `lib/UseRedis.py` — асинхронний Redis-клієнт, Singleton, префіксація ключів;
-- `lib/MessageChecker.py` — перевірка evidence-помилки та поллінг preview-прапора;
-- `lib/RedirectService.py` — обчислення цільового URL на основі EDM `PossibilityForPreview`;
-- `lib/PersonRequestService.py` — побудова Person payload і постановка в чергу Redis.
-
-## Нефункціональні особливості
-
-- сервіс повертає security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`) на всі відповіді;
-- `GET /health` вважається успішним лише за доступного Redis;
-- Redis-підключення ініціалізується на старті застосунку і закривається на shutdown (lifespan);
-- сторінка очікування (`view_waiting.html`) фіксує таймаут у Redis через REST API перед редиректом;
-- всі стилі зібрані в `static/base.css` і підключаються через `<link>` у кожному шаблоні.
+Налаштування оточення описані в [README](../README.md), встановлення — у [Kubernetes guide](kubernetes-install.md).

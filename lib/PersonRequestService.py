@@ -4,22 +4,10 @@ from datetime import date, datetime
 
 from oots_lib.lib.UseRedis import UseRedisAsync
 from oots_lib.models.Person import Identifier, Person
-from pydantic import BaseModel
 
 from lib.preview_keys import PreviewKeys as Keys
 
 KEYS = Keys()
-
-
-class ContinuePayload(BaseModel):
-    """Payload received from the login form continuation step."""
-
-    first_name: str
-    last_name: str
-    date_of_birth: str
-    identifier: str
-    message_id: str
-    level_of_assurance: str = "High"
 
 
 def _parse_birth_date(value: str) -> date:
@@ -43,29 +31,6 @@ def _build_eidas_identifier(raw_identifier: str) -> str:
         return raw_identifier
 
     return f"UA/UA/{raw_identifier}"
-
-
-async def save_person_request(
-    client: UseRedisAsync,
-    payload: ContinuePayload,
-) -> tuple[str, dict]:
-    """Create a `Person` and store it in Redis."""
-    message_id = payload.message_id.strip()
-    if not message_id:
-        raise ValueError("message_id не може бути порожнім")
-
-    person = Person(
-        LevelOfAssurance=payload.level_of_assurance,
-        identifier=Identifier(_build_eidas_identifier(payload.identifier)),
-        FamilyNameNonLatin=payload.last_name.strip(),
-        GivenNameNonLatin=payload.first_name.strip(),
-        DateOfBirth=_parse_birth_date(payload.date_of_birth),
-    )
-
-    person_data = person.dict
-    request_person_key = KEYS.get_request_person(message_id)
-    await client.save_to_redis(request_person_key, person_data)
-    return request_person_key, person_data
 
 
 async def save_identified_person_request(

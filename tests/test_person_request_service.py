@@ -5,53 +5,17 @@ from unittest.mock import AsyncMock
 import pytest
 
 from lib.PersonRequestService import (
-    ContinuePayload,
     save_identified_person_request,
-    save_person_request,
 )
 
 
 class FakeRedisSaver:
     def __init__(self):
         self.save_to_redis = AsyncMock(return_value=None)
-        self.get_from_redis = AsyncMock(return_value=[{"process_queue": "oots:queue:process"}])
+        self.get_from_redis = AsyncMock(
+            return_value=[{"process_queue": "oots:queue:process"}]
+        )
         self.push_to_queue = AsyncMock(return_value=None)
-
-
-def test_save_person_request_stores_by_message_id_key():
-    payload = ContinuePayload(
-        first_name="Пилип",
-        last_name="Ляхович",
-        date_of_birth="1994-01-21",
-        identifier="UA/UA/1059233691",
-        message_id="msg-500",
-        level_of_assurance="High",
-    )
-    client = FakeRedisSaver()
-
-    redis_key, person_data = asyncio.run(save_person_request(cast(Any, client), payload))
-
-    assert redis_key == "oots:message:request:person:msg-500"
-    assert isinstance(person_data, dict)
-    client.save_to_redis.assert_awaited_once()
-    client.get_from_redis.assert_not_awaited()
-    client.push_to_queue.assert_not_awaited()
-
-
-def test_save_person_request_raises_on_empty_message_id():
-    payload = ContinuePayload(
-        first_name="Andrii",
-        last_name="Kovalenko",
-        date_of_birth="1992-04-18",
-        identifier="UA/UA/3124509876",
-        message_id=" ",
-        level_of_assurance="High",
-    )
-    client = FakeRedisSaver()
-    coro = save_person_request(cast(Any, client), payload)
-
-    with pytest.raises(ValueError, match="message_id"):
-        asyncio.run(coro)
 
 
 def test_save_identified_person_request_accepts_missing_birth_and_gender():
@@ -60,7 +24,7 @@ def test_save_identified_person_request_accepts_missing_birth_and_gender():
     redis_key, person_data = asyncio.run(
         save_identified_person_request(
             cast(Any, client),
-            message_id="msg-icei-1",
+            message_id="msg-eidas-1",
             first_name="Ірина",
             last_name="Пархоменко",
             identifier="5566778899",
@@ -69,7 +33,7 @@ def test_save_identified_person_request_accepts_missing_birth_and_gender():
         )
     )
 
-    assert redis_key == "oots:message:request:person:msg-icei-1"
+    assert redis_key == "oots:message:request:person:msg-eidas-1"
     assert person_data["date_of_birth"] is None
     assert person_data["gender"] is None
     assert person_data["eidas_identifier"] == "UA/UA/5566778899"
@@ -82,7 +46,7 @@ def test_save_identified_person_request_stores_birth_and_gender_when_present():
     _, person_data = asyncio.run(
         save_identified_person_request(
             cast(Any, client),
-            message_id="msg-icei-2",
+            message_id="msg-eidas-2",
             first_name="Олег",
             last_name="Кравець",
             identifier="UA/UA/2233445566",
@@ -94,3 +58,19 @@ def test_save_identified_person_request_stores_birth_and_gender_when_present():
     assert person_data["date_of_birth"] == "1988-03-11"
     assert person_data["gender"] == "M"
     client.push_to_queue.assert_not_awaited()
+
+
+def test_save_identified_person_rejects_empty_message_id():
+    client = FakeRedisSaver()
+    with pytest.raises(ValueError, match="message_id"):
+        asyncio.run(
+            save_identified_person_request(
+                cast(Any, client),
+                message_id=" ",
+                first_name="Test",
+                last_name="Person",
+                identifier="UA/UA/123",
+                date_of_birth=None,
+            )
+        )
+    client.save_to_redis.assert_not_awaited()

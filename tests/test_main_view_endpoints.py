@@ -22,7 +22,9 @@ def test_view_without_returnurl_shows_waiting(client, fake_redis_client, monkeyp
     assert "Loading Evidence" in response.text
 
 
-def test_preview_skips_when_request_preview_flag_not_set(client, fake_redis_client, monkeypatch):
+def test_preview_skips_when_request_preview_flag_not_set(
+    client, fake_redis_client, monkeypatch
+):
     fake_redis_client.get_flag.return_value = False
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
@@ -37,12 +39,16 @@ def test_preview_skips_when_request_preview_flag_not_set(client, fake_redis_clie
     fake_redis_client.push_to_queue.assert_not_awaited()
 
 
-def test_preview_shows_waiting_when_flag_set_but_evidence_missing(client, fake_redis_client, monkeypatch):
+def test_preview_shows_waiting_when_flag_set_but_evidence_missing(
+    client, fake_redis_client, monkeypatch
+):
     fake_redis_client.get_flag.side_effect = lambda key, **_: "request:preview" in key
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/preview/00000000-0000-0000-0000-000000000003?returnurl=https://example.com/back")
+    response = client.get(
+        "/preview/00000000-0000-0000-0000-000000000003?returnurl=https://example.com/back"
+    )
 
     assert response.status_code == 200
     assert "Loading Evidence" in response.text
@@ -50,7 +56,9 @@ def test_preview_shows_waiting_when_flag_set_but_evidence_missing(client, fake_r
     assert "const previewUrl = `/preview/${messageId}`;" in response.text
 
 
-def test_preview_renders_immediately_when_both_ready(client, fake_redis_client, monkeypatch):
+def test_preview_renders_immediately_when_both_ready(
+    client, fake_redis_client, monkeypatch
+):
     evidence_data = {
         "evidences": [
             {
@@ -71,13 +79,17 @@ def test_preview_renders_immediately_when_both_ready(client, fake_redis_client, 
     fake_redis_client.get_from_redis.return_value = evidence_data
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/preview/00000000-0000-0000-0000-000000000004?returnurl=https://example.com/back")
+    response = client.get(
+        "/preview/00000000-0000-0000-0000-000000000004?returnurl=https://example.com/back"
+    )
 
     assert response.status_code == 200
     assert "Evidences" in response.text
 
 
-def test_preview_redirects_to_returnurl_when_exp_ready(client, fake_redis_client, monkeypatch):
+def test_preview_redirects_to_returnurl_when_exp_ready(
+    client, fake_redis_client, monkeypatch
+):
     message_id = "00000000-0000-0000-0000-000000000005"
     return_url = "https://example.com/back"
 
@@ -107,7 +119,7 @@ def test_auth_shows_eidas_login_with_returnurl(client, fake_redis_client, monkey
         if "request:person" in key:
             return None
         return None
-    
+
     fake_redis_client.get_from_redis.side_effect = side_effect_fn
 
     monkeypatch.setattr(
@@ -115,13 +127,16 @@ def test_auth_shows_eidas_login_with_returnurl(client, fake_redis_client, monkey
         "check_message",
         AsyncMock(return_value=MessageStatus(preview_ready=True, timed_out=False)),
     )
-    monkeypatch.setattr(main, "if_preview", AsyncMock(return_value=True))
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/auth/00000000-0000-0000-0000-000000000001?returnurl=https://example.com/callback")
+    response = client.get(
+        "/auth/00000000-0000-0000-0000-000000000001?returnurl=https://example.com/callback"
+    )
 
     assert response.status_code == 200
-    assert 'href="/auth/eidas/start/00000000-0000-0000-0000-000000000001"' in response.text
+    assert (
+        'href="/auth/eidas/start/00000000-0000-0000-0000-000000000001"' in response.text
+    )
 
 
 def test_auth_saves_returnurl_to_redis(client, fake_redis_client, monkeypatch):
@@ -132,7 +147,7 @@ def test_auth_saves_returnurl_to_redis(client, fake_redis_client, monkeypatch):
         if "request:person" in key:
             return None
         return None
-    
+
     fake_redis_client.get_from_redis.side_effect = side_effect_fn
 
     monkeypatch.setattr(
@@ -142,14 +157,18 @@ def test_auth_saves_returnurl_to_redis(client, fake_redis_client, monkeypatch):
     )
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    client.get("/auth/00000000-0000-0000-0000-000000000006?returnurl=https://example.com/callback")
+    client.get(
+        "/auth/00000000-0000-0000-0000-000000000006?returnurl=https://example.com/callback"
+    )
 
     returnurl_key = Keys().get_return_url("00000000-0000-0000-0000-000000000006")
     save_calls = [c.args for c in fake_redis_client.save_to_redis.await_args_list]
     assert any(c[0] == returnurl_key for c in save_calls)
 
 
-def test_auth_shows_eidas_login_without_returnurl(client, fake_redis_client, monkeypatch):
+def test_auth_shows_eidas_login_without_returnurl(
+    client, fake_redis_client, monkeypatch
+):
     # Мокуємо REQUEST_EDM як наявний, REQUEST_PERSON як відсутній
     def side_effect_fn(key):
         if "request:edm" in key:
@@ -157,7 +176,7 @@ def test_auth_shows_eidas_login_without_returnurl(client, fake_redis_client, mon
         if "request:person" in key:
             return None
         return None
-    
+
     fake_redis_client.get_from_redis.side_effect = side_effect_fn
 
     monkeypatch.setattr(
@@ -165,13 +184,14 @@ def test_auth_shows_eidas_login_without_returnurl(client, fake_redis_client, mon
         "check_message",
         AsyncMock(return_value=MessageStatus(preview_ready=True, timed_out=False)),
     )
-    monkeypatch.setattr(main, "if_preview", AsyncMock(return_value=True))
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.get("/auth/00000000-0000-0000-0000-000000000007")
 
     assert response.status_code == 200
-    assert 'href="/auth/eidas/start/00000000-0000-0000-0000-000000000007"' in response.text
+    assert (
+        'href="/auth/eidas/start/00000000-0000-0000-0000-000000000007"' in response.text
+    )
 
 
 def test_eidas_autofill_routes_are_removed(client):
@@ -182,64 +202,32 @@ def test_eidas_autofill_routes_are_removed(client):
     assert response.status_code == 404
 
 
-def test_eidas_callback_redirects_to_preview_with_get(client, fake_redis_client, monkeypatch):
-    class StubSimpleResponse:
-        inresponse_to = "req-1"
-        authentication_context_class = "High"
-        is_success = True
-
-        class status:
-            status_code = "Success"
-            status_message = "OK"
-            sub_status_code = None
-
-        @staticmethod
-        def to_person_payload():
-            return {
-                "first_name": "Andrii",
-                "last_name": "Kovalenko",
-                "identifier": "UA/UA/3124509876",
-                "date_of_birth": "1992-04-18",
-                "gender": "M",
-                "level_of_assurance": "High",
-            }
-
-    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
-    monkeypatch.setattr(main, "_read_simple_response_body", AsyncMock(return_value="raw"))
-    monkeypatch.setattr(main, "_parse_simple_response", lambda raw: StubSimpleResponse())
-    monkeypatch.setattr(
-        main,
-        "_pop_eidas_message_id",
-        AsyncMock(return_value="00000000-0000-0000-0000-000000000015"),
-    )
-    monkeypatch.setattr(main, "_save_eidas_person", AsyncMock(return_value=None))
-
-    response = client.post("/auth/eidas/callback", follow_redirects=False)
-
-    assert response.status_code == 303
-    assert response.headers["location"] == "/preview/00000000-0000-0000-0000-000000000015"
-
-
 def test_view_returns_404_when_data_missing(client, fake_redis_client, monkeypatch):
     fake_redis_client.get_flag.return_value = True
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/preview/00000000-0000-0000-0000-000000000007?returnurl=https://example.com")
+    response = client.get(
+        "/preview/00000000-0000-0000-0000-000000000007?returnurl=https://example.com"
+    )
 
     # Сторінка чекання показується, коли evidence не готовий.
     assert response.status_code == 200
     assert "Loading Evidence" in response.text
 
 
-def test_view_progress_returns_stage_1_when_no_data(client, fake_redis_client, monkeypatch):
+def test_view_progress_returns_stage_1_when_no_data(
+    client, fake_redis_client, monkeypatch
+):
     fake_redis_client.get_flag.return_value = False
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.get(
         "/preview/progress/00000000-0000-0000-0000-000000000007",
-        headers=_token_headers("00000000-0000-0000-0000-000000000007", "preview-progress"),
+        headers=_token_headers(
+            "00000000-0000-0000-0000-000000000007", "preview-progress"
+        ),
     )
 
     assert response.status_code == 200
@@ -250,7 +238,9 @@ def test_view_progress_returns_stage_1_when_no_data(client, fake_redis_client, m
     fake_redis_client.push_to_queue.assert_not_awaited()
 
 
-def test_view_progress_enqueues_process_queue_once(client, fake_redis_client, monkeypatch):
+def test_view_progress_enqueues_process_queue_once(
+    client, fake_redis_client, monkeypatch
+):
     message_id = "00000000-0000-0000-0000-000000000009"
     dispatch_key = f"oots:preview:process_queue_dispatched:{message_id}"
     state = {"dispatched": False}
@@ -291,11 +281,15 @@ def test_view_progress_enqueues_process_queue_once(client, fake_redis_client, mo
 
     assert first.status_code == 200
     assert second.status_code == 200
-    fake_redis_client.push_to_queue.assert_awaited_once_with("oots:queue:process", message_id)
+    fake_redis_client.push_to_queue.assert_awaited_once_with(
+        "oots:queue:process", message_id
+    )
     assert state["dispatched"] is True
 
 
-def test_view_progress_returns_exp_ready_when_exp_exists(client, fake_redis_client, monkeypatch):
+def test_view_progress_returns_exp_ready_when_exp_exists(
+    client, fake_redis_client, monkeypatch
+):
     message_id = "00000000-0000-0000-0000-000000000007"
 
     def _get_from_redis(key):
@@ -317,7 +311,7 @@ def test_view_progress_returns_exp_ready_when_exp_exists(client, fake_redis_clie
     assert response.json()["exp_ready"] is True
 
 
-def test_view_renders_pdf_template(client, fake_redis_client, monkeypatch):
+def test_view_renders_pdf_in_unified_viewer(client, fake_redis_client, monkeypatch):
     evidence_data = {
         "title": "Evidence package",
         "PreviewDescription": [{"lang": "EN", "value": "Demo preview"}],
@@ -363,7 +357,9 @@ def test_view_renders_pdf_template(client, fake_redis_client, monkeypatch):
     fake_redis_client.get_from_redis.return_value = evidence_data
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/preview/00000000-0000-0000-0000-000000000008?returnurl=https://example.com")
+    response = client.get(
+        "/preview/00000000-0000-0000-0000-000000000008?returnurl=https://example.com"
+    )
 
     assert response.status_code == 200
     assert "Evidences" in response.text
@@ -371,7 +367,7 @@ def test_view_renders_pdf_template(client, fake_redis_client, monkeypatch):
     assert "/static/evidences.js" in response.text
 
 
-def test_view_renders_xml_template(client, fake_redis_client, monkeypatch):
+def test_view_renders_xml_in_unified_viewer(client, fake_redis_client, monkeypatch):
     evidence_data = {
         "preview": True,
         "evidences": [
@@ -386,7 +382,9 @@ def test_view_renders_xml_template(client, fake_redis_client, monkeypatch):
     fake_redis_client.get_from_redis.return_value = evidence_data
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
-    response = client.get("/preview/00000000-0000-0000-0000-000000000009?returnurl=https://example.com")
+    response = client.get(
+        "/preview/00000000-0000-0000-0000-000000000009?returnurl=https://example.com"
+    )
 
     assert response.status_code == 200
     assert "Evidences" in response.text
@@ -404,7 +402,7 @@ def test_build_evidence_view_model_ignores_xml_metadata_in_sidebar():
                     "RegistryPackage": [
                         {
                             "classification": {"classificationNode": "MainEvidence"},
-                            "EvidenceMetadata": "<sdg:Evidence xmlns:sdg=\"urn:test\"><sdg:Title>Bad XML</sdg:Title></sdg:Evidence>",
+                            "EvidenceMetadata": '<sdg:Evidence xmlns:sdg="urn:test"><sdg:Title>Bad XML</sdg:Title></sdg:Evidence>',
                             "RepositoryItemRef": {
                                 "title": "Readable title",
                                 "href": "cid:main-xml",
@@ -436,7 +434,9 @@ def test_build_evidence_view_model_ignores_xml_metadata_in_sidebar():
     assert legacy_model[0]["title"] == "doc-legacy"
 
 
-def test_continue_view_updates_legacy_approvals_and_flags(client, fake_redis_client, monkeypatch):
+def test_continue_view_updates_legacy_approvals_and_flags(
+    client, fake_redis_client, monkeypatch
+):
     fake_redis_client.get_from_redis.return_value = {
         "preview": True,
         "evidences": [
@@ -468,7 +468,9 @@ def test_continue_view_updates_legacy_approvals_and_flags(client, fake_redis_cli
     assert first_call.args[1]["evidences"][1]["permit"] is False
 
 
-def test_continue_view_updates_new_structure_approvals(client, fake_redis_client, monkeypatch):
+def test_continue_view_updates_new_structure_approvals(
+    client, fake_redis_client, monkeypatch
+):
     fake_redis_client.get_from_redis.return_value = {
         "preview": True,
         "evidences": [
@@ -510,7 +512,9 @@ def test_continue_view_updates_new_structure_approvals(client, fake_redis_client
     assert saved_payload["evidences"][0]["permit"] is True
 
 
-def test_continue_view_returns_returnurl_for_client_redirect(client, fake_redis_client, monkeypatch):
+def test_continue_view_returns_returnurl_for_client_redirect(
+    client, fake_redis_client, monkeypatch
+):
     fake_redis_client.get_from_redis.side_effect = [
         {
             "preview": True,
@@ -536,6 +540,7 @@ def test_continue_view_returns_returnurl_for_client_redirect(client, fake_redis_
 
 # ─── /preview/continue: розширені тести ────────────────────────────────────────
 
+
 def test_continue_view_pushes_to_outgoing_queue(client, fake_redis_client, monkeypatch):
     """push_to_queue повинен викликатися з правильним message_id."""
     fake_redis_client.get_from_redis.return_value = {
@@ -555,7 +560,9 @@ def test_continue_view_pushes_to_outgoing_queue(client, fake_redis_client, monke
     assert call_args.args[1] == "msg-q01"
 
 
-def test_continue_view_returns_404_when_data_missing(client, fake_redis_client, monkeypatch):
+def test_continue_view_returns_404_when_data_missing(
+    client, fake_redis_client, monkeypatch
+):
     """Якщо даних в Redis немає — повертає 404."""
     fake_redis_client.get_from_redis.return_value = None
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
@@ -570,7 +577,9 @@ def test_continue_view_returns_404_when_data_missing(client, fake_redis_client, 
     assert "msg-missing" in response.json()["detail"]
 
 
-def test_continue_view_unknown_approval_key_keeps_original_permit(client, fake_redis_client, monkeypatch):
+def test_continue_view_unknown_approval_key_keeps_original_permit(
+    client, fake_redis_client, monkeypatch
+):
     """Evidence якого немає в approvals зберігає свій початковий permit."""
     fake_redis_client.get_from_redis.return_value = {
         "preview": True,
@@ -588,8 +597,8 @@ def test_continue_view_unknown_approval_key_keeps_original_permit(client, fake_r
     )
 
     saved = fake_redis_client.save_to_redis.await_args_list[0].args[1]
-    assert saved["evidences"][0]["permit"] is True     # змінився
-    assert saved["evidences"][1]["permit"] is True     # залишився True
+    assert saved["evidences"][0]["permit"] is True  # змінився
+    assert saved["evidences"][1]["permit"] is True  # залишився True
 
 
 def test_continue_view_unchecks_permit(client, fake_redis_client, monkeypatch):
@@ -610,7 +619,9 @@ def test_continue_view_unchecks_permit(client, fake_redis_client, monkeypatch):
     assert saved["evidences"][0]["permit"] is False
 
 
-def test_continue_view_new_structure_sets_permit_flag_in_redis(client, fake_redis_client, monkeypatch):
+def test_continue_view_new_structure_sets_permit_flag_in_redis(
+    client, fake_redis_client, monkeypatch
+):
     """Для нової структури permit флаги коректно зберігаються."""
     fake_redis_client.get_from_redis.return_value = {
         "preview": True,
@@ -620,8 +631,11 @@ def test_continue_view_new_structure_sets_permit_flag_in_redis(client, fake_redi
                 "permit": False,
                 "RegistryPackage": [
                     {
-                        "classification": {"classificationNode": "MainEvidence",
-                                           "classificationScheme": "urn:x", "id": "c1"},
+                        "classification": {
+                            "classificationNode": "MainEvidence",
+                            "classificationScheme": "urn:x",
+                            "id": "c1",
+                        },
                         "EvidenceMetadata": "M",
                         "RepositoryItemRef": {"title": "T", "href": "cid:t"},
                         "content_type": "application/xml",
@@ -634,8 +648,11 @@ def test_continue_view_new_structure_sets_permit_flag_in_redis(client, fake_redi
                 "permit": False,
                 "RegistryPackage": [
                     {
-                        "classification": {"classificationNode": "MainEvidence",
-                                           "classificationScheme": "urn:x", "id": "c2"},
+                        "classification": {
+                            "classificationNode": "MainEvidence",
+                            "classificationScheme": "urn:x",
+                            "id": "c2",
+                        },
                         "EvidenceMetadata": "M2",
                         "RepositoryItemRef": {"title": "T2", "href": "cid:t2"},
                         "content_type": "application/xml",
@@ -659,22 +676,31 @@ def test_continue_view_new_structure_sets_permit_flag_in_redis(client, fake_redi
     assert saved["evidences"][1]["permit"] is False
 
 
-def test_view_timeout_records_edm_error_and_pushes_queue(client, fake_redis_client, monkeypatch):
+def test_view_timeout_records_edm_error_and_pushes_queue(
+    client, fake_redis_client, monkeypatch
+):
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.post(
         "/preview/timeout/00000000-0000-0000-0000-000000000010",
-        headers=_token_headers("00000000-0000-0000-0000-000000000010", "preview-timeout"),
+        headers=_token_headers(
+            "00000000-0000-0000-0000-000000000010", "preview-timeout"
+        ),
     )
 
     assert response.status_code == 200
     assert response.json()["status"] == "timeout_recorded"
 
     saved_call = fake_redis_client.save_to_redis.await_args
-    assert saved_call.args[0] == Keys().get_response_exp("00000000-0000-0000-0000-000000000010")
+    assert saved_call.args[0] == Keys().get_response_exp(
+        "00000000-0000-0000-0000-000000000010"
+    )
     assert saved_call.args[1]["exception"]["code"] == "EDM:ERR:0005"
     assert saved_call.args[1]["exception"]["message"] == "Preview timeout"
-    assert saved_call.args[1]["exception"]["detail"] == "Timeout reached for message_id=00000000-0000-0000-0000-000000000010"
+    assert (
+        saved_call.args[1]["exception"]["detail"]
+        == "Timeout reached for message_id=00000000-0000-0000-0000-000000000010"
+    )
     assert "preview_link" in saved_call.args[1]["exception"]
 
     fake_redis_client.push_to_queue.assert_awaited_once_with(
@@ -682,7 +708,9 @@ def test_view_timeout_records_edm_error_and_pushes_queue(client, fake_redis_clie
     )
 
 
-def test_preview_continue_returns_403_without_action_token(client, fake_redis_client, monkeypatch):
+def test_preview_continue_returns_403_without_action_token(
+    client, fake_redis_client, monkeypatch
+):
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.post(
@@ -693,7 +721,9 @@ def test_preview_continue_returns_403_without_action_token(client, fake_redis_cl
     assert response.status_code == 403
 
 
-def test_preview_timeout_returns_403_without_action_token(client, fake_redis_client, monkeypatch):
+def test_preview_timeout_returns_403_without_action_token(
+    client, fake_redis_client, monkeypatch
+):
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
 
     response = client.post("/preview/timeout/00000000-0000-0000-0000-000000000011")
@@ -701,9 +731,12 @@ def test_preview_timeout_returns_403_without_action_token(client, fake_redis_cli
     assert response.status_code == 403
 
 
-def test_auth_redirects_to_preview_when_person_already_authorized(client, fake_redis_client, monkeypatch):
+def test_auth_redirects_to_preview_when_person_already_authorized(
+    client, fake_redis_client, monkeypatch
+):
     """Перевіряємо що при повторному заході на /auth/{message_id} з вже авторизованою особою
     користувач перенаправляється на /preview/{message_id}"""
+
     # Мокуємо REQUEST_EDM як наявний та REQUEST_PERSON як наявний
     def _get_from_redis(key):
         if "request:person" in key:
@@ -713,11 +746,13 @@ def test_auth_redirects_to_preview_when_person_already_authorized(client, fake_r
         return None
 
     fake_redis_client.get_from_redis.side_effect = _get_from_redis
-    
+
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
-    
-    response = client.get("/auth/00000000-0000-0000-0000-000000000012", follow_redirects=False)
-    
+
+    response = client.get(
+        "/auth/00000000-0000-0000-0000-000000000012", follow_redirects=False
+    )
+
     # Перевіряємо що повертається редирект шаблон з правильним url
     assert response.status_code == 200
     assert (
@@ -730,38 +765,47 @@ def test_auth_redirects_to_preview_when_person_already_authorized(client, fake_r
     )
 
 
-def test_auth_returns_invalid_link_when_edm_missing(client, fake_redis_client, monkeypatch):
+def test_auth_returns_invalid_link_when_edm_missing(
+    client, fake_redis_client, monkeypatch
+):
     """Перевіряємо що при відсутності REQUEST_EDM показується помилка про неправильне посилання"""
+
     # Симулюємо відсутність EDM, але наявність returnurl
     def side_effect_fn(key):
         if "returnurl" in key:
             return "https://example.com/back"
         return None
-    
+
     fake_redis_client.get_from_redis.side_effect = side_effect_fn
-    
+
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
-    
+
     response = client.get(
         "/auth/00000000-0000-0000-0000-000000000013?returnurl=https://example.com/back",
         follow_redirects=False,
     )
-    
+
     # Перевіряємо що показується сторінка з помилкою
     assert response.status_code == 200
-    assert "invalid_link.html" in response.text or "Неправильне посилання" in response.text
+    assert (
+        "invalid_link.html" in response.text or "Неправильне посилання" in response.text
+    )
     assert "EDM не знайдено" in response.text
 
 
-def test_auth_returns_400_when_edm_missing_and_no_returnurl(client, fake_redis_client, monkeypatch):
+def test_auth_returns_400_when_edm_missing_and_no_returnurl(
+    client, fake_redis_client, monkeypatch
+):
     """Перевіряємо що при відсутності EDM і returnurl повертається 400"""
     # Симулюємо відсутність EDM
     fake_redis_client.get_from_redis.return_value = None
-    
+
     monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
-    
-    response = client.get("/auth/00000000-0000-0000-0000-000000000014", follow_redirects=False)
-    
+
+    response = client.get(
+        "/auth/00000000-0000-0000-0000-000000000014", follow_redirects=False
+    )
+
     # Перевіряємо 400 статус
     assert response.status_code == 400
     assert "EDM not found" in response.json()["detail"]

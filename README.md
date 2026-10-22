@@ -19,34 +19,24 @@
 ## Структура сервісу
 
 - `main.py` — FastAPI-застосунок, HTTP-маршрути, lifecycle і security headers;
-- `oots_lib.redis_keys` — спільний клас `Keys`; `lib/preview_keys.py` розширює його ключами preview, eIDAS та ICEI;
+- `oots_lib.redis_keys` — спільний клас `Keys`; `lib/preview_keys.py` розширює його ключами preview та eIDAS;
 - `lib/MessageChecker.py` — перевірка evidence-помилки та очікування preview-прапора;
-- `lib/RedirectService.py` — визначення URL, куди йти після авторизації (EDM `PossibilityForPreview`);
+- `lib/RedirectService.py` — визначення та фільтрація URL повернення з EDM `ReturnLocation`;
 - `lib/PersonRequestService.py` — валідація payload і збереження `Person` у Redis;
 - `oots_lib.lib.UseRedis` — асинхронний Redis-клієнт, утиліти доступу та префіксація ключів;
 - `templates/login.html` — UI сторінки авторизації;
 - `templates/redirect_to_preview.html` — авто-перехід на preview, якщо авторизація вже виконана;
 - `templates/invalid_link.html` — повідомлення про невалідне посилання з поверненням на `returnurl`;
 - `templates/view_waiting.html` — сторінка очікування завантаження evidence;
-- `templates/pdf.html` — перегляд PDF evidence;
-- `templates/xml.html` — перегляд XML evidence;
+- `templates/evidences.html` і `static/evidences.js` — спільний перегляд PDF/XML evidence;
 - `static/base.css` — спільні стилі для всіх сторінок;
 - `docs/kubernetes-install.md` — інструкція для DevOps з деплою в Kubernetes;
 - `docs/service-overview.md` — короткий технічний огляд сервісу;
-- `docs/flask-migration-notes.md` — нотатки про міграцію з Flask.
 
-## Ідентифікація eIDAS та ICEI
+## Ідентифікація eIDAS
 
 - `GET /auth/eidas/start/{message_id}` запускає eIDAS Simple Protocol flow.
-- `POST /auth/eidas/callback` обробляє відповідь Specific Connector. Лише `level_of_assurance=High` дозволяє збереження `Person`; будь-який інший або відсутній рівень формує `EDM:ERR:0001` у Redis та ставить `message_id` у чергу відповіді.
-- `GET /auth/icei/start/{message_id}` перенаправляє до id.gov.ua; `message_id` має бути UUID.
-- `GET /auth/icei/callback` обмінює код авторизації на профіль користувача.
-
-Для ICEI задайте `ICEI_CLIENT_ID`, `ICEI_CLIENT_SECRET` і `ICEI_REDIRECT_URI`
-(типово `http://localhost:8000/auth/icei/callback`). `IDGOV_BASE_URL` визначає
-сервер провайдера. Для зашифрованих відповідей потрібен зовнішній дешифратор,
-налаштований через `IIT_DECRYPTOR_FUNC=module:function`.
-
+- `POST /auth/eidas/callback` обробляє відповідь Specific Connector. `EIDAS_SP_ALLOWED_LOA` задає дозволені значення `level_of_assurance` через кому (наприклад, `High,Substantial`). Якщо змінна не задана або порожня, дозволені всі рівні, включно з відсутнім. Недозволений рівень формує `AuthenticationException` (`EDM:ERR:0001`) у Redis та ставить `message_id` у чергу відповіді без збереження `Person`.
 ## HTTP API
 
 ### `GET /health`
@@ -88,45 +78,13 @@
 
 ---
 
-### `POST /auth/continue`
-
-Приймає дані форми авторизації, збирає об'єкт `Person` і зберігає його в Redis.
-
-Потребує заголовок `X-Action-Token` (action=`auth-continue`).
-
-Приклад запиту:
-
-```json
-{
-  "first_name": "Andrii",
-  "last_name": "Kovalenko",
-  "date_of_birth": "1992-04-18",
-  "identifier": "UA/UA/3124509876",
-  "message_id": "msg-001",
-  "level_of_assurance": "High"
-}
-```
-
-Приклад успішної відповіді:
-
-```json
-{
-  "status": "ok",
-  "message": "Дані збережено",
-  "redis_key": "oots:message:request:person:msg-001",
-  "person": {}
-}
-```
-
----
-
 ### `GET /preview/{message_id}`
 
 Сторінка очікування та перегляду evidence.
 
 - `returnurl` береться в такому пріоритеті: Redis (`RETURN_URL`) -> query param `returnurl` -> `resolve_url(...)` з EDM.
 - Якщо знайдений `returnurl` проходить `RETURNURL_REGEX`, він зберігається в Redis.
-- Якщо evidence вже готовий у Redis — одразу рендерить PDF або XML сторінку.
+- Якщо evidence вже готовий у Redis — одразу рендерить спільну сторінку перегляду PDF/XML.
 - Інакше — показує сторінку очікування `view_waiting.html` з двоетапним таскбаром.
 - Клієнт поллінгує `/preview/progress/{message_id}`; при готовності переходить на preview-сторінку.
 
@@ -223,7 +181,6 @@ JSON API для поллінгу прогресу.
 | `EVIDENCE_TIMEOUT` | `600` | Максимальний час очікування evidence/preview (секунди) |
 | `REDIS_TIMEOUT` | `6` | Половина цього значення задає інтервал поллінгу прогресу (секунди) |
 | `QUEUE_OUTCOMING` | _(обов’язково задати)_ | Назва Redis-черги для таймаут-записів |
-| `PREVIEW_URL` | _(не задано)_ | Базовий URL preview-сервісу (для `RedirectService`) |
 | `RETURNURL_REGEX` | `.*` | Regex-фільтр для `returnurl` перед збереженням/використанням |
 | `ACTION_TOKEN_SECRET` | `dev-action-secret` | Master secret для HMAC; використовується для derivation dynamic signing key |
 | `ACTION_TOKEN_KEY_SALT` | `action-token-v2` | Salt для derivation ключа підпису, прив'язаного до `message_id` + `action` |
@@ -235,6 +192,7 @@ JSON API для поллінгу прогресу.
 | `EIDAS_SP_REQUESTER_ID` | `https://eidas.example.org/RequesterId_CA` | Requester ID у `authentication_request` |
 | `EIDAS_SP_CITIZEN_COUNTRY` | `CA` | Країна громадянства для eIDAS запиту |
 | `EIDAS_SP_LEVEL_OF_ASSURANCE` / `EIDAS_SP_LOA` | `A` | Requested LoA |
+| `EIDAS_SP_ALLOWED_LOA` | _(не задано)_ | Дозволені рівні відповіді через кому, наприклад `High,Substantial`; порожнє значення дозволяє всі. Порівняння враховує регістр. |
 | `EIDAS_SP_TYPE` | `public` | Тип SP (`public` або `private`) |
 | `EIDAS_SP_ID_POLICY` | `unspecified` | NameID policy |
 
@@ -266,17 +224,12 @@ REDIS_PREFIX=
 EVIDENCE_TIMEOUT=600
 REDIS_TIMEOUT=6
 QUEUE_OUTCOMING=oots:queue:outgoing
-PREVIEW_URL=http://localhost:8081/preview
 RETURNURL_REGEX=.*
 ACTION_TOKEN_SECRET=dev-action-secret
 ACTION_TOKEN_TTL=900
-STATIC_VERSION=1.10.0
 COUNTRY=UA
-ICEI_CLIENT_ID=replace-with-client-id
-ICEI_CLIENT_SECRET=replace-with-client-secret
 ```
 
-`STATIC_VERSION` додається до URL статичних ресурсів (`/static/...?...v=...`) і дозволяє швидко скидати кеш браузера після змін у JS/CSS. Після UI-змін достатньо оновити значення в `.env` і перезапустити сервіс.
 
 ## Локальний запуск
 
@@ -319,7 +272,7 @@ uv run --no-sync mypy . --ignore-missing-imports --pretty --show-error-codes
 uv run --no-sync pytest --maxfail=2 --disable-warnings --ignore-glob='tests/~*.py'
 ```
 
-Тести використовують підмінений Redis; зовнішні Redis/eIDAS/ICEI сервіси для них не потрібні.
+Тести використовують підмінений Redis і lifecycle; зовнішні Redis/eIDAS сервіси для них не потрібні.
 CI також запускає Gitleaks для пошуку секретів в історії Git і Trivy для сканування
 файлової системи на виправлювані вразливості рівнів HIGH та CRITICAL.
 Docker build/push виконується окремим workflow для `main` і опублікованих релізів.

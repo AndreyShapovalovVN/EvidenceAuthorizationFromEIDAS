@@ -25,40 +25,6 @@ def _patch_parsing(monkeypatch, result):
     monkeypatch.setattr(RedirectService, "Parsing", _fake_parsing)
 
 
-def test_if_preview_returns_true_when_preview_possible(monkeypatch):
-    _patch_parsing(monkeypatch, {"doc": {"PossibilityForPreview": True}})
-
-    client = FakeRedisForRedirect([
-        {"content": "<Root><PossibilityForPreview>true</PossibilityForPreview></Root>"}
-    ])
-
-    preview = asyncio.run(
-        RedirectService.if_preview(
-            cast(Any, client),
-            message_id="msg-1",
-        )
-    )
-
-    assert preview is True
-
-
-def test_if_preview_returns_false_when_preview_not_possible(monkeypatch):
-    _patch_parsing(monkeypatch, {"doc": {"PossibilityForPreview": False}})
-
-    client = FakeRedisForRedirect([
-        {"content": "<Root><PossibilityForPreview>false</PossibilityForPreview></Root>"}
-    ])
-
-    preview = asyncio.run(
-        RedirectService.if_preview(
-            cast(Any, client),
-            message_id="msg-5",
-        )
-    )
-
-    assert preview is False
-
-
 def test_resolve_url_uses_return_location_from_edm_v2(monkeypatch):
     _patch_parsing(
         monkeypatch,
@@ -71,11 +37,17 @@ def test_resolve_url_uses_return_location_from_edm_v2(monkeypatch):
         },
     )
 
-    client = FakeRedisForRedirect([
-        {"content": "<Root><SpecificationIdentifier>oots-edm:v2.0</SpecificationIdentifier></Root>"}
-    ])
+    client = FakeRedisForRedirect(
+        [
+            {
+                "content": "<Root><SpecificationIdentifier>oots-edm:v2.0</SpecificationIdentifier></Root>"
+            }
+        ]
+    )
 
-    url = asyncio.run(RedirectService.resolve_url(cast(Any, client), message_id="msg-v2"))
+    url = asyncio.run(
+        RedirectService.resolve_url(cast(Any, client), message_id="msg-v2")
+    )
 
     assert url == "https://portal.local/return/from-body"
 
@@ -83,26 +55,27 @@ def test_resolve_url_uses_return_location_from_edm_v2(monkeypatch):
 def test_resolve_url_returns_none_for_legacy_protocol(monkeypatch):
     _patch_parsing(monkeypatch, {"doc": {"SpecificationIdentifier": "oots-edm:v1.0"}})
 
-    client = FakeRedisForRedirect([
-        {"content": "<Root><SpecificationIdentifier>oots-edm:v1.0</SpecificationIdentifier></Root>"}
-    ])
+    client = FakeRedisForRedirect(
+        [
+            {
+                "content": "<Root><SpecificationIdentifier>oots-edm:v1.0</SpecificationIdentifier></Root>"
+            }
+        ]
+    )
 
-    url = asyncio.run(RedirectService.resolve_url(cast(Any, client), message_id="msg-v1"))
+    url = asyncio.run(
+        RedirectService.resolve_url(cast(Any, client), message_id="msg-v1")
+    )
     assert url is None
 
 
 def test_resolve_url_returns_none_when_edm_missing():
     client = FakeRedisForRedirect(None)
 
-    url = asyncio.run(RedirectService.resolve_url(cast(Any, client), message_id="msg-6"))
+    url = asyncio.run(
+        RedirectService.resolve_url(cast(Any, client), message_id="msg-6")
+    )
     assert url is None
-
-
-def test_if_preview_returns_false_when_edm_missing():
-    client = FakeRedisForRedirect(None)
-
-    preview = asyncio.run(RedirectService.if_preview(cast(Any, client), message_id="msg-8"))
-    assert preview is False
 
 
 def test_resolve_url_raises_when_redis_fails():

@@ -6,11 +6,7 @@ from fastapi.testclient import TestClient
 
 TEST_ENV_DEFAULTS = {
     "COUNTRY": "UA",
-    "PREVIEW_URL": "https://preview.example.org",
     "QUEUE_OUTCOMING": "test-queue",
-    "ICEI_CLIENT_ID": "test-client-id",
-    "ICEI_CLIENT_SECRET": "test-client-secret",
-    "IIT_DECRYPTOR_FUNC": "json:loads",
 }
 
 for key, value in TEST_ENV_DEFAULTS.items():
@@ -24,16 +20,16 @@ class FakeRedisClient:
         self.health_check = AsyncMock(return_value=True)
         self.save_to_redis = AsyncMock(return_value=None)
         self.get_from_redis = AsyncMock(return_value=None)
-        self.get_raw_from_redis = AsyncMock(return_value=None)
         self.get_flag = AsyncMock(return_value=False)
         self.set_flag = AsyncMock(return_value=None)
-        self.set_flag_once = AsyncMock(return_value=True)
         self.push_to_queue = AsyncMock(return_value=None)
         self.delete_from_redis = AsyncMock(return_value=1)
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    monkeypatch.setattr(main, "initialize_redis", AsyncMock())
+    monkeypatch.setattr(main, "close_redis", AsyncMock())
     with TestClient(main.app) as test_client:
         yield test_client
 

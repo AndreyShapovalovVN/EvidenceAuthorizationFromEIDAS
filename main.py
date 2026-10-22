@@ -9,7 +9,6 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from lxml import etree
 from oots_lib.import_env import import_env
 from oots_lib.lib.UseRedis import close_redis, get_redis_client, initialize_redis
 from pydantic import BaseModel
@@ -18,21 +17,10 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from lib.action_token import issue_action_token, verify_action_token
 from lib.eidas_sp_service import (
     EIDAS_SPECIFIC_CONNECTOR_URL,
-    accept_eidas_assurance,
-    parse_simple_response,
-    pop_eidas_message_id,
     prepare_eidas_redirect,
-    raise_if_eidas_failed,
-    read_simple_response_body,
-    save_eidas_person,
+    process_eidas_callback,
 )
-from lib.ICEI import ICEIError, IdICEI
 from lib.MessageChecker import check_message
-from lib.PersonRequestService import (
-    ContinuePayload,
-    save_identified_person_request,
-    save_person_request,
-)
 from lib.preview_keys import PreviewKeys
 from lib.preview_service import (
     EmptyEvidenceListError,
@@ -44,17 +32,12 @@ from lib.preview_service import (
     persist_approvals,
     record_view_timeout,
 )
-from lib.RedirectService import filter_returnurl, if_preview, resolve_url
+from lib.RedirectService import filter_returnurl, resolve_url
 
 WAIT_EVENT_TIME = int(import_env("EVIDENCE_TIMEOUT", "600"))
 WAIT_EVENT_SLEEP = int(import_env("REDIS_TIMEOUT", "6")) / 2
 
 QUEUE_OUTGOING = import_env("QUEUE_OUTCOMING")
-
-# id.gov.ua (ICEI) налаштування
-ICEI_REDIRECT_URI = import_env(
-    "ICEI_REDIRECT_URI", "http://localhost:8000/auth/icei/callback"
-)
 
 KEYS = PreviewKeys()
 
@@ -64,16 +47,6 @@ APP_TITLE = "Authorization UI"
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-
-COMMON_ERROR_RESPONSES = {
-    400: {"description": "Bad request"},
-    403: {"description": "Forbidden"},
-    404: {"description": "Not found"},
-    408: {"description": "Request timeout"},
-    422: {"description": "Unprocessable entity"},
-    502: {"description": "Bad gateway"},
-    503: {"description": "Service unavailable"},
-}
 
 
 async def _get_safe_returnurl(client, request: Request, message_id: str) -> str | None:
@@ -130,17 +103,6 @@ def _raise_if_message_timed_out(status, message_id: str) -> None:
             status_code=408,
             detail=f"Таймаут очікування preview для message_id={message_id}",
         )
-
-
-def _fromstring_filter(xml_payload: str):
-    """Parse XML for legacy Jinja template accordion rendering."""
-    try:
-        return etree.fromstring(xml_payload.encode("utf-8"))
-    except Exception:
-        return None
-
-
-templates.env.filters["fromstring"] = _fromstring_filter
 
 
 class ViewContinuePayload(BaseModel):
@@ -243,161 +205,13 @@ async def root(request: Request, message_id: UUID):
     _raise_if_message_failed(status)
     _raise_if_message_timed_out(status, message_id_str)
 
-    stored_returnurl = await client.get_from_redis(KEYS.get_return_url(message_id_str))
-    preview = await if_preview(client, message_id_str)
-    continue_url = f"/preview/{message_id_str}" if preview else stored_returnurl
-
     return templates.TemplateResponse(
         request,
         "login.html",
         {
             "message_id": message_id_str,
-            "continue_url": continue_url,
-            "auth_continue_token": issue_action_token(message_id_str, "auth-continue"),
         },
     )
-
-
-@app.post(
-    "/auth/continue",
-    responses={
-        403: {"description": "Invalid action token"},
-        422: {"description": "Invalid person data"},
-        503: {"description": "Redis save failed"},
-    },
-)
-async def continue_auth(request: Request, payload: ContinuePayload):
-    """Validate and persist person data received from the login form."""
-    _require_action_token(request, payload.message_id, "auth-continue")
-    try:
-        redis_key, person_data = await save_person_request(get_redis_client(), payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Не вдалося зберегти дані в Redis: {exc}",
-        ) from exc
-
-    return {
-        "status": "ok",
-        "message": "Дані збережено",
-        "redis_key": redis_key,
-        "person": person_data,
-    }
-
-
-# ---------------------------------------------------------------------------
-# id.gov.ua (ICEI) identification routes
-# ---------------------------------------------------------------------------
-
-
-@app.get(
-    "/auth/icei/start/{message_id}",
-    tags=["ICEI"],
-    responses={400: {"description": "Invalid message_id"}},
-)
-async def icei_start(message_id: UUID):
-    message_id_str = str(message_id)
-    """Крок 3: перенаправити користувача на сторінку ідентифікації id.gov.ua.
-
-    Зберігає `state → message_id` у Redis і виконує 307-редирект.
-    """
-    client = get_redis_client()
-
-    edm = await client.get_from_redis(KEYS.get_request_edm(message_id_str))
-    if edm is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid message_id: EDM not found for {message_id_str}",
-        )
-
-    icei = IdICEI(redirect_uri=ICEI_REDIRECT_URI)
-
-    # Зберігаємо state → message_id (видалимо одразу після callback)
-    state_key = KEYS.get_request_icei_state(icei.state)
-    await client.save_to_redis(state_key, {"message_id": message_id_str})
-
-    _logger.info(
-        "ICEI start: message_id=%s state=%s → %s",
-        message_id_str,
-        icei.state,
-        icei.auth_url,
-    )
-    return RedirectResponse(url=icei.auth_url, status_code=307)
-
-
-@app.get(
-    "/auth/icei/callback",
-    tags=["ICEI"],
-    responses={
-        400: {"description": "Invalid or expired state parameter"},
-        422: {"description": "Invalid identified person data"},
-        502: {"description": "ICEI identification failed"},
-        503: {"description": "Redis save failed"},
-    },
-)
-async def icei_callback(code: str, state: str):
-    """Крок 10–11: обробка callback від id.gov.ua.
-
-    Обмінює code на access_token, отримує дані особи, зберігає в Redis
-    та перенаправляє на /preview/{message_id}.
-    """
-    client = get_redis_client()
-
-    # Зчитуємо message_id та одразу видаляємо state (одноразовий)
-    state_key = KEYS.get_request_icei_state(state)
-    state_data = await client.get_from_redis(state_key)
-    await client.delete_from_redis(state_key)
-
-    if not isinstance(state_data, dict) or not state_data.get("message_id"):
-        _logger.warning("ICEI callback: invalid or expired state")
-        raise HTTPException(
-            status_code=400, detail="Invalid or expired state parameter"
-        )
-
-    message_id: str = state_data["message_id"]
-    _logger.info("ICEI callback: message_id=%s code=***", message_id)
-
-    # Кроки 11.1–11.6: code → UserProfile
-    try:
-        icei = IdICEI(redirect_uri=ICEI_REDIRECT_URI)
-        profile = await icei.fetch_person(code)
-    except ICEIError:
-        _logger.exception("ICEI identification failed for message_id=%s", message_id)
-        raise HTTPException(
-            status_code=502,
-            detail=f"ICEI identification failed for message_id={message_id}",
-        )
-
-    # Зберігаємо Person у Redis та ставимо в чергу (кроки 11.5–11.6)
-    # Сесію/токени не зберігаємо: беремо тільки персональні атрибути.
-    try:
-        await save_identified_person_request(
-            client,
-            message_id=message_id,
-            first_name=profile.givenname,
-            last_name=profile.lastname,
-            identifier=profile.identifier,
-            date_of_birth=profile.date_of_birth,
-            gender=profile.gender,
-            level_of_assurance="High",
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Не вдалося зберегти дані в Redis: {exc}",
-        ) from exc
-
-    _logger.info(
-        "ICEI: person saved for message_id=%s (%s %s)",
-        message_id,
-        profile.lastname,
-        profile.givenname,
-    )
-    return RedirectResponse(url=f"/preview/{message_id}", status_code=307)
 
 
 # ---------------------------------------------------------------------------
@@ -449,30 +263,6 @@ async def eidas_start(request: Request, message_id: UUID):
     )
 
 
-async def _read_simple_response_body(request: Request) -> str | None:
-    """Extract the raw SimpleResponse payload from a JSON body or an
-    urlencoded/multipart form field, whichever the Specific Connector used."""
-    return await read_simple_response_body(request)
-
-
-def _parse_simple_response(raw_body: str | None):
-    return parse_simple_response(raw_body)
-
-
-async def _pop_eidas_message_id(client, request_id: str) -> str:
-    """Look up and consume the one-time request_id -> message_id mapping
-    saved by eidas_start; raises 400 if it's missing or already used."""
-    return await pop_eidas_message_id(client, request_id, keys=KEYS)
-
-
-def _raise_if_eidas_failed(simple_response, message_id: str) -> None:
-    raise_if_eidas_failed(simple_response, message_id, logger=_logger)
-
-
-async def _save_eidas_person(client, message_id: str, person_payload: dict) -> None:
-    await save_eidas_person(client, message_id, person_payload)
-
-
 @app.post(
     "/auth/eidas/callback",
     tags=["eIDAS"],
@@ -487,31 +277,13 @@ async def _save_eidas_person(client, message_id: str, person_payload: dict) -> N
 )
 async def eidas_callback(request: Request):
     """Крок 2: прийняти SimpleResponse від Specific Connector (guide §12.4),
-    зберегти Person лише для High (інакше EDM:ERR:0001) та перейти на preview."""
-    raw_body = await _read_simple_response_body(request)
-    simple_response = _parse_simple_response(raw_body)
-
-    client = get_redis_client()
-    message_id = await _pop_eidas_message_id(client, simple_response.inresponse_to)
-    _raise_if_eidas_failed(simple_response, message_id)
-
-    if not await accept_eidas_assurance(
-        client,
-        message_id,
-        simple_response.authentication_context_class,
+    перевірити дозволені рівні LoA, зберегти Person та перейти на preview."""
+    message_id = await process_eidas_callback(
+        request,
+        get_redis_client(),
         queue_outgoing=QUEUE_OUTGOING,
         keys=KEYS,
-    ):
-        return RedirectResponse(url=f"/preview/{message_id}", status_code=303)
-
-    person_payload = simple_response.to_person_payload()
-    await _save_eidas_person(client, message_id, person_payload)
-
-    _logger.info(
-        "eIDAS: person saved for message_id=%s (%s %s)",
-        message_id,
-        person_payload["last_name"],
-        person_payload["first_name"],
+        logger=_logger,
     )
     # Callback is POST-based; 303 ensures the browser follows with GET /preview/{id}.
     return RedirectResponse(url=f"/preview/{message_id}", status_code=303)
@@ -545,26 +317,17 @@ async def _render_evidence_page(request: Request, message_id: str) -> HTMLRespon
     },
 )
 async def view_evidence(request: Request, message_id: UUID):
-    message_id_str = str(message_id)
     """Показує сторінку з таскбаром очікування, потім рендер evidence."""
+    message_id_str = str(message_id)
     client = get_redis_client()
 
     # Читаємо returnurl з Redis (збережено при авторизації)
     stored = await client.get_from_redis(KEYS.get_return_url(message_id_str))
     returnurl = filter_returnurl(stored if isinstance(stored, str) else None)
     if not returnurl:
-        query_returnurl = request.query_params.get("returnurl")
-        if not query_returnurl:
-            try:
-                query_returnurl = await resolve_url(client, message_id_str)
-            except Exception:
-                query_returnurl = None
-        query_returnurl = filter_returnurl(query_returnurl)
-        if query_returnurl:
-            await client.save_to_redis(
-                KEYS.get_return_url(message_id_str), query_returnurl
-            )
-            returnurl = query_returnurl
+        returnurl = await _get_safe_returnurl(client, request, message_id_str)
+        if returnurl:
+            await client.save_to_redis(KEYS.get_return_url(message_id_str), returnurl)
 
     exp_ready = await check_exp_ready(client, message_id_str, KEYS)
     if exp_ready and returnurl:
@@ -597,8 +360,8 @@ async def view_evidence(request: Request, message_id: UUID):
     responses={403: {"description": "Invalid action token"}},
 )
 async def view_progress(request: Request, message_id: UUID):
-    message_id_str = str(message_id)
     """API endpoint для отримання прогресу завантаження evidence."""
+    message_id_str = str(message_id)
     _require_action_token(request, message_id_str, "preview-progress")
     client = get_redis_client()
     return await build_preview_progress(client, message_id_str, KEYS)
@@ -646,8 +409,8 @@ async def continue_view(request: Request, payload: ViewContinuePayload):
     responses={403: {"description": "Invalid action token"}},
 )
 async def view_timeout(request: Request, message_id: UUID):
-    message_id_str = str(message_id)
     """Записує статус таймауту в Redis при спливанні часу на клієнті."""
+    message_id_str = str(message_id)
     _require_action_token(request, message_id_str, "preview-timeout")
     client = get_redis_client()
     await record_view_timeout(client, message_id_str, KEYS, QUEUE_OUTGOING)

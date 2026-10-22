@@ -1,4 +1,4 @@
-"""Resolve the next URL after authentication based on EDM preview flags."""
+"""Resolve and filter the caller return URL from EDM metadata."""
 
 import logging
 import re
@@ -14,7 +14,6 @@ from lib.preview_keys import PreviewKeys as Keys
 _logger = logging.getLogger(__name__)
 
 KEYS = Keys()
-PREVIEW_URL = import_env("PREVIEW_URL")
 
 
 def filter_returnurl(returnurl: str | None) -> str | None:
@@ -74,13 +73,3 @@ async def resolve_url(
     if "oots-edm:v2" in version_protokol:
         return deep_get(edm, "doc", "ReturnLocation", default="")
     return None
-
-
-async def if_preview(client: UseRedisAsync, message_id: str) -> bool:
-    key = KEYS.REQUEST_EDM.format(conversation_id=message_id)
-    edm_payload = await client.get_from_redis(key)
-    if not isinstance(edm_payload, list) or not edm_payload:
-        return False
-    edm = _get_content(edm_payload[0])
-    preview = deep_get(edm, "doc", "PossibilityForPreview", default=False)
-    return preview

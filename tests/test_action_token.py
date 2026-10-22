@@ -32,7 +32,7 @@ def test_action_token_rejects_other_action():
 def test_action_token_rejects_legacy_signature():
     payload = {
         "mid": "msg-legacy",
-        "act": "auth-continue",
+        "act": "preview-continue",
         "exp": int(time.time()) + 60,
     }
     payload_raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
@@ -45,5 +45,5 @@ def test_action_token_rejects_legacy_signature():
     ).digest()
     token = f"{payload_b64}.{_b64encode(legacy_sig)}"
 
-    assert action_token.verify_action_token(token, "msg-legacy", "auth-continue") is False
+    assert action_token.verify_action_token(token, "msg-legacy", "preview-continue") is False
 

@@ -12,7 +12,6 @@ from Models.eIDAS_SP_Request import (
     RequestedAuthenticationContext,
 )
 from Models.eIDAS_SP_Response import (
-    SimpleResponse,
     SimpleResponseError,
 )
 from Models.eIDAS_SP_Response import (
@@ -27,9 +26,13 @@ EIDAS_SPECIFIC_CONNECTOR_URL = import_env(
 )
 
 EIDAS_SP_PROVIDER_NAME = import_env("EIDAS_SP_PROVIDER_NAME", "DEMO-SP-CA")
-EIDAS_SP_REQUESTER_ID = import_env("EIDAS_SP_REQUESTER_ID", "https://eidas.example.org/RequesterId_CA")
+EIDAS_SP_REQUESTER_ID = import_env(
+    "EIDAS_SP_REQUESTER_ID", "https://eidas.example.org/RequesterId_CA"
+)
 EIDAS_SP_CITIZEN_COUNTRY = import_env("EIDAS_SP_CITIZEN_COUNTRY", "CA")
-EIDAS_SP_LOA = import_env("EIDAS_SP_LEVEL_OF_ASSURANCE", import_env("EIDAS_SP_LOA", "A"))
+EIDAS_SP_LOA = import_env(
+    "EIDAS_SP_LEVEL_OF_ASSURANCE", import_env("EIDAS_SP_LOA", "A")
+)
 EIDAS_SP_TYPE = import_env("EIDAS_SP_TYPE", "public")
 EIDAS_SP_ID_POLICY = import_env("EIDAS_SP_ID_POLICY", "unspecified")
 EIDAS_SP_PUBLIC_BASE_URL = import_env("EIDAS_SP_PUBLIC_BASE_URL", "")
@@ -187,6 +190,7 @@ async def pop_eidas_message_id(
     *,
     keys: PreviewKeys | None = None,
 ) -> str:
+
     if keys is None:
         keys = PreviewKeys()
 
@@ -259,13 +263,20 @@ async def accept_eidas_assurance(
     queue_outgoing: str,
     keys: PreviewKeys | None = None,
 ) -> bool:
-    """Reject non-High responses and send an EDM error to the caller."""
-    if level_of_assurance == "High":
+    """Check the configured allowlist, allowing every level when it is empty."""
+    allowed_levels = {
+        value.strip()
+        for value in import_env("EIDAS_SP_ALLOWED_LOA", "").split(",")
+        if value.strip()
+    }
+    _logger.debug("Level of assurance: %s", level_of_assurance)
+    if not allowed_levels or level_of_assurance in allowed_levels:
         return True
 
     error = AuthenticationException(
         detail=(
-            f"Expected level_of_assurance=High, received {level_of_assurance!r} "
+            f"Allowed level_of_assurance values: {', '.join(sorted(allowed_levels))}; "
+            f"received {level_of_assurance!r} "
             f"for message_id={message_id}"
         ),
     )
@@ -307,7 +318,9 @@ async def save_eidas_person(client, message_id: str, person_payload: dict) -> No
         )
         _logger.debug("Saved eIDAS person data to Redis for message_id=%s", message_id)
     except ValueError as exc:
-        _logger.debug("Invalid eIDAS person payload for message_id=%s: %s", message_id, exc)
+        _logger.debug(
+            "Invalid eIDAS person payload for message_id=%s: %s", message_id, exc
+        )
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         _logger.debug(
@@ -325,6 +338,7 @@ async def process_eidas_callback(
     request: Request,
     client,
     *,
+    queue_outgoing: str,
     keys: PreviewKeys | None = None,
     logger=None,
 ) -> str:
@@ -333,28 +347,24 @@ async def process_eidas_callback(
     raw_body = await read_simple_response_body(request)
     simple_response = parse_simple_response(raw_body)
 
-    message_id = await pop_eidas_message_id(client, simple_response.inresponse_to, keys=keys)
+    message_id = await pop_eidas_message_id(
+        client, simple_response.inresponse_to, keys=keys
+    )
     raise_if_eidas_failed(simple_response, message_id, logger=log)
 
     if not await accept_eidas_assurance(
         client,
         message_id,
         simple_response.authentication_context_class,
-        queue_outgoing=import_env("QUEUE_OUTCOMING"),
+        queue_outgoing=queue_outgoing,
         keys=keys,
     ):
         return message_id
 
-    person_payload = simple_response.to_person_payload()
-    log.debug(
-        "eIDAS callback resolved person payload for message_id=%s: %s",
-        message_id,
-        person_payload,
-    )
+    try:
+        person_payload = simple_response.to_person_payload()
+    except SimpleResponseError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     await save_eidas_person(client, message_id, person_payload)
     log.debug("Completed eIDAS callback processing for message_id=%s", message_id)
     return message_id
-
-
-def parse_response(raw_body: str) -> SimpleResponse:
-    return parse_eidas_response(raw_body)
