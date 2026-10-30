@@ -16,6 +16,8 @@ class SimpleResponseError(ValueError):
 
 @dataclass
 class ResponseStatus(Base):
+    serialization_fields = ("status_code", "sub_status_code", "status_message")
+
     status_code: str
     sub_status_code: str | None = None
     status_message: str | None = None
@@ -40,6 +42,8 @@ class ResponseStatus(Base):
 
 @dataclass
 class Attribute(Base):
+    serialization_fields = ("value", "type", "name")
+
     value: list[str]
     type: str
     name: str
@@ -58,6 +62,19 @@ class Attribute(Base):
 
 @dataclass
 class SimpleResponse(MainBase):
+    serialization_fields = (
+        "attribute_list",
+        "authentication_context_class",
+        "created_on",
+        "id",
+        "inresponse_to",
+        "issuer",
+        "name_id",
+        "status",
+        "subject",
+        "version",
+    )
+
     _name_ = "simple_response"
     attribute_list: list[Attribute] = field(default_factory=list)
     authentication_context_class: str = ""
@@ -66,7 +83,9 @@ class SimpleResponse(MainBase):
     inresponse_to: str = ""
     issuer: str = ""
     name_id: str = ""
-    status: ResponseStatus = field(default_factory=lambda: ResponseStatus(status_code=""))
+    status: ResponseStatus = field(
+        default_factory=lambda: ResponseStatus(status_code="")
+    )
     subject: str = ""
     version: str = "1"
 
@@ -207,8 +226,7 @@ def _load_json_from_raw(raw_body: str) -> dict:
             ).decode("utf-8")
         except (BinasciiError, UnicodeDecodeError) as exc:
             raise SimpleResponseError(
-                "SimpleResponse is neither JSON nor a valid "
-                "base64-encoded JSON payload"
+                "SimpleResponse is neither JSON nor a valid base64-encoded JSON payload"
             ) from exc
 
         error_prefix = "Decoded SimpleResponse"
@@ -216,22 +234,21 @@ def _load_json_from_raw(raw_body: str) -> dict:
     try:
         payload = json.loads(json_body)
     except json.JSONDecodeError as exc:
-        raise SimpleResponseError(
-            f"{error_prefix} payload is not valid JSON"
-        ) from exc
+        raise SimpleResponseError(f"{error_prefix} payload is not valid JSON") from exc
 
     if not isinstance(payload, dict):
-        raise SimpleResponseError(
-            f"{error_prefix} JSON must be an object"
-        )
+        raise SimpleResponseError(f"{error_prefix} JSON must be an object")
 
     return payload
+
 
 def parse_response(raw_body: str) -> SimpleResponse:
     payload = _load_json_from_raw(raw_body)
     response = payload.get("response", payload)
     if not isinstance(response, dict):
-        raise SimpleResponseError("SimpleResponse JSON does not contain object response")
+        raise SimpleResponseError(
+            "SimpleResponse JSON does not contain object response"
+        )
 
     al = [
         Attribute(

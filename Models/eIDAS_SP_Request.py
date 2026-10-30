@@ -11,6 +11,8 @@ VALID_NAME_ID_POLICIES = {"persistent", "transient", "unspecified"}
 
 @dataclass
 class Attribute(Base):
+    serialization_fields = ("name", "type", "required")
+
     name: str
     type: str = "requested_attribute"
     required: bool = True
@@ -18,13 +20,21 @@ class Attribute(Base):
     def get_element(self) -> etree._Element:
         atritbute_element = etree.Element("Attribute")
         atritbute_element.set("Name", self.name)
-        atritbute_element.set("NameFormat", "urn:oasis:names:tc:SAML:2.0:attrname-format:uri")
+        atritbute_element.set(
+            "NameFormat", "urn:oasis:names:tc:SAML:2.0:attrname-format:uri"
+        )
 
         return atritbute_element
 
 
 @dataclass
 class RequestedAuthenticationContext(Base):
+    serialization_fields = (
+        "comparison",
+        "context_class",
+        "non_notified_context_class",
+    )
+
     comparison: str
     context_class: list[str]
     non_notified_context_class: list[str] = field(default_factory=list)
@@ -46,6 +56,21 @@ class RequestedAuthenticationContext(Base):
 
 @dataclass
 class AuthenticationRequest(MainBase):
+    serialization_fields = (
+        "attribute_list",
+        "requested_authentication_context",
+        "citizen_country",
+        "force_authentication",
+        "provider_name",
+        "requester_id",
+        "serviceUrl",
+        "name_id_policy",
+        "sp_type",
+        "version",
+        "id",
+        "created_on",
+    )
+
     _name_ = "authentication_request"
     attribute_list: list[Attribute] = field(default_factory=list)
     requested_authentication_context: RequestedAuthenticationContext = field(
