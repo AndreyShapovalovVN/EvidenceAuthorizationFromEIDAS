@@ -36,7 +36,7 @@
 ## Ідентифікація eIDAS
 
 - `GET /auth/eidas/start/{message_id}` запускає eIDAS Simple Protocol flow.
-- `POST /auth/eidas/callback` обробляє відповідь Specific Connector. `EIDAS_SP_ALLOWED_LOA` задає дозволені значення `level_of_assurance` через кому (наприклад, `High,Substantial`). Якщо змінна не задана або порожня, дозволені всі рівні, включно з відсутнім. Недозволений рівень формує `AuthenticationException` (`EDM:ERR:0001`) у Redis та ставить `message_id` у чергу відповіді без збереження `Person`.
+- `POST /auth/eidas/callback` обробляє відповідь Specific Connector. `EIDAS_SP_ALLOWED_LOA` задає дозволені значення `level_of_assurance` через кому (наприклад, `High,Substantial`). Якщо змінна не задана або порожня, дозволені всі рівні, включно з відсутнім. Недозволений рівень або невдала автентифікація eIDAS формує `EDMException` (`EDM:ERR:0001`) у Redis та ставить `message_id` у чергу відповіді без збереження `Person`. Код і повідомлення eIDAS зберігаються в `detail`. Callback очікує завершення публікації помилки та перенаправляє на preview (HTTP 303); якщо публікація не вдалася, повертає HTTP 503.
 ## HTTP API
 
 ### `GET /health`

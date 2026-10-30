@@ -1,6 +1,6 @@
 [project]
 name = "evidence-authorization-from-eidas"
-version = "1.11.0"
+version = "1.11.1"
 description = "FastAPI service for OOTS authorization and evidence preview"
 readme = "README.md"
 license = { file = "LICENSE" }

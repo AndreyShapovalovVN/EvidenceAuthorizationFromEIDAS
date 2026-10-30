@@ -271,8 +271,7 @@ async def eidas_start(request: Request, message_id: UUID):
             "description": "Invalid or expired request id / malformed SimpleResponse"
         },
         422: {"description": "Invalid identified person data"},
-        502: {"description": "eIDAS authentication failed"},
-        503: {"description": "Redis save failed"},
+        503: {"description": "Redis save or error publication failed"},
     },
 )
 async def eidas_callback(request: Request):

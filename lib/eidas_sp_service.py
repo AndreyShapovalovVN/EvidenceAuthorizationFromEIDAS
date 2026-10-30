@@ -2,7 +2,7 @@ import logging
 
 from fastapi import HTTPException, Request
 from oots_lib.import_env import import_env
-from oots_lib.lib.exceptions import AuthenticationException
+from oots_lib.lib.exception import EDMException, ReportingError
 
 from lib.PersonRequestService import save_identified_person_request
 from lib.preview_keys import PreviewKeys
@@ -11,12 +11,8 @@ from Models.eIDAS_SP_Request import (
     AuthenticationRequest,
     RequestedAuthenticationContext,
 )
-from Models.eIDAS_SP_Response import (
-    SimpleResponseError,
-)
-from Models.eIDAS_SP_Response import (
-    parse_response as parse_eidas_response,
-)
+from Models.eIDAS_SP_Response import SimpleResponseError
+from Models.eIDAS_SP_Response import parse_response as parse_eidas_response
 
 _logger = logging.getLogger(__name__)
 
@@ -190,7 +186,6 @@ async def pop_eidas_message_id(
     *,
     keys: PreviewKeys | None = None,
 ) -> str:
-
     if keys is None:
         keys = PreviewKeys()
 
@@ -223,7 +218,15 @@ async def pop_eidas_message_id(
     return message_id
 
 
-def raise_if_eidas_failed(simple_response, message_id: str, *, logger=None) -> None:
+def raise_if_eidas_failed(
+    simple_response,
+    message_id: str,
+    *,
+    client,
+    queue_outgoing: str,
+    keys: PreviewKeys | None = None,
+    logger=None,
+) -> None:
     if simple_response.is_success:
         _logger.debug(
             "eIDAS callback succeeded for message_id=%s status=%s",
@@ -244,14 +247,17 @@ def raise_if_eidas_failed(simple_response, message_id: str, *, logger=None) -> N
         message_id,
         getattr(simple_response.status, "sub_status_code", None),
     )
-    raise HTTPException(
-        status_code=502,
-        detail={
-            "code": simple_response.status.sub_status_code
-            or simple_response.status.status_code,
-            "message": simple_response.status.status_message
-            or "eIDAS authentication failed",
-        },
+    keys = keys or PreviewKeys()
+    code = simple_response.status.sub_status_code or simple_response.status.status_code
+    message = simple_response.status.status_message or "eIDAS authentication failed"
+    raise EDMException(
+        redis=client,
+        queue=queue_outgoing,
+        key=keys.get_response_exp(message_id),
+        message_id=message_id,
+        code="EDM:ERR:0001",
+        message="Failed Authentication",
+        detail=f"eIDAS {code}: {message}",
     )
 
 
@@ -273,28 +279,20 @@ async def accept_eidas_assurance(
     if not allowed_levels or level_of_assurance in allowed_levels:
         return True
 
-    error = AuthenticationException(
+    keys = keys or PreviewKeys()
+    raise EDMException(
+        redis=client,
+        queue=queue_outgoing,
+        key=keys.get_response_exp(message_id),
+        message_id=str(message_id),
+        code="EDM:ERR:0001",
+        message="Validation Exception",
         detail=(
             f"Allowed level_of_assurance values: {', '.join(sorted(allowed_levels))}; "
             f"received {level_of_assurance!r} "
             f"for message_id={message_id}"
         ),
     )
-    keys = keys or PreviewKeys()
-    await client.save_to_redis(
-        keys.get_response_exp(message_id),
-        {
-            "exception": {
-                "code": error.code,
-                "message": error.message,
-                "detail": error.detail,
-                "preview_link": None,
-            }
-        },
-    )
-    await client.push_to_queue(queue_outgoing, message_id)
-    _logger.warning("eIDAS assurance rejected for message_id=%s", message_id)
-    return False
 
 
 async def save_eidas_person(client, message_id: str, person_payload: dict) -> None:
@@ -350,15 +348,32 @@ async def process_eidas_callback(
     message_id = await pop_eidas_message_id(
         client, simple_response.inresponse_to, keys=keys
     )
-    raise_if_eidas_failed(simple_response, message_id, logger=log)
-
-    if not await accept_eidas_assurance(
-        client,
-        message_id,
-        simple_response.authentication_context_class,
-        queue_outgoing=queue_outgoing,
-        keys=keys,
-    ):
+    try:
+        raise_if_eidas_failed(
+            simple_response,
+            message_id,
+            client=client,
+            queue_outgoing=queue_outgoing,
+            keys=keys,
+            logger=log,
+        )
+        await accept_eidas_assurance(
+            client,
+            message_id,
+            simple_response.authentication_context_class,
+            queue_outgoing=queue_outgoing,
+            keys=keys,
+        )
+    except EDMException as error:
+        # The constructor schedules reporting; await that task to avoid publishing twice.
+        try:
+            if error.reporting_task is not None:
+                await error.reporting_task
+        except ReportingError as exc:
+            log.exception("Failed to report eIDAS error for message_id=%s", message_id)
+            raise HTTPException(
+                status_code=503, detail="Failed to publish eIDAS authentication error"
+            ) from exc
         return message_id
 
     try:
