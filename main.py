@@ -26,6 +26,7 @@ from lib.preview_keys import PreviewKeys
 from lib.preview_service import (
     EmptyEvidenceListError,
     EvidenceDataNotFoundError,
+    approve_without_preview,
     build_evidence_page_context,
     build_preview_progress,
     check_evidence_ready,
@@ -341,7 +342,12 @@ async def view_evidence(request: Request, message_id: UUID):
     evidence_ready = await check_evidence_ready(client, message_id_str, KEYS)
 
     if evidence_ready:
-        # Евіденс готовий, рендеримо evidence сторінку одразу
+        if not exp_ready and await approve_without_preview(
+            client, message_id_str, KEYS, QUEUE_OUTGOING
+        ):
+            if returnurl:
+                return RedirectResponse(url=returnurl, status_code=303)
+            return templates.TemplateResponse(request, "preview_complete.html", {})
         return await _render_evidence_page(request, message_id_str)
 
     # Якщо ні, показуємо сторінку чекання

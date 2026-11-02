@@ -2,6 +2,7 @@ from oots_lib.redis_keys import Keys
 
 
 class PreviewKeys(Keys):
+    APPROVALS_DISPATCHED_KEY = "oots:preview:approvals_dispatched:{conversation_id}"
     PROCESS_QUEUE_DISPATCHED_KEY = (
         "oots:preview:process_queue_dispatched:{conversation_id}"
     )
@@ -10,6 +11,9 @@ class PreviewKeys(Keys):
 
     def get_process_queue_dispatched_key(self, message_id: str) -> str:
         return self.PROCESS_QUEUE_DISPATCHED_KEY.format(conversation_id=message_id)
+
+    def get_approvals_dispatched_key(self, message_id: str) -> str:
+        return self.APPROVALS_DISPATCHED_KEY.format(conversation_id=message_id)
 
     def get_eidas_state_key(self, auth_request_id: str) -> str:
         return self.EIDAS_STATE_KEY_PREFIX.format(conversation_id=auth_request_id)

@@ -12,6 +12,7 @@ from lib.evidence_view_model import (
     normalize_preview_descriptions,
 )
 from lib.preview_keys import PreviewKeys
+from lib.RedirectService import resolve_possibility_for_preview
 
 _logger = logging.getLogger(__name__)
 
@@ -186,6 +187,45 @@ async def persist_approvals(
         new_structure=is_new_evidences_structure(json_data),
     )
 
+    await _publish_approvals(client, message_id, json_data, keys, queue_outgoing)
+    return approvals
+
+
+async def approve_without_preview(
+    client: UseRedisAsync,
+    message_id: str,
+    keys: PreviewKeys,
+    queue_outgoing: str,
+) -> bool:
+    """Approve all evidence only when both request and provider disable preview."""
+    data = await client.get_from_redis(keys.get_response_evidence(message_id))
+    if not isinstance(data, dict) or data.get("preview") is not False:
+        return False
+    if await client.get_flag(keys.get_approvals_dispatched_key(message_id), default=False):
+        return True
+    if await resolve_possibility_for_preview(client, message_id, keys) is not False:
+        return False
+    evidences = data.get("evidences")
+    if not isinstance(evidences, list) or not evidences:
+        return False
+    if not all(isinstance(evidence, dict) for evidence in evidences):
+        return False
+    for evidence in evidences:
+        evidence["permit"] = True
+    await _publish_approvals(client, message_id, data, keys, queue_outgoing)
+    return True
+
+
+async def _publish_approvals(
+    client: UseRedisAsync,
+    message_id: str,
+    json_data: dict[str, Any],
+    keys: PreviewKeys,
+    queue_outgoing: str,
+) -> None:
+    evidence_key = keys.get_response_evidence(message_id)
+    evidences = json_data.get("evidences") or []
+
     json_data["preview"] = False
 
     await client.save_to_redis(evidence_key, json_data)
@@ -205,8 +245,7 @@ async def persist_approvals(
             },
         )
     await client.push_to_queue(queue_outgoing, message_id)
-
-    return approvals
+    await client.set_flag(keys.get_approvals_dispatched_key(message_id), True)
 
 
 async def record_view_timeout(

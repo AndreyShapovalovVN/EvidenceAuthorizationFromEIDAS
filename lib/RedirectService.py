@@ -73,3 +73,23 @@ async def resolve_url(
     if "oots-edm:v2" in version_protokol:
         return deep_get(edm, "doc", "ReturnLocation", default="")
     return None
+
+
+async def resolve_possibility_for_preview(
+    client: UseRedisAsync, message_id: str, keys: Keys
+) -> bool | None:
+    """Read the request flag; missing or malformed metadata still needs preview."""
+    payload = await client.get_from_redis(keys.get_request_edm(message_id))
+    if isinstance(payload, list):
+        payload = payload[0] if payload else None
+    if not isinstance(payload, dict) or not (
+        payload.get("content2") or payload.get("content")
+    ):
+        return None
+    try:
+        edm = _get_content(payload)
+    except Exception:
+        _logger.warning("Cannot read PossibilityForPreview for message_id=%s", message_id)
+        return None
+    value = deep_get(edm, "doc", "PossibilityForPreview", default=None)
+    return value if isinstance(value, bool) else None
