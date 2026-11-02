@@ -37,14 +37,21 @@
 </div>
 
 <script>
+    window.previewLifecycleConfig = {
+        message_id: {{ message_id | tojson }},
+        returnurl: {{ returnurl | default(None, true) | tojson }},
+        timeout_token: {{ timeout_token | tojson }},
+        wait_time: {{ wait_time | tojson }}
+    };
+</script>
+<script src="/static/preview_lifecycle.js"></script>
+<script>
     const messageId = "{{ message_id }}";
     const timeoutRedirectUrl = {{ returnurl | default('', true) | tojson }};
     const previewUrl = `/preview/${messageId}`;
     const progressToken = {{ progress_token | default('', true) | tojson }};
-    const timeoutToken = {{ timeout_token | default('', true) | tojson }};
     const maxWaitTime = {{ wait_time }} * 1000; // мілісекунди
     const pollInterval = {{ poll_interval }} * 1000;
-    const startTime = Date.now();
     const maxChecks = Math.max(1, Math.ceil(maxWaitTime / pollInterval));
     const stageChecks = {
         stage2: 0,
@@ -61,10 +68,14 @@
             }
 
             const data = await response.json();
+            if (window.previewLifecycle.isFinished()) {
+                return;
+            }
 
             if (data.exp_ready) {
                 clearInterval(pollId);
                 if (timeoutRedirectUrl) {
+                    window.previewLifecycle.complete();
                     window.location.href = timeoutRedirectUrl;
                 }
                 return;
@@ -74,8 +85,13 @@
             updateStages(data.stage);
 
             if (data.stage >= 2) {
+                clearInterval(pollId);
                 // Evidence ready: redirect to preview page.
                 setTimeout(() => {
+                    if (window.previewLifecycle.isFinished()) {
+                        return;
+                    }
+                    window.previewLifecycle.complete();
                     window.location.href = previewUrl;
                 }, 500);
             }
@@ -119,32 +135,13 @@
     }
 
     // Перевіряємо прогрес кожні N секунд
-    const pollId = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        if (elapsed > maxWaitTime) {
-            clearInterval(pollId);
-            const timeoutNotice = document.getElementById("timeoutNotice");
-            timeoutNotice.textContent = "Timeout reached. Redirecting you back...";
-            timeoutNotice.style.display = "block";
-
-            // Записуємо таймаут в Redis
-            fetch(`/preview/timeout/${messageId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Action-Token': timeoutToken,
-                },
-            }).catch(err => console.error("Failed to record timeout:", err));
-
-            setTimeout(() => {
-                if (timeoutRedirectUrl) {
-                    window.location.href = timeoutRedirectUrl;
-                }
-            }, 1200);
-        } else {
-            checkProgress();
-        }
-    }, pollInterval);
+    const pollId = setInterval(checkProgress, pollInterval);
+    window.addEventListener("preview-ended", () => {
+        clearInterval(pollId);
+        const timeoutNotice = document.getElementById("timeoutNotice");
+        timeoutNotice.textContent = "Timeout reached. Redirecting you back...";
+        timeoutNotice.style.display = "block";
+    });
 
     // Перший раз перевіряємо одразу
     checkProgress();

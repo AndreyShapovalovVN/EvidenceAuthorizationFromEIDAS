@@ -188,25 +188,53 @@ async def persist_approvals(
 
     json_data["preview"] = False
 
-    await asyncio.gather(
-        client.save_to_redis(evidence_key, json_data),
-        client.push_to_queue(queue_outgoing, message_id),
-    )
+    await client.save_to_redis(evidence_key, json_data)
+    if not any(
+        isinstance(evidence, dict) and evidence.get("permit") is True
+        for evidence in evidences
+    ):
+        await client.save_to_redis(
+            keys.get_response_exp(message_id),
+            {
+                "exception": {
+                    "code": "EDM:ERR:0002",
+                    "message": "No evidence approved",
+                    "detail": f"No evidence approved for message_id={message_id}",
+                    "preview_link": None,
+                }
+            },
+        )
+    await client.push_to_queue(queue_outgoing, message_id)
 
     return approvals
 
 
 async def record_view_timeout(
-    client: UseRedisAsync, message_id: str, keys: PreviewKeys, queue_outgoing: str
+    client: UseRedisAsync,
+    message_id: str,
+    keys: PreviewKeys,
+    queue_outgoing: str,
+    *,
+    closed: bool = False,
 ) -> None:
+    # A delayed browser event must not replace a completed preview's result.
+    if await check_exp_ready(client, message_id, keys):
+        return
+    evidence = await client.get_from_redis(keys.get_response_evidence(message_id))
+    if isinstance(evidence, dict) and evidence.get("preview") is False:
+        return
     timeout_key = keys.get_response_exp(message_id)
     await client.save_to_redis(
         timeout_key,
         {
             "exception": {
                 "code": "EDM:ERR:0005",
-                "message": "Preview timeout",
-                "detail": f"Timeout reached for message_id={message_id}",
+                "message": "Preview window closed" if closed else "Preview timeout",
+                "detail": (
+                    f"Preview window closed for message_id={message_id}"
+                    if closed
+                    else f"Timeout reached for message_id={message_id}"
+                ),
                 "preview_link": None,
             }
         },

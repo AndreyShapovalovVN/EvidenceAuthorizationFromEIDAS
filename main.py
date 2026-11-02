@@ -3,6 +3,7 @@
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Request
@@ -305,6 +306,10 @@ async def _render_evidence_page(request: Request, message_id: str) -> HTMLRespon
         ) from exc
 
     context["continue_token"] = issue_action_token(message_id, "preview-continue")
+    context["timeout_token"] = issue_action_token(message_id, "preview-timeout")
+    context["wait_time"] = WAIT_EVENT_TIME
+    stored = await client.get_from_redis(KEYS.get_return_url(message_id))
+    context["returnurl"] = filter_returnurl(stored if isinstance(stored, str) else None)
     return templates.TemplateResponse(request, "evidences.html", context)
 
 
@@ -407,12 +412,18 @@ async def continue_view(request: Request, payload: ViewContinuePayload):
     "/preview/timeout/{message_id}",
     responses={403: {"description": "Invalid action token"}},
 )
-async def view_timeout(request: Request, message_id: UUID):
-    """Записує статус таймауту в Redis при спливанні часу на клієнті."""
+async def view_timeout(
+    request: Request,
+    message_id: UUID,
+    reason: Literal["timeout", "closed"] = "timeout",
+):
+    """Записує помилку при закритті вікна або спливанні часу на клієнті."""
     message_id_str = str(message_id)
     _require_action_token(request, message_id_str, "preview-timeout")
     client = get_redis_client()
-    await record_view_timeout(client, message_id_str, KEYS, QUEUE_OUTGOING)
+    await record_view_timeout(
+        client, message_id_str, KEYS, QUEUE_OUTGOING, closed=reason == "closed"
+    )
 
     _logger.warning("View timeout recorded for message_id=%s", message_id_str)
 

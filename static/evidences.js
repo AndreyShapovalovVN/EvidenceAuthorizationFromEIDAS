@@ -14,6 +14,11 @@
     const submitBtn = document.getElementById("submitBtn");
     const resultMessage = document.getElementById("resultMessage");
     let activeEvidenceIndex = 0;
+    window.addEventListener("preview-ended", () => {
+        submitBtn.disabled = true;
+        resultMessage.textContent = "Preview time expired.";
+        resultMessage.className = "result-message err";
+    });
     function findEvidence(index) {
         const value = evidences[index];
         if (!value || !Array.isArray(value.contents)) {
@@ -100,6 +105,10 @@
         });
     });
     submitBtn.addEventListener("click", async function () {
+        if (window.previewLifecycle.isFinished()) {
+            return;
+        }
+        submitBtn.disabled = true;
         const checkboxes = Array.from(document.querySelectorAll(".js-permit-checkbox"));
         const approvals = {};
         checkboxes.forEach((checkbox) => {
@@ -125,6 +134,7 @@
             if (!response.ok) {
                 throw new Error(payload.detail || "Failed to submit approvals");
             }
+            window.previewLifecycle.complete();
             resultMessage.textContent = `OK: ${payload.message}`;
             resultMessage.className = "result-message ok";
             const redirectUrl = payload.returnurl || pageConfig.returnurl;
@@ -132,6 +142,7 @@
                 window.location.href = redirectUrl;
             }
         } catch (error) {
+            submitBtn.disabled = window.previewLifecycle.isFinished();
             resultMessage.textContent = `Error: ${error.message || "Failed to submit approvals"}`;
             resultMessage.className = "result-message err";
         }

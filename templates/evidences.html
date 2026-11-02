@@ -54,12 +54,19 @@
 
 <script id="evidenceData" type="application/json">{{ evidences | tojson }}</script>
 <script>
+    window.previewLifecycleConfig = {
+        message_id: {{ message_uuid | tojson }},
+        returnurl: {{ returnurl | default(None, true) | tojson }},
+        timeout_token: {{ timeout_token | tojson }},
+        wait_time: {{ wait_time | tojson }}
+    };
     window.evidencePageConfig = {
         message_uuid: {{ message_uuid | tojson }},
         returnurl: {{ returnurl | default(None, true) | tojson }},
         continue_token: {{ continue_token | default(None, true) | tojson }}
     };
 </script>
+<script src="/static/preview_lifecycle.js"></script>
 <script src="/static/evidences.js"></script>
 </body>
 </html>

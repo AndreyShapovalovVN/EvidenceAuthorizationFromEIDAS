@@ -1,5 +1,7 @@
 from unittest.mock import AsyncMock
 
+import pytest
+
 import main
 from lib.action_token import issue_action_token
 from lib.evidence_view_model import build_evidence_view_model
@@ -706,6 +708,91 @@ def test_view_timeout_records_edm_error_and_pushes_queue(
     fake_redis_client.push_to_queue.assert_awaited_once_with(
         main.QUEUE_OUTGOING, "00000000-0000-0000-0000-000000000010"
     )
+
+
+@pytest.mark.parametrize(
+    "evidences, approvals, denied",
+    [
+        ([{"cid": "doc", "permit": True}], {"doc": False}, True),
+        ([{"cid": "doc", "permit": False}], {}, True),
+        ([{"cid": "doc", "permit": False}], {"unknown": True}, True),
+        ([{"id": "pkg", "RegistryPackage": [], "permit": False}], {"pkg": False}, True),
+        ([{"cid": "doc", "permit": False}], {"doc": True}, False),
+        ([{"cid": "doc", "permit": True}], {}, False),
+    ],
+)
+def test_continue_view_error_depends_on_effective_evidence_permits(
+    client, fake_redis_client, monkeypatch, evidences, approvals, denied
+):
+    message_id = "msg-denied"
+    fake_redis_client.get_from_redis.return_value = {
+        "preview": True,
+        "evidences": evidences,
+    }
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+
+    async def check_result_before_publish(*_):
+        saves = fake_redis_client.save_to_redis.await_args_list
+        assert saves[0].args[1]["preview"] is False
+        errors = [
+            call.args[1]
+            for call in saves
+            if call.args[0] == Keys().get_response_exp(message_id)
+        ]
+        assert bool(errors) is denied
+        if denied:
+            assert errors[0]["exception"]["code"] == "EDM:ERR:0002"
+
+    fake_redis_client.push_to_queue.side_effect = check_result_before_publish
+    response = client.post(
+        "/preview/continue",
+        headers=_token_headers(message_id, "preview-continue"),
+        json={"message_uuid": message_id, "approvals": approvals},
+    )
+
+    assert response.status_code == 200
+    fake_redis_client.push_to_queue.assert_awaited_once_with(
+        main.QUEUE_OUTGOING, message_id
+    )
+
+
+def test_preview_close_records_0005(client, fake_redis_client, monkeypatch):
+    message_id = "00000000-0000-0000-0000-000000000010"
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+    response = client.post(
+        f"/preview/timeout/{message_id}?reason=closed",
+        headers=_token_headers(message_id, "preview-timeout"),
+    )
+    assert response.status_code == 200
+    saved = fake_redis_client.save_to_redis.await_args.args[1]
+    assert saved["exception"]["code"] == "EDM:ERR:0005"
+    assert saved["exception"]["message"] == "Preview window closed"
+    fake_redis_client.push_to_queue.assert_awaited_once_with(
+        main.QUEUE_OUTGOING, message_id
+    )
+
+
+@pytest.mark.parametrize(
+    "stored",
+    [
+        {"exception": {"code": "EDM:ERR:0002"}},
+        {"exception": {"code": "EDM:ERR:0005"}},
+        {"preview": False, "evidences": [{"cid": "doc", "permit": True}]},
+    ],
+)
+def test_late_preview_termination_preserves_result(
+    client, fake_redis_client, monkeypatch, stored
+):
+    message_id = "00000000-0000-0000-0000-000000000010"
+    fake_redis_client.get_from_redis.return_value = stored
+    monkeypatch.setattr(main, "get_redis_client", lambda: fake_redis_client)
+    response = client.post(
+        f"/preview/timeout/{message_id}?reason=closed",
+        headers=_token_headers(message_id, "preview-timeout"),
+    )
+    assert response.status_code == 200
+    fake_redis_client.save_to_redis.assert_not_awaited()
+    fake_redis_client.push_to_queue.assert_not_awaited()
 
 
 def test_preview_continue_returns_403_without_action_token(
