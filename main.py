@@ -23,6 +23,7 @@ from lib.eidas_sp_service import (
     process_eidas_callback,
 )
 from lib.MessageChecker import check_message
+from lib.PersonRequestService import stored_person_identifier
 from lib.preview_keys import PreviewKeys
 from lib.preview_service import (
     EmptyEvidenceListError,
@@ -35,7 +36,7 @@ from lib.preview_service import (
     persist_approvals,
     record_view_timeout,
 )
-from lib.RedirectService import filter_returnurl, resolve_url
+from lib.RedirectService import filter_returnurl, request_person_identifier, resolve_url
 
 WAIT_EVENT_TIME = int(import_env("EVIDENCE_TIMEOUT", "600"))
 WAIT_EVENT_SLEEP = int(import_env("REDIS_TIMEOUT", "6")) / 2
@@ -188,10 +189,28 @@ async def root(request: Request, message_id: UUID):
     if request_edm is None:
         return _render_invalid_link_or_raise(request, returnurl)
 
+    if returnurl:
+        await client.save_to_redis(KEYS.get_return_url(message_id_str), returnurl)
+
     existing_person = await client.get_from_redis(
         KEYS.get_request_person(message_id_str)
     )
     if existing_person is not None:
+        stored_identifier = stored_person_identifier(existing_person)
+        incoming_identifier = request_person_identifier(request_edm)
+        if (
+            stored_identifier
+            and incoming_identifier
+            and stored_identifier != incoming_identifier
+        ):
+            return templates.TemplateResponse(
+                request,
+                "authorization_choice.html",
+                {
+                    "message_id": message_id_str,
+                    "restart_token": issue_action_token(message_id_str, "auth-restart"),
+                },
+            )
         return templates.TemplateResponse(
             request,
             "redirect_to_preview.html",
@@ -200,9 +219,6 @@ async def root(request: Request, message_id: UUID):
                 "preview_url": f"/preview/{message_id_str}",
             },
         )
-
-    if returnurl:
-        await client.save_to_redis(KEYS.get_return_url(message_id_str), returnurl)
 
     status = await check_message(client, message_id_str)
     _raise_if_message_failed(status)
@@ -222,6 +238,18 @@ async def root(request: Request, message_id: UUID):
 # ---------------------------------------------------------------------------
 # eIDAS Simple Protocol (guide §12) routes: SP -> Specific Connector -> SP
 # ---------------------------------------------------------------------------
+
+
+@app.post("/auth/eidas/restart/{message_id}", tags=["eIDAS"])
+async def eidas_restart(request: Request, message_id: UUID):
+    """Replace the previous authorization only after an explicit user choice."""
+    message_id_str = str(message_id)
+    _require_action_token(request, message_id_str, "auth-restart")
+    # Prepare the new login before removing Person, so a preparation failure
+    # leaves the previous authorization available.
+    response = await eidas_start(request, message_id)
+    await get_redis_client().delete_from_redis(KEYS.get_request_person(message_id_str))
+    return response
 
 
 @app.get(

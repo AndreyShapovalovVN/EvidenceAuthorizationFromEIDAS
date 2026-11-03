@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Попередня авторизація</title>
+    <link rel="stylesheet" href="/static/base.css">
+    <link rel="stylesheet" href="/static/login.css">
+</head>
+<body class="login-page">
+<main class="login-card" aria-labelledby="choice-title">
+    <h1 id="choice-title">Ви вже нещодавно проходили авторизацію</h1>
+    <p class="login-description">Збережений ідентифікатор особи відрізняється від ідентифікатора в поточному запиті. Ви можете продовжити з даними попередньої авторизації або пройти нову авторизацію через eIDAS.</p>
+    <a class="login-button" href="/preview/{{ message_id }}">Продовжити</a>
+    <form class="cancel-form" method="post" action="/auth/eidas/restart/{{ message_id }}?token={{ restart_token }}">
+        <button class="login-button" type="submit">Пройти нову авторизацію</button>
+    </form>
+</main>
+</body>
+</html>

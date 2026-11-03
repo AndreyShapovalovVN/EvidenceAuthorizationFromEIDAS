@@ -10,6 +10,16 @@ from lib.preview_keys import PreviewKeys as Keys
 KEYS = Keys()
 
 
+def stored_person_identifier(person_data) -> str | None:
+    """Support both current and legacy Person dictionary serialization."""
+    if not isinstance(person_data, dict):
+        return None
+    identifier = person_data.get("identifier") or person_data.get("eidas_identifier")
+    if isinstance(identifier, dict):
+        identifier = identifier.get("value")
+    return identifier if isinstance(identifier, str) and identifier else None
+
+
 def _parse_birth_date(value: str) -> date:
     """Parse a birth date in ISO or Ukrainian dotted format."""
     value = value.strip()

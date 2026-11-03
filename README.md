@@ -70,7 +70,7 @@
    - при наявному `returnurl` рендериться `invalid_link.html` з повідомленням і автоповерненням;
    - без `returnurl` повертається `400` (`Invalid link: EDM not found and no returnurl provided`);
 3. якщо EDM є, читається `oots:message:request:person:{message_id}`;
-4. якщо `Person` уже збережений, рендериться `redirect_to_preview.html` і користувач одразу переходить на `/preview/{message_id}`;
+4. якщо `Person` уже збережений, його ідентифікатор порівнюється з `NaturalPerson` у вхідному EDM (`content2` має пріоритет над `content`). Якщо обидва ідентифікатори наявні та різні, показується повідомлення про нещодавню авторизацію з вибором: «Продовжити» з попередніми даними або «Пройти нову авторизацію». Другий варіант надсилає захищений action token запит `POST /auth/eidas/restart/{message_id}`, видаляє попередній `Person` після підготовки нового входу та відкриває eIDAS. Якщо ідентифікатори збігаються або порівняння неможливе, рендериться `redirect_to_preview.html` і користувач одразу переходить на `/preview/{message_id}`;
 5. якщо `Person` відсутній:
    - зберігається `returnurl` (після фільтра `RETURNURL_REGEX`),
    - виконується перевірка `check_message(...)`,

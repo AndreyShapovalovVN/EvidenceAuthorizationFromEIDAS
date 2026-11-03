@@ -6,6 +6,7 @@ import re
 from fastapi import HTTPException
 from oots_lib.import_env import import_env
 from oots_lib.lib.UseRedis import UseRedisAsync
+from oots_lib.models.Person import Person
 from pyRegRep4.RIMParsing import Parsing  # type: ignore
 from pyRegRep4.utils import deep_get
 
@@ -56,6 +57,27 @@ def _get_content(edm_payload: dict) -> dict:
             detail="EDM content not found in Redis for key",
         )
     return Parsing(content).serialize()
+
+
+def request_person_identifier(edm_payload) -> str | None:
+    """Read the evidence subject's identifier from the incoming EDM."""
+    if isinstance(edm_payload, list):
+        edm_payload = edm_payload[0] if edm_payload else None
+    if not isinstance(edm_payload, dict) or not (
+        edm_payload.get("content2") or edm_payload.get("content")
+    ):
+        return None
+    try:
+        edm = _get_content(edm_payload)
+        person_xml = deep_get(edm, "query", "NaturalPerson", default=None)
+        if person_xml is None:
+            return None
+        person = Person()
+        person.xml = person_xml
+        return person.identifier.value if person.identifier else None
+    except Exception:
+        _logger.warning("Cannot read NaturalPerson identifier from request EDM")
+        return None
 
 
 async def resolve_url(
