@@ -9,6 +9,8 @@ from urllib.parse import parse_qs
 from lxml import etree
 from oots_lib.models.Base import Base, MainBase
 
+from lib.eidas_assurance_mapping import map_eidas_assurance
+
 
 class SimpleResponseError(ValueError):
     """Raised when a SimpleResponse payload cannot be parsed."""
@@ -285,13 +287,15 @@ def parse_response(raw_body: str) -> SimpleResponse:
 
     return SimpleResponse(
         attribute_list=al,
-        authentication_context_class=str(
-            _pick(
-                response,
-                "authentication_context_class",
-                "authenticationContextClass",
-                "AuthnContextClassRef",
-                default="",
+        authentication_context_class=map_eidas_assurance(
+            str(
+                _pick(
+                    response,
+                    "authentication_context_class",
+                    "authenticationContextClass",
+                    "AuthnContextClassRef",
+                    default="",
+                )
             )
         ),
         created_on=_parse_datetime(

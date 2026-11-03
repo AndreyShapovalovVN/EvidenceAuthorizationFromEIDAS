@@ -82,6 +82,32 @@
     outline-offset: 4px;
 }
 
+.login-error {
+    margin: 0 0 24px;
+    padding: 14px;
+    border: 1px solid #a34c4c;
+    border-radius: 10px;
+    background: #371e2a;
+    color: #ffbaba;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.cancel-form {
+    margin-top: 24px;
+}
+
+.cancel-button {
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+}
+
+.cancel-button:hover {
+    border-color: var(--muted);
+    color: var(--text);
+}
+
 .login-hint {
     margin: 18px 0 0;
     color: var(--muted);

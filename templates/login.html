@@ -17,6 +17,9 @@
     </div>
     <h1 id="login-title">Підтвердьте свою особу</h1>
     <p class="login-description" id="login-description">Скористайтеся електронним посвідченням своєї країни для входу через eIDAS.</p>
+    {% if assurance_rejected %}
+    <p class="login-error" role="alert">Отриманий рівень довіри (Level of Assurance) не підходить для продовження. Спробуйте увійти через eIDAS з іншим засобом електронної ідентифікації або відмовтеся від авторизації.</p>
+    {% endif %}
     <a id="eidas-login-btn" class="login-button" href="/auth/eidas/start/{{ message_id }}" aria-describedby="login-description login-hint">
         <span>Увійти через eIDAS</span>
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -24,6 +27,9 @@
         </svg>
     </a>
     <p class="login-hint" id="login-hint">Вас буде перенаправлено до сервісу електронної ідентифікації.</p>
+    <form class="cancel-form" method="post" action="/auth/eidas/cancel/{{ message_id }}?token={{ cancel_token }}">
+        <button class="cancel-button" type="submit">Відмовитися від авторизації</button>
+    </form>
 </main>
 </body>
 </html>

@@ -18,6 +18,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from lib.action_token import issue_action_token, verify_action_token
 from lib.eidas_sp_service import (
     EIDAS_SPECIFIC_CONNECTOR_URL,
+    cancel_eidas_authorization,
     prepare_eidas_redirect,
     process_eidas_callback,
 )
@@ -212,6 +213,8 @@ async def root(request: Request, message_id: UUID):
         "login.html",
         {
             "message_id": message_id_str,
+            "assurance_rejected": request.query_params.get("assurance") == "rejected",
+            "cancel_token": issue_action_token(message_id_str, "auth-cancel"),
         },
     )
 
@@ -278,16 +281,43 @@ async def eidas_start(request: Request, message_id: UUID):
 )
 async def eidas_callback(request: Request):
     """Крок 2: прийняти SimpleResponse від Specific Connector (guide §12.4),
-    перевірити дозволені рівні LoA, зберегти Person та перейти на preview."""
-    message_id = await process_eidas_callback(
+    перевірити LoA та повернути до входу або зберегти Person і перейти на preview."""
+    result = await process_eidas_callback(
         request,
         get_redis_client(),
         queue_outgoing=QUEUE_OUTGOING,
         keys=KEYS,
         logger=_logger,
     )
-    # Callback is POST-based; 303 ensures the browser follows with GET /preview/{id}.
-    return RedirectResponse(url=f"/preview/{message_id}", status_code=303)
+    if result.assurance_rejected:
+        return RedirectResponse(
+            url=f"/auth/{result.message_id}?assurance=rejected", status_code=303
+        )
+    # Callback is POST-based; 303 ensures the browser follows with GET.
+    return RedirectResponse(url=f"/preview/{result.message_id}", status_code=303)
+
+
+@app.post("/auth/eidas/cancel/{message_id}", tags=["eIDAS"])
+async def eidas_cancel(request: Request, message_id: UUID):
+    """Publish an authentication error only after the user explicitly declines."""
+    message_id_str = str(message_id)
+    _require_action_token(request, message_id_str, "auth-cancel")
+    client = get_redis_client()
+    if await client.get_from_redis(KEYS.get_request_edm(message_id_str)) is None:
+        raise HTTPException(status_code=400, detail="Invalid message_id: EDM not found")
+    if await client.get_from_redis(KEYS.get_request_person(message_id_str)) is not None:
+        raise HTTPException(status_code=409, detail="Authorization already completed")
+
+    await cancel_eidas_authorization(
+        client, message_id_str, queue_outgoing=QUEUE_OUTGOING, keys=KEYS
+    )
+    stored = await client.get_from_redis(KEYS.get_return_url(message_id_str))
+    returnurl = filter_returnurl(stored if isinstance(stored, str) else None)
+    if not returnurl:
+        returnurl = await _get_safe_returnurl(client, request, message_id_str)
+    return RedirectResponse(
+        url=returnurl or f"/preview/{message_id_str}", status_code=303
+    )
 
 
 async def _render_evidence_page(request: Request, message_id: str) -> HTMLResponse:

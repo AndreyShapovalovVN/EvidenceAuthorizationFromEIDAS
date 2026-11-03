@@ -4,8 +4,10 @@ import base64
 import json
 
 import pytest
+from lxml import etree
 
 import main
+from lib.action_token import issue_action_token
 
 MESSAGE_ID = "00000000-0000-0000-0000-000000000021"
 REQUEST_ID = "eidas-request-21"
@@ -34,7 +36,7 @@ def _configure_state(fake_redis_client, monkeypatch):
 
 
 @pytest.mark.parametrize("level", ["Low", "Substantial", "", None, "Unknown", "high"])
-def test_non_high_assurance_sends_edm_error_without_saving_person(
+def test_non_high_assurance_returns_to_login_without_publishing_error(
     client, fake_redis_client, monkeypatch, level
 ):
     _configure_state(fake_redis_client, monkeypatch)
@@ -45,19 +47,51 @@ def test_non_high_assurance_sends_edm_error_without_saving_person(
     response = client.post("/auth/eidas/callback", json=payload, follow_redirects=False)
 
     assert response.status_code == 303
-    assert response.headers["location"] == f"/preview/{MESSAGE_ID}"
+    assert response.headers["location"] == f"/auth/{MESSAGE_ID}?assurance=rejected"
     fake_redis_client.delete_from_redis.assert_awaited_once_with(
         main.KEYS.get_eidas_state_key(REQUEST_ID)
     )
+    fake_redis_client.save_to_redis.assert_not_awaited()
+    fake_redis_client.push_to_queue.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("letter", "expected_level"),
+    [("A", "low"), ("B", "low"), ("C", "substantial"), ("D", "substantial"), ("E", "high")],
+)
+def test_letter_assurance_is_mapped_before_validation_and_storage(
+    client, fake_redis_client, monkeypatch, letter, expected_level
+):
+    _configure_state(fake_redis_client, monkeypatch)
+    monkeypatch.setenv("EIDAS_SP_ALLOWED_LOA", expected_level)
+
+    response = client.post(
+        "/auth/eidas/callback", json=_response(letter), follow_redirects=False
+    )
+
+    assert response.status_code == 303
     fake_redis_client.save_to_redis.assert_awaited_once()
     key, saved = fake_redis_client.save_to_redis.await_args.args
-    assert key == main.KEYS.get_response_exp(MESSAGE_ID)
-    assert saved["exception"]["code"] == "EDM:ERR:0001"
-    assert saved["exception"]["message"] == "Validation Exception"
-    assert "Allowed level_of_assurance values: High" in saved["exception"]["detail"]
-    fake_redis_client.push_to_queue.assert_awaited_once_with(
-        main.QUEUE_OUTGOING, MESSAGE_ID
+    assert key == main.KEYS.get_request_person(MESSAGE_ID)
+    assert saved["level_of_assurance"] == expected_level
+    fake_redis_client.push_to_queue.assert_not_awaited()
+
+
+@pytest.mark.parametrize("letter", ["A", "B", "C", "D"])
+def test_mapped_assurance_is_rejected_when_not_allowed(
+    client, fake_redis_client, monkeypatch, letter
+):
+    _configure_state(fake_redis_client, monkeypatch)
+    monkeypatch.setenv("EIDAS_SP_ALLOWED_LOA", "high")
+
+    response = client.post(
+        "/auth/eidas/callback", json=_response(letter), follow_redirects=False
     )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/auth/{MESSAGE_ID}?assurance=rejected"
+    fake_redis_client.save_to_redis.assert_not_awaited()
+    fake_redis_client.push_to_queue.assert_not_awaited()
 
 
 def test_high_assurance_saves_person_without_edm_error(
@@ -218,15 +252,13 @@ def test_failed_authentication_publishes_edm_error(
     )
 
 
-@pytest.mark.parametrize("failure", ["authentication", "assurance"])
 @pytest.mark.parametrize("operation", ["save_to_redis", "push_to_queue"])
 def test_error_publication_failure_returns_503(
-    client, fake_redis_client, monkeypatch, failure, operation
+    client, fake_redis_client, monkeypatch, operation
 ):
     _configure_state(fake_redis_client, monkeypatch)
     payload = _response("Low")
-    if failure == "authentication":
-        payload["response"]["status"] = {"status_code": "AuthnFailed"}
+    payload["response"]["status"] = {"status_code": "AuthnFailed"}
     getattr(fake_redis_client, operation).side_effect = RuntimeError(
         "Redis unavailable"
     )
@@ -239,3 +271,134 @@ def test_error_publication_failure_returns_503(
         fake_redis_client.push_to_queue.assert_not_awaited()
     else:
         fake_redis_client.push_to_queue.assert_awaited_once()
+
+
+def _configure_login_state(fake_redis_client, monkeypatch, returnurl=None):
+    _configure_state(fake_redis_client, monkeypatch)
+    monkeypatch.setenv("EIDAS_SP_ALLOWED_LOA", "high")
+    stored = {
+        main.KEYS.get_request_edm(MESSAGE_ID): {"some": "edm"},
+        main.KEYS.get_eidas_state_key(REQUEST_ID): {"message_id": MESSAGE_ID},
+    }
+    if returnurl:
+        stored[main.KEYS.get_return_url(MESSAGE_ID)] = returnurl
+    fake_redis_client.get_from_redis.side_effect = stored.get
+    fake_redis_client.save_to_redis.side_effect = stored.__setitem__
+    fake_redis_client.delete_from_redis.side_effect = lambda key: stored.pop(key, None)
+    return stored
+
+
+def test_rejected_assurance_shows_login_and_allows_successful_retry(
+    client, fake_redis_client, monkeypatch
+):
+    stored = _configure_login_state(fake_redis_client, monkeypatch)
+
+    rejected = client.post("/auth/eidas/callback", json=_response("A"))
+
+    assert rejected.status_code == 200
+    assert rejected.url.path == f"/auth/{MESSAGE_ID}"
+    page = etree.HTML(rejected.text)
+    assert "не підходить для продовження" in page.xpath('string(//*[@role="alert"])')
+    assert page.xpath('//*[@id="eidas-login-btn"]/@href') == [
+        f"/auth/eidas/start/{MESSAGE_ID}"
+    ]
+    assert "Відмовитися від авторизації" in page.xpath("string(//form/button)")
+    assert main.KEYS.get_eidas_state_key(REQUEST_ID) not in stored
+    fake_redis_client.save_to_redis.assert_not_awaited()
+    fake_redis_client.push_to_queue.assert_not_awaited()
+
+    retry = client.get(f"/auth/eidas/start/{MESSAGE_ID}")
+    retry_page = etree.HTML(retry.text)
+    encoded = retry_page.xpath('//input[@name="SMSSPRequest"]/@value')[0]
+    request_id = json.loads(base64.b64decode(encoded))["authentication_request"]["id"]
+    payload = _response("E")
+    payload["response"]["inresponse_to"] = request_id
+
+    accepted = client.post("/auth/eidas/callback", json=payload, follow_redirects=False)
+
+    assert accepted.status_code == 303
+    assert accepted.headers["location"] == f"/preview/{MESSAGE_ID}"
+    assert stored[main.KEYS.get_request_person(MESSAGE_ID)]["level_of_assurance"] == "high"
+    assert main.KEYS.get_response_exp(MESSAGE_ID) not in stored
+
+
+@pytest.mark.parametrize("rejected", [False, True])
+@pytest.mark.parametrize("returnurl", [None, "https://example.com/callback"])
+def test_explicit_decline_publishes_error_and_returns_to_caller(
+    client, fake_redis_client, monkeypatch, rejected, returnurl
+):
+    stored = _configure_login_state(fake_redis_client, monkeypatch, returnurl)
+    if rejected:
+        login = client.post("/auth/eidas/callback", json=_response("A"))
+    else:
+        login = client.get(f"/auth/{MESSAGE_ID}")
+        assert not etree.HTML(login.text).xpath('//*[@role="alert"]')
+    page = etree.HTML(login.text)
+    cancel_url = page.xpath("//form/@action")[0]
+    assert main.KEYS.get_response_exp(MESSAGE_ID) not in stored
+    fake_redis_client.push_to_queue.assert_not_awaited()
+
+    response = client.post(cancel_url, follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == (returnurl or f"/preview/{MESSAGE_ID}")
+    assert stored[main.KEYS.get_response_exp(MESSAGE_ID)] == {
+        "exception": {
+            "code": "EDM:ERR:0001",
+            "message": "Failed Authentication",
+            "detail": "The user declined eIDAS authorization.",
+            "preview_link": None,
+        }
+    }
+    assert main.KEYS.get_request_person(MESSAGE_ID) not in stored
+    fake_redis_client.push_to_queue.assert_awaited_once_with(main.QUEUE_OUTGOING, MESSAGE_ID)
+
+
+@pytest.mark.parametrize(
+    "token",
+    [None, "invalid", issue_action_token(MESSAGE_ID, "preview-continue")],
+)
+def test_decline_requires_action_token(client, fake_redis_client, monkeypatch, token):
+    _configure_login_state(fake_redis_client, monkeypatch)
+    response = client.post(
+        f"/auth/eidas/cancel/{MESSAGE_ID}",
+        params={"token": token} if token else {},
+        follow_redirects=False,
+    )
+    assert response.status_code == 403
+    fake_redis_client.save_to_redis.assert_not_awaited()
+    fake_redis_client.push_to_queue.assert_not_awaited()
+
+
+@pytest.mark.parametrize("case,status", [("missing-edm", 400), ("authorized", 409)])
+def test_decline_rejects_invalid_or_completed_authorization(
+    client, fake_redis_client, monkeypatch, case, status
+):
+    stored = _configure_login_state(fake_redis_client, monkeypatch)
+    if case == "missing-edm":
+        stored.pop(main.KEYS.get_request_edm(MESSAGE_ID))
+    else:
+        stored[main.KEYS.get_request_person(MESSAGE_ID)] = {"identifier": "person"}
+    response = client.post(
+        f"/auth/eidas/cancel/{MESSAGE_ID}",
+        params={"token": issue_action_token(MESSAGE_ID, "auth-cancel")},
+        follow_redirects=False,
+    )
+    assert response.status_code == status
+    fake_redis_client.save_to_redis.assert_not_awaited()
+    fake_redis_client.push_to_queue.assert_not_awaited()
+
+
+@pytest.mark.parametrize("operation", ["save_to_redis", "push_to_queue"])
+def test_decline_does_not_redirect_when_error_publication_fails(
+    client, fake_redis_client, monkeypatch, operation
+):
+    _configure_login_state(fake_redis_client, monkeypatch)
+    getattr(fake_redis_client, operation).side_effect = RuntimeError("Redis unavailable")
+    response = client.post(
+        f"/auth/eidas/cancel/{MESSAGE_ID}",
+        params={"token": issue_action_token(MESSAGE_ID, "auth-cancel")},
+        follow_redirects=False,
+    )
+    assert response.status_code == 503
+    assert "location" not in response.headers
