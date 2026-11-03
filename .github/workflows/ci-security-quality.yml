@@ -45,7 +45,7 @@ jobs:
         run: uv run --no-sync  pytest --maxfail=2 --disable-warnings --ignore-glob='tests/~*.py' # NOSONAR
 
       - name: Test preview browser lifecycle
-        run: node --test tests/test_preview_lifecycle.js
+        run: node --test tests/test_preview_lifecycle.js tests/test_evidences.js
 
   gitleaks:
     name: Gitleaks Secret Scan

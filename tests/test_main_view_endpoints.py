@@ -366,6 +366,8 @@ def test_view_renders_pdf_in_unified_viewer(client, fake_redis_client, monkeypat
     assert response.status_code == 200
     assert "Evidences" in response.text
     assert "HumanReadableVersion" in response.text
+    assert 'id="downloadPdf"' in response.text
+    assert "Download PDF" in response.text
     assert "/static/evidences.js" in response.text
 
 

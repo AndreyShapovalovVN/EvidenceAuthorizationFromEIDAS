@@ -188,6 +188,27 @@ button:focus {
     height: 16px;
 }
 
+.download-pdf {
+    display: inline-block;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #0d1729;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.download-pdf[hidden] {
+    display: none;
+}
+
+.download-pdf:hover,
+.download-pdf:focus-visible {
+    outline: 2px solid #315ca9;
+    outline-offset: 1px;
+}
+
 .viewer-meta {
     margin-bottom: 8px;
     font-size: 12px;

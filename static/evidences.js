@@ -11,6 +11,7 @@
     const textViewer = document.getElementById("textViewer");
     const emptyViewer = document.getElementById("emptyViewer");
     const viewerMeta = document.getElementById("viewerMeta");
+    const downloadPdf = document.getElementById("downloadPdf");
     const submitBtn = document.getElementById("submitBtn");
     const resultMessage = document.getElementById("resultMessage");
     let activeEvidenceIndex = 0;
@@ -53,14 +54,23 @@
             return String(rawContent);
         }
     }
-    function setViewerState(content) {
-        const isPdf = content.content_type === "application/pdf" && typeof content.content === "string";
+    function setViewerState(content, evidenceTitle) {
+        const isPdf = content.content_type === "application/pdf"
+            && typeof content.content === "string" && content.content.trim() !== "";
+        downloadPdf.hidden = true;
+        downloadPdf.removeAttribute("href");
+        downloadPdf.removeAttribute("download");
         const cid = content.cid ? `CID: ${content.cid}` : "CID: n/a";
         const type = content.content_type || "unknown";
         const node = content.classification_node || "Unknown";
         viewerMeta.textContent = `${node} | ${type} | ${cid}`;
         if (isPdf) {
             pdfViewer.src = `data:application/pdf;base64,${content.content}`;
+            const filename = String(evidenceTitle || "evidence")
+                .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").trim() || "evidence";
+            downloadPdf.href = pdfViewer.src;
+            downloadPdf.download = /\.pdf$/i.test(filename) ? filename : `${filename}.pdf`;
+            downloadPdf.hidden = false;
             pdfViewer.style.display = "block";
             textViewer.style.display = "none";
             emptyViewer.style.display = "none";
@@ -95,7 +105,7 @@
         }
         activeEvidenceIndex = evidenceIndex;
         refreshActiveButtons();
-        setViewerState(content);
+        setViewerState(content, evidence.title);
     }
     evidenceButtons.forEach((button) => {
         button.addEventListener("click", () => {
