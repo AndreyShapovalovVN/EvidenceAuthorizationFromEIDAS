@@ -17,7 +17,7 @@
 
 - `GET /preview/{message_id}` показує `evidences.html`, якщо документи готові, або `view_waiting.html`.
 - `GET /preview/progress/{message_id}` повертає прогрес та одноразово ставить `message_id` у `process_queue` з EDM.
-- `POST /preview/continue` зберігає погодження документів і ставить `message_id` у `QUEUE_OUTCOMING`. Якщо жоден evidence не має `permit=true`, перед публікацією зберігає `EDM:ERR:0002` у `response:exp`.
+- `POST /preview/continue` зберігає погодження документів і ставить `message_id` у `QUEUE_OUTCOMING`. Якщо жоден evidence не має `permit=true`, помилка не створюється: відправник формує відповідь із порожнім `RegistryObjectList`.
 - `POST /preview/timeout/{message_id}` зберігає `EDM:ERR:0005` і ставить `message_id` у `QUEUE_OUTCOMING`. Викликається при спливанні `EVIDENCE_TIMEOUT` на сторінці очікування та перегляду; `?reason=closed` використовується при закритті вікна. Завершені погодження та наявні помилки не перезаписуються.
 
 Закриття повідомляється браузером через `pagehide` і `fetch(..., keepalive=true)`. Примусове завершення браузера або відсутність мережі можуть завадити доставці; гарантоване виявлення таких випадків потребує серверного контролю терміну очікування.

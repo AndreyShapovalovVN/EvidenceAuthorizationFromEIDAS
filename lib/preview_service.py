@@ -224,26 +224,11 @@ async def _publish_approvals(
     queue_outgoing: str,
 ) -> None:
     evidence_key = keys.get_response_evidence(message_id)
-    evidences = json_data.get("evidences") or []
-
     json_data["preview"] = False
 
+    # Unapproved evidence is omitted by the sender, yielding an empty result
+    # when the user declines all evidence.
     await client.save_to_redis(evidence_key, json_data)
-    if not any(
-        isinstance(evidence, dict) and evidence.get("permit") is True
-        for evidence in evidences
-    ):
-        await client.save_to_redis(
-            keys.get_response_exp(message_id),
-            {
-                "exception": {
-                    "code": "EDM:ERR:0002",
-                    "message": "No evidence approved",
-                    "detail": f"No evidence approved for message_id={message_id}",
-                    "preview_link": None,
-                }
-            },
-        )
     await client.push_to_queue(queue_outgoing, message_id)
     await client.set_flag(keys.get_approvals_dispatched_key(message_id), True)
 

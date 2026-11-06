@@ -723,7 +723,7 @@ def test_view_timeout_records_edm_error_and_pushes_queue(
         ([{"cid": "doc", "permit": True}], {}, False),
     ],
 )
-def test_continue_view_error_depends_on_effective_evidence_permits(
+def test_continue_view_publishes_effective_permits_without_error(
     client, fake_redis_client, monkeypatch, evidences, approvals, denied
 ):
     message_id = "msg-denied"
@@ -741,9 +741,9 @@ def test_continue_view_error_depends_on_effective_evidence_permits(
             for call in saves
             if call.args[0] == Keys().get_response_exp(message_id)
         ]
-        assert bool(errors) is denied
-        if denied:
-            assert errors[0]["exception"]["code"] == "EDM:ERR:0002"
+        assert not errors
+        saved_evidences = saves[0].args[1]["evidences"]
+        assert (not any(evidence.get("permit") is True for evidence in saved_evidences)) is denied
 
     fake_redis_client.push_to_queue.side_effect = check_result_before_publish
     response = client.post(
@@ -780,6 +780,7 @@ def test_preview_close_records_0005(client, fake_redis_client, monkeypatch):
         {"exception": {"code": "EDM:ERR:0002"}},
         {"exception": {"code": "EDM:ERR:0005"}},
         {"preview": False, "evidences": [{"cid": "doc", "permit": True}]},
+        {"preview": False, "evidences": [{"cid": "doc", "permit": False}]},
     ],
 )
 def test_late_preview_termination_preserves_result(
